@@ -1,0 +1,25 @@
+{
+  "name": "solful-booking",
+  "version": "1.0.0",
+  "description": "Solful Kinesiology Booking System",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "messagebird": "^3.8.0",
+    "nodemailer": "^6.9.13",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "db:migrate": "node lib/migrate.js"
+  }
+}

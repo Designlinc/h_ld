@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intake Form - Solful Kinesiology</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --sage:       #3D6B5C;
+    --sage-mid:   #4E8A72;
+    --sage-light: #E8F0ED;
+    --sage-pale:  #F2F7F5;
+    --amber:      #D4831A;
+    --amber-pale: #FDF3E3;
+    --red:        #C0392B;
+    --red-pale:   #FDECEA;
+    --ink:        #1A2520;
+    --ink-mid:    #4A5C56;
+    --ink-soft:   #7A8C86;
+    --border:     #DDE6E2;
+    --bg:         #F4F8F6;
+    --white:      #FFFFFF;
+    --radius:     12px;
+    --radius-lg:  18px;
+    --shadow-sm:  0 1px 3px rgba(0,0,0,.06);
+    --shadow-md:  0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg:  0 8px 32px rgba(0,0,0,.10);
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* Header */
+  .page-header {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px;
+    text-align: center;
+  }
+  .page-header img { height: 36px; margin-bottom: 12px; display: block; margin: 0 auto 12px; }
+  .page-header h1 { font-size: 20px; font-weight: 700; color: var(--ink); }
+  .page-header p { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* Booking card */
+  .booking-card {
+    background: var(--sage-pale);
+    border: 1px solid var(--sage-light);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 20px auto;
+    max-width: 600px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .booking-card-icon { font-size: 28px; flex-shrink: 0; }
+  .booking-card-info { flex: 1; }
+  .booking-card-service { font-weight: 600; font-size: 15px; color: var(--ink); }
+  .booking-card-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Form container */
+  .form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 16px 40px;
+  }
+
+  /* Intake form fields */
+  .intake-section { margin-bottom: 28px; }
+  .intake-section-title {
+    font-size: 15px; font-weight: 600; color: var(--ink);
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+  .form-label .required { color: var(--red); margin-left: 2px; }
+  textarea.form-input {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit; font-size: 14px;
+    color: var(--ink); background: var(--white);
+    resize: vertical; min-height: 80px;
+    outline: none; transition: border-color .15s;
+  }
+  textarea.form-input:focus { border-color: var(--sage-mid); }
+
+  /* Radio group */
+  .radio-group { display: flex; flex-direction: column; gap: 8px; }
+  .radio-opt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: var(--radius); cursor: pointer;
+    background: var(--white); transition: border-color .15s, background .15s;
+    user-select: none;
+  }
+  .radio-opt:hover { border-color: var(--sage-mid); background: var(--sage-pale); }
+  .radio-opt.selected { border-color: var(--sage); background: var(--sage-pale); }
+  .radio-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s, background .15s;
+  }
+  .radio-opt.selected .radio-dot { border-color: var(--sage); background: var(--sage); }
+  .radio-opt.selected .radio-dot::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .radio-label { font-size: 13px; font-weight: 500; color: var(--ink); }
+
+  /* Checkbox (multiple choice) — same shell as radio, square indicator */
+  .checkbox-opt { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; background: var(--white); transition: border-color .15s, background .15s; user-select: none; }
+  .checkbox-opt:hover { border-color: var(--sage-mid); background: var(--sage-pale); }
+  .checkbox-opt.selected { border-color: var(--sage); background: var(--sage-pale); }
+  .checkbox-box { width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: border-color .15s, background .15s; }
+  .checkbox-opt.selected .checkbox-box { border-color: var(--sage); background: var(--sage); }
+  .checkbox-opt.selected .checkbox-box::after { content: ''; width: 8px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+
+  /* Dropdown */
+  select.form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: inherit; font-size: 14px; color: var(--ink); background: var(--white); outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237A8C86' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; transition: border-color .15s; }
+  select.form-input:focus { border-color: var(--sage-mid); }
+
+  /* Image selection grid */
+  .image-choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .image-choice-opt { border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; background: var(--white); transition: border-color .15s; user-select: none; }
+  .image-choice-opt:hover { border-color: var(--sage-mid); }
+  .image-choice-opt.selected { border-color: var(--sage); box-shadow: 0 0 0 1px var(--sage); }
+  .image-choice-opt img { width: 100%; height: 90px; object-fit: cover; display: block; background: var(--sage-pale); }
+  .image-choice-opt-label { padding: 8px 10px; font-size: 12px; font-weight: 500; color: var(--ink); text-align: center; }
+
+  /* Opinion scale */
+  .scale-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .scale-btn { flex: 1; min-width: 36px; padding: 10px 4px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--white); font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink-mid); cursor: pointer; transition: all .15s; text-align: center; }
+  .scale-btn:hover { border-color: var(--sage-mid); }
+  .scale-btn.selected { border-color: var(--sage); background: var(--sage); color: #fff; }
+  .scale-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--ink-soft); }
+  .scale-emoji-btn { font-size: 26px; background: none; border: none; cursor: pointer; opacity: .35; transition: opacity .15s, transform .15s; padding: 4px; }
+  .scale-emoji-btn:hover { opacity: .7; }
+  .scale-emoji-btn.selected { opacity: 1; transform: scale(1.2); }
+
+  /* Star rating */
+  .star-row { display: flex; gap: 4px; }
+  .star-btn { background: none; border: none; cursor: pointer; padding: 2px; color: var(--border); transition: color .15s, transform .1s; }
+  .star-btn:hover { transform: scale(1.1); }
+  .star-btn.selected, .star-btn.hover-fill { color: var(--amber); }
+
+  /* General text block */
+  .intake-paragraph { font-size: 13px; color: var(--ink-mid); line-height: 1.6; margin-bottom: 16px; }
+
+  /* Divider */
+  .intake-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* Body map */
+  .body-map-outer {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    flex: 1; min-width: 200px;
+  }
+  .body-map-view-label { font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .5px; }
+  .body-map-wrap {
+    position: relative; cursor: crosshair;
+    border-radius: var(--radius); overflow: hidden;
+    border: 1.5px solid var(--border);
+    background: var(--white);
+  }
+  .body-map-img { display: block; width: 192px; height: auto; pointer-events: none; }
+  .body-map-dot {
+    position: absolute; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--sage); color: #fff; font-size: 9px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    transform: translate(-50%,-50%); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    transition: transform .15s;
+  }
+  .body-map-dot:hover { transform: translate(-50%,-50%) scale(1.15); }
+  .body-map-dot.has-note { background: var(--amber); }
+  .body-map-legend { width: 100%; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--sage); color: #fff; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .legend-num.amber { background: var(--amber); }
+  .legend-del {
+    background: none; border: none; cursor: pointer; color: var(--ink-soft);
+    font-size: 14px; padding: 0 4px; flex-shrink: 0;
+  }
+  .legend-del:hover { color: var(--red); }
+
+  /* Submit button */
+  .btn-submit {
+    display: block; width: 100%; padding: 14px;
+    background: var(--sage); color: #fff;
+    border: none; border-radius: var(--radius);
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 24px;
+    transition: background .15s;
+  }
+  .btn-submit:hover { background: var(--sage-mid); }
+  .btn-submit:disabled { opacity: .6; cursor: default; }
+
+  /* States */
+  .loading-state, .error-state, .success-state {
+    text-align: center; padding: 60px 20px; max-width: 400px; margin: 0 auto;
+  }
+  .loading-state .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border);
+    border-top-color: var(--sage); border-radius: 50%;
+    animation: spin .8s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .success-icon { font-size: 48px; margin-bottom: 16px; }
+  .state-title { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .state-sub { font-size: 14px; color: var(--ink-soft); }
+  .error-icon { font-size: 48px; margin-bottom: 16px; }
+
+  /* Toast */
+  #toast-container { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast { background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 24px; font-size: 13px; font-weight: 500; animation: fadeup .3s ease; box-shadow: var(--shadow-md); white-space: nowrap; }
+  .toast.success { background: var(--sage); }
+  .toast.error { background: var(--red); }
+  @keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* View-only mode */
+  .view-mode textarea.form-input { background: var(--sage-pale); cursor: default; }
+  .view-mode .radio-opt { cursor: default; }
+  .view-mode .body-map-wrap { cursor: default; }
+  .view-banner {
+    background: var(--amber-pale); border: 1px solid var(--amber);
+    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px;
+    font-size: 13px; color: var(--amber); font-weight: 500; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <img src="https://soulful-booking.vercel.app/logo.png" alt="Solful Kinesiology">
+  <h1 id="page-title">Client Intake Form</h1>
+  <p id="page-sub">Please complete this form before your appointment</p>
+</div>
+
+<div id="loading-state" class="loading-state">
+  <div class="spinner"></div>
+  <div class="state-title">Loading your form&hellip;</div>
+</div>
+
+<div id="error-state" class="error-state" style="display:none">
+  <div class="error-icon">&#x26A0;&#xFE0F;</div>
+  <div class="state-title">Link not valid</div>
+  <div class="state-sub" id="error-msg">This intake form link has expired or is invalid.</div>
+</div>
+
+<div id="success-state" class="success-state" style="display:none">
+  <div class="success-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#3D6B5C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="72" height="72"><circle cx="12" cy="12" r="10"/><polyline points="7 12 10.5 15.5 17 9"/></svg>
+  </div>
+  <div class="state-title">Form submitted!</div>
+  <div class="state-sub">Thank you &mdash; we&rsquo;ve received your intake form and will review it before your appointment.</div>
+</div>
+
+<div id="main-content" style="display:none">
+  <div class="booking-card">
+    <div class="booking-card-icon">&#x1F4C5;</div>
+    <div class="booking-card-info">
+      <div class="booking-card-service" id="bc-service">Loading&hellip;</div>
+      <div class="booking-card-meta" id="bc-meta"></div>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <div id="view-banner" class="view-banner" style="display:none">
+      &#x1F441;&#xFE0F; Viewing submitted intake form (read only)
+    </div>
+    <div id="intake-form-body"></div>
+    <button class="btn-submit" id="submit-btn" onclick="submitIntake()">Submit Intake Form</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API_BASE = window.location.origin + '/api';
+
+// ── Helpers ──
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+function formatTime12(t) {
+  if (!t) return '';
+  let s = typeof t === 'string' && t.startsWith('"') ? JSON.parse(t) : t;
+  s = s.slice(0, 5);
+  const [h, m] = s.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')}${h < 12 ? 'am' : 'pm'}`;
+}
+function fmtDate(raw) {
+  const d = new Date((raw || '').slice(0,10) + 'T00:00:00');
+  return d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+function showError(msg) {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('error-state').style.display = '';
+  if (msg) document.getElementById('error-msg').textContent = msg;
+}
+function showSuccess() {
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('success-state').style.display = '';
+}
+
+// ── Body map state ──
+const bodyMapDots = {};
+let dotCounter = 0;
+
+function addBodyDot(e, mapId) {
+  if (viewMode) return;
+  if (e.target.classList.contains('body-map-dot')) return;
+  const wrap = document.getElementById(mapId);
+  const img = wrap.querySelector('.body-map-img');
+  const rect = img.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+  const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
+  if (parseFloat(x) < 0 || parseFloat(x) > 100 || parseFloat(y) < 0 || parseFloat(y) > 100) return;
+  dotCounter++;
+  const dotData = { x, y, note: '', num: dotCounter, mapId };
+  if (!bodyMapDots[mapId]) bodyMapDots[mapId] = [];
+  bodyMapDots[mapId].push(dotData);
+  renderBodyDot(wrap, dotData);
+  updateBodyMapLegend(mapId);
+}
+
+function renderBodyDot(wrap, dotData) {
+  const existing = wrap.querySelector('.body-map-dot[data-num="' + dotData.num + '"]');
+  if (existing) existing.remove();
+  const dot = document.createElement('div');
+  dot.className = 'body-map-dot' + (dotData.note ? ' has-note' : '');
+  dot.setAttribute('data-num', dotData.num);
+  dot.textContent = dotData.num;
+  dot.style.left = dotData.x + '%';
+  dot.style.top = dotData.y + '%';
+  dot.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!viewMode) removeDotByNum(dotData.mapId, dotData.num);
+  });
+  wrap.appendChild(dot);
+}
+
+function removeDotByNum(mapId, num) {
+  if (viewMode) return;
+  const wrap = document.getElementById(mapId);
+  const dot = wrap ? wrap.querySelector('.body-map-dot[data-num="' + num + '"]') : null;
+  if (dot) dot.remove();
+  if (bodyMapDots[mapId]) bodyMapDots[mapId] = bodyMapDots[mapId].filter(d => d.num !== num);
+  updateBodyMapLegend(mapId);
+}
+
+function updateDotNote(mapId, num, note) {
+  const dots = bodyMapDots[mapId] || [];
+  const d = dots.find(x => x.num === num);
+  if (d) {
+    d.note = note;
+    // Update dot colour without re-rendering legend (avoids losing focus)
+    const wrap = document.getElementById(mapId);
+    if (wrap) {
+      const dot = wrap.querySelector('.body-map-dot[data-num="' + num + '"]');
+      if (dot) dot.classList.toggle('has-note', !!note);
+    }
+  }
+}
+
+function updateBodyMapLegend(mapId) {
+  const legend = document.getElementById('legend-' + mapId);
+  if (!legend) return;
+  const dots = bodyMapDots[mapId] || [];
+  if (!dots.length) { legend.innerHTML = ''; return; }
+  legend.innerHTML = dots.map(d =>
+    '<div class="legend-item" id="legend-item-' + mapId + '-' + d.num + '">' +
+      '<div class="legend-num' + (d.note ? ' amber' : '') + '">' + d.num + '</div>' +
+      '<input id="legend-input-' + mapId + '-' + d.num + '" type="text" ' +
+        'value="' + (d.note || '') + '" placeholder="Describe this area\u2026" ' +
+        (viewMode ? 'readonly ' : '') +
+        'style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;outline:none;" ' +
+        'oninput="updateDotNote(\'' + mapId + '\',' + d.num + ',this.value)" ' +
+        'onfocus="this.style.borderColor=\'var(--sage)\'" ' +
+        'onblur="this.style.borderColor=\'var(--border)\'">' +
+      (viewMode ? '' : '<button class="legend-del" onclick="removeDotByNum(\'' + mapId + '\',' + d.num + ')" title="Remove">&#x2715;</button>') +
+    '</div>'
+  ).join('');
+}
+
+function selectRadio(groupId, el) {
+  if (viewMode) return;
+  document.querySelectorAll('#' + groupId + ' .radio-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function toggleCheckbox(el) {
+  if (viewMode) return;
+  el.classList.toggle('selected');
+}
+
+function selectImageChoice(groupId, el, multi) {
+  if (viewMode) return;
+  if (!multi) {
+    document.querySelectorAll('#' + groupId + ' .image-choice-opt').forEach(o => o.classList.remove('selected'));
+  }
+  el.classList.toggle('selected');
+}
+
+function selectScale(groupId, el, value) {
+  if (viewMode) return;
+  document.querySelectorAll('#' + groupId + ' .scale-btn, #' + groupId + ' .scale-emoji-btn').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  el.dataset.value = value;
+  document.getElementById(groupId).dataset.selected = value;
+}
+
+function selectStar(groupId, value, maxStars) {
+  if (viewMode) return;
+  const wrap = document.getElementById(groupId);
+  wrap.dataset.selected = value;
+  wrap.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.classList.toggle('selected', i < value);
+    btn.innerHTML = i < value
+      ? '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" width="26" height="26"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="26" height="26"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+  });
+}
+
+// ── Data ──
+let booking = null;
+let forms = [];
+let viewMode = false;
+let currentForm = null;
+
+async function init() {
+  const bookingId = getParam('booking');
+  viewMode = getParam('view') === '1';
+
+  if (!bookingId) { showError('No booking ID specified.'); return; }
+
+  try {
+    // Load booking
+    const bRes = await fetch(API_BASE + '/bookings/' + bookingId);
+    if (!bRes.ok) { showError('Booking not found or link has expired.'); return; }
+    booking = await bRes.json();
+
+    // Load forms from settings
+    const sRes = await fetch(API_BASE + '/settings');
+    const settings = await sRes.json();
+    forms = settings.intake_forms || [];
+
+    // Find matching form: exact service match first, then catch-all
+    currentForm = forms.find(f => f.active && f.serviceId === booking.serviceId)
+                || forms.find(f => f.active && !f.serviceId)
+                || null;
+
+    // Populate booking card
+    const rawDate = (booking.date || '').slice(0, 10);
+    document.getElementById('bc-service').textContent = booking.service || 'Appointment';
+    document.getElementById('bc-meta').textContent = fmtDate(rawDate) + ' at ' + formatTime12(booking.time);
+
+    // Update page title
+    if (viewMode) {
+      document.getElementById('page-title').textContent = 'Intake Form Responses';
+      document.getElementById('page-sub').textContent = booking.client + ' — ' + booking.service;
+      document.getElementById('view-banner').style.display = '';
+      document.getElementById('submit-btn').style.display = 'none';
+      document.body.classList.add('view-mode');
+    }
+
+    // If already submitted and not view mode, show already-submitted message
+    if (booking.intakeSubmitted && !viewMode) {
+      document.getElementById('page-sub').textContent = 'You have already submitted your intake form.';
+    }
+
+    // Render form
+    renderForm(currentForm, booking.intakeResponses);
+
+    // Show main content
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('main-content').style.display = '';
+
+  } catch(err) {
+    console.error(err);
+    showError('Unable to load your intake form. Please try again later.');
+  }
+}
+
+function renderForm(form, responses) {
+  const el = document.getElementById('intake-form-body');
+
+  if (!form || !form.fields || !form.fields.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;font-size:14px;color:var(--ink-soft)">No intake form configured for this service. You can proceed to your appointment.</div>';
+    document.getElementById('submit-btn').style.display = 'none';
+    return;
+  }
+
+  el.innerHTML = form.fields.map(field => {
+    const savedVal = responses ? responses[field.id] : null;
+
+    if (field.type === 'section') {
+      return '<div class="intake-section"><div class="intake-section-title">' + field.label + '</div>';
+    }
+    if (field.type === 'text') {
+      return '<div class="form-group">' +
+        '<label class="form-label">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        '<textarea class="form-input" id="intake-' + field.id + '" placeholder="Your answer\u2026"' + (viewMode ? ' readonly' : '') + '>' + (savedVal || '') + '</textarea>' +
+        '</div>';
+    }
+    if (field.type === 'choice') {
+      if (field.multi) {
+        const savedArr = Array.isArray(savedVal) ? savedVal : [];
+        const opts = (field.options || []).map(o =>
+          '<div class="checkbox-opt' + (savedArr.includes(o) ? ' selected' : '') + '" onclick="toggleCheckbox(this)" data-value="' + o.replace(/"/g,'&quot;') + '">' +
+            '<div class="checkbox-box"></div>' +
+            '<span class="radio-label">' + o + '</span>' +
+          '</div>'
+        ).join('');
+        return '<div class="form-group">' +
+          '<label class="form-label" style="margin-bottom:10px">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+          '<div class="radio-group" id="rg-' + field.id + '">' + opts + '</div>' +
+          '</div>';
+      }
+      const opts = (field.options || []).map(o =>
+        '<div class="radio-opt' + (savedVal === o ? ' selected' : '') + '" onclick="selectRadio(\'rg-' + field.id + '\', this)">' +
+          '<div class="radio-dot"></div>' +
+          '<span class="radio-label">' + o + '</span>' +
+        '</div>'
+      ).join('');
+      return '<div class="form-group">' +
+        '<label class="form-label" style="margin-bottom:10px">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        '<div class="radio-group" id="rg-' + field.id + '">' + opts + '</div>' +
+        '</div>';
+    }
+    if (field.type === 'paragraph') {
+      return '<div class="intake-paragraph">' + (field.text || '') + '</div>';
+    }
+    if (field.type === 'divider') {
+      return '<hr class="intake-divider">';
+    }
+    if (field.type === 'dropdown') {
+      const opts = (field.options || []).map(o =>
+        '<option value="' + o.replace(/"/g,'&quot;') + '"' + (savedVal === o ? ' selected' : '') + '>' + o + '</option>'
+      ).join('');
+      return '<div class="form-group">' +
+        '<label class="form-label">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        '<select class="form-input" id="intake-' + field.id + '"' + (viewMode ? ' disabled' : '') + '>' +
+          '<option value="">Select an option\u2026</option>' + opts +
+        '</select>' +
+        '</div>';
+    }
+    if (field.type === 'imagechoice') {
+      const savedArr = Array.isArray(savedVal) ? savedVal : (savedVal ? [savedVal] : []);
+      const opts = (field.options || []).map((o, oi) =>
+        '<div class="image-choice-opt' + (savedArr.includes(o.label) ? ' selected' : '') + '" data-label="' + (o.label||'').replace(/"/g,'&quot;') + '" onclick="selectImageChoice(\'ig-' + field.id + '\', this, ' + (!!field.multi) + ')">' +
+          (o.image ? '<img src="' + o.image + '" alt="' + (o.label||'') + '">' : '<div style="height:90px;background:var(--sage-pale);display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:11px">No image</div>') +
+          '<div class="image-choice-opt-label">' + (o.label||'') + '</div>' +
+        '</div>'
+      ).join('');
+      return '<div class="form-group">' +
+        '<label class="form-label" style="margin-bottom:10px">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        '<div class="image-choice-grid" id="ig-' + field.id + '">' + opts + '</div>' +
+        '</div>';
+    }
+    if (field.type === 'scale') {
+      const groupId = 'sc-' + field.id;
+      let scaleHtml;
+      if (field.scaleStyle === 'emoji') {
+        const emojis = ['\u{1F61E}','\u{1F615}','\u{1F610}','\u{1F642}','\u{1F60A}'];
+        scaleHtml = '<div class="scale-row" style="justify-content:space-between">' +
+          emojis.map((e, i) => {
+            const val = i + 1;
+            const sel = savedVal == val ? ' selected' : '';
+            return '<button type="button" class="scale-emoji-btn' + sel + '" data-value="' + val + '" onclick="selectScale(\'' + groupId + '\', this, ' + val + ')">' + e + '</button>';
+          }).join('') +
+        '</div>';
+      } else {
+        const min = field.min ?? 1, max = field.max ?? 10;
+        let buttons = '';
+        for (let v = min; v <= max; v++) {
+          const label = field.scaleStyle === 'text' ? '' : v;
+          const sel = savedVal == v ? ' selected' : '';
+          buttons += '<button type="button" class="scale-btn' + sel + '" data-value="' + v + '" onclick="selectScale(\'' + groupId + '\', this, ' + v + ')">' + (label || v) + '</button>';
+        }
+        scaleHtml = '<div class="scale-row">' + buttons + '</div>';
+      }
+      const labels = (field.minLabel || field.maxLabel)
+        ? '<div class="scale-labels"><span>' + (field.minLabel||'') + '</span><span>' + (field.maxLabel||'') + '</span></div>'
+        : '';
+      return '<div class="form-group" id="' + groupId + '" data-selected="' + (savedVal || '') + '">' +
+        '<label class="form-label" style="margin-bottom:10px">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        scaleHtml + labels +
+        '</div>';
+    }
+    if (field.type === 'rating') {
+      const groupId = 'st-' + field.id;
+      const maxStars = field.maxStars || 5;
+      const selectedVal = savedVal || 0;
+      let stars = '';
+      for (let i = 1; i <= maxStars; i++) {
+        const filled = i <= selectedVal;
+        stars += '<button type="button" class="star-btn' + (filled?' selected':'') + '" onclick="selectStar(\'' + groupId + '\', ' + i + ', ' + maxStars + ')">' +
+          (filled
+            ? '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" width="26" height="26"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="26" height="26"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>') +
+        '</button>';
+      }
+      return '<div class="form-group" id="' + groupId + '" data-selected="' + selectedVal + '">' +
+        '<label class="form-label" style="margin-bottom:10px">' + field.label + (field.required ? '<span class="required">*</span>' : '') + '</label>' +
+        '<div class="star-row">' + stars + '</div>' +
+        '</div>';
+    }
+    if (field.type === 'bodymap') {
+      // Restore saved dots if viewing
+      if (savedVal && savedVal.dots) {
+        savedVal.dots.forEach(d => {
+          if (!bodyMapDots[d.mapId]) bodyMapDots[d.mapId] = [];
+          bodyMapDots[d.mapId].push(d);
+          if (d.num >= dotCounter) dotCounter = d.num;
+        });
+      }
+      return '<div class="intake-section">' +
+        '<div class="intake-section-title">' + field.label + '</div>' +
+        '<div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">' + (viewMode ? 'Submitted body map markers:' : 'Tap on the body to place a numbered marker. Tap a marker to remove it.') + '</div>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">' +
+          '<div class="body-map-outer">' +
+            '<div class="body-map-view-label">Front</div>' +
+            '<div class="body-map-wrap" id="bm-front-' + field.id + '" onclick="addBodyDot(event,\'bm-front-' + field.id + '\')">' +
+              '<img class="body-map-img" src="https://soulful-booking.vercel.app/Body-Front.png" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22200%22><rect width=%22120%22 height=%22200%22 fill=%22%23f0f0f0%22/><text x=%2260%22 y=%22100%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>Front</text></svg>\'" alt="Front view">' +
+            '</div>' +
+            '<div class="body-map-legend" id="legend-bm-front-' + field.id + '"></div>' +
+          '</div>' +
+          '<div class="body-map-outer">' +
+            '<div class="body-map-view-label">Back</div>' +
+            '<div class="body-map-wrap" id="bm-back-' + field.id + '" onclick="addBodyDot(event,\'bm-back-' + field.id + '\')">' +
+              '<img class="body-map-img" src="https://soulful-booking.vercel.app/Body-Back.png" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22200%22><rect width=%22120%22 height=%22200%22 fill=%22%23f0f0f0%22/><text x=%2260%22 y=%22100%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>Back</text></svg>\'" alt="Back view">' +
+            '</div>' +
+            '<div class="body-map-legend" id="legend-bm-back-' + field.id + '"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    return '';
+  }).join('') + '<div style="margin-bottom:28px"></div>';
+
+  // Render any saved body map dots
+  if (responses) {
+    Object.keys(bodyMapDots).forEach(mapId => {
+      const wrap = document.getElementById(mapId);
+      if (wrap) {
+        bodyMapDots[mapId].forEach(d => renderBodyDot(wrap, d));
+        updateBodyMapLegend(mapId);
+      }
+    });
+  }
+}
+
+function collectResponses() {
+  if (!currentForm || !currentForm.fields) return {};
+  const responses = {};
+  currentForm.fields.forEach(field => {
+    if (field.type === 'section' || field.type === 'paragraph' || field.type === 'divider') return;
+    if (field.type === 'text') {
+      const el = document.getElementById('intake-' + field.id);
+      if (el) responses[field.id] = el.value.trim();
+    }
+    if (field.type === 'choice') {
+      if (field.multi) {
+        const selected = document.querySelectorAll('#rg-' + field.id + ' .checkbox-opt.selected');
+        responses[field.id] = Array.from(selected).map(el => el.dataset.value);
+      } else {
+        const selected = document.querySelector('#rg-' + field.id + ' .radio-opt.selected .radio-label');
+        responses[field.id] = selected ? selected.textContent : '';
+      }
+    }
+    if (field.type === 'dropdown') {
+      const el = document.getElementById('intake-' + field.id);
+      if (el) responses[field.id] = el.value;
+    }
+    if (field.type === 'imagechoice') {
+      const selected = document.querySelectorAll('#ig-' + field.id + ' .image-choice-opt.selected');
+      const labels = Array.from(selected).map(el => el.dataset.label);
+      responses[field.id] = field.multi ? labels : (labels[0] || '');
+    }
+    if (field.type === 'scale') {
+      const wrap = document.getElementById('sc-' + field.id);
+      responses[field.id] = wrap ? (wrap.dataset.selected || '') : '';
+    }
+    if (field.type === 'rating') {
+      const wrap = document.getElementById('st-' + field.id);
+      responses[field.id] = wrap ? parseInt(wrap.dataset.selected) || 0 : 0;
+    }
+    if (field.type === 'bodymap') {
+      const dots = [];
+      Object.keys(bodyMapDots).filter(k => k.includes(field.id)).forEach(mapId => {
+        (bodyMapDots[mapId] || []).forEach(d => dots.push(d));
+      });
+      responses[field.id] = { dots };
+    }
+  });
+  return responses;
+}
+
+function validateResponses(responses) {
+  if (!currentForm || !currentForm.fields) return true;
+  for (const field of currentForm.fields) {
+    if (!field.required) continue;
+    const val = responses[field.id];
+    if (field.type === 'text' && !val) {
+      toast('Please answer: ' + field.label, 'error');
+      return false;
+    }
+    if (field.type === 'choice') {
+      const empty = field.multi ? (!val || !val.length) : !val;
+      if (empty) {
+        toast('Please select an option for: ' + field.label, 'error');
+        return false;
+      }
+    }
+    if (field.type === 'dropdown' && !val) {
+      toast('Please select an option for: ' + field.label, 'error');
+      return false;
+    }
+    if (field.type === 'imagechoice') {
+      const empty = field.multi ? (!val || !val.length) : !val;
+      if (empty) {
+        toast('Please select an option for: ' + field.label, 'error');
+        return false;
+      }
+    }
+    if (field.type === 'scale' && !val) {
+      toast('Please answer: ' + field.label, 'error');
+      return false;
+    }
+    if (field.type === 'rating' && !val) {
+      toast('Please give a rating for: ' + field.label, 'error');
+      return false;
+    }
+  }
+  return true;
+}
+
+async function submitIntake() {
+  if (viewMode) return;
+
+  const responses = collectResponses();
+  if (!validateResponses(responses)) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting\u2026';
+
+  try {
+    // Save responses via POST to bookings/[id] with action=intake
+    const res = await fetch(API_BASE + '/bookings/' + booking.id + '?action=intake', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ responses })
+    });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || 'Submission failed');
+    }
+
+    showSuccess();
+  } catch(err) {
+    toast('Submission failed: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Submit Intake Form';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
