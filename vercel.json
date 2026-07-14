@@ -2,12 +2,12 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/solful-admin.html"
+      "destination": "/admin.html"
     }
   ],
   "headers": [
     {
-      "source": "/solful-book.html",
+      "source": "/book.html",
       "headers": [
         {
           "key": "X-Frame-Options",
@@ -20,7 +20,7 @@
       ]
     },
     {
-      "source": "/solful-pay.html",
+      "source": "/pay.html",
       "headers": [
         {
           "key": "X-Frame-Options",

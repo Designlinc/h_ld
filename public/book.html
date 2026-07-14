@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Book an Appointment — Solful Kinesiology</title>
+<title>Book an Appointment — h_ld.</title>
 <!-- fonts inherited from parent page -->
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --sage:       #3D6B5C;
-    --sage-mid:   #4E8A72;
-    --sage-light: #E8F0ED;
-    --sage-pale:  #F2F7F5;
-    --amber:      #D4831A;
-    --amber-pale: #FDF3E3;
-    --red:        #C0392B;
-    --red-pale:   #FDECEA;
-    --ink:        #1A2520;
-    --ink-mid:    #4A5C56;
-    --ink-soft:   #7A8C86;
-    --border:     #DDE6E2;
-    --bg:         #F4F8F6;
+    --sage:       #2A2A2E;
+    --sage-mid:   #55555C;
+    --sage-light: #E9E6E5;
+    --sage-pale:  #F7F5F4;
+    --amber:      #D84148;
+    --amber-pale: #FAE3E1;
+    --red:        #A8332E;
+    --red-pale:   #F3E0DE;
+    --ink:        #231F20;
+    --ink-mid:    #55555C;
+    --ink-soft:   #8A868A;
+    --border:     #DED9D7;
+    --bg:         #F5F2F0;
     --white:      #FFFFFF;
     --radius:     12px;
     --radius-lg:  18px;
@@ -823,7 +823,7 @@ function getForms() {
 }
 
 function defaultSettings() {
-  return { bizName:'Solful Kinesiology', pracName:'Sarah Mitchell', email:'hello@solful.com.au', phone:'+61 412 345 678', address:'123 Wellness St, Byron Bay NSW 2481', daySchedule:{ Mon:{active:true,start:'09:00',end:'17:00'}, Tue:{active:true,start:'09:00',end:'17:00'}, Wed:{active:true,start:'09:00',end:'17:00'}, Thu:{active:true,start:'09:00',end:'17:00'}, Fri:{active:true,start:'09:00',end:'17:00'}, Sat:{active:false,start:'09:00',end:'17:00'}, Sun:{active:false,start:'09:00',end:'17:00'} }, buffer:15, cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.' };
+  return { bizName:'Your Business', pracName:'', email:'', phone:'', address:'', daySchedule:{ Mon:{active:true,start:'09:00',end:'17:00'}, Tue:{active:true,start:'09:00',end:'17:00'}, Wed:{active:true,start:'09:00',end:'17:00'}, Thu:{active:true,start:'09:00',end:'17:00'}, Fri:{active:true,start:'09:00',end:'17:00'}, Sat:{active:false,start:'09:00',end:'17:00'}, Sun:{active:false,start:'09:00',end:'17:00'} }, buffer:15, cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.' };
 }
 
 function defaultServices() {
@@ -1316,7 +1316,7 @@ async function initiateDeposit(bookingId, depositAmount, serviceName, settings) 
       body: JSON.stringify({
         amount: depositAmount,
         description: `Deposit for ${serviceName}`,
-        redirectUrl: window.location.origin + '/solful-book.html?deposit_result=1&booking=' + bookingId,
+        redirectUrl: window.location.origin + '/book.html?deposit_result=1&booking=' + bookingId,
       })
     });
     if (result.checkoutUrl) {
@@ -1351,21 +1351,21 @@ function showConfirmation(booking, endTime, settings) {
   // Google Calendar link
   const gcStart = booking.date.replace(/-/g,'') + 'T' + booking.time.replace(':','') + '00';
   const gcEnd = booking.date.replace(/-/g,'') + 'T' + endTime.replace(':','') + '00';
-  const gcUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(booking.service + ' – Solful Kinesiology')}&dates=${gcStart}/${gcEnd}&details=${encodeURIComponent('Kinesiology appointment with Solful Kinesiology')}&location=${encodeURIComponent(booking.location)}`;
+  const gcUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(booking.service + ' – ' + (settings.bizName || 'Your Business'))}&dates=${gcStart}/${gcEnd}&details=${encodeURIComponent('Appointment with ' + (settings.bizName || 'Your Business'))}&location=${encodeURIComponent(booking.location)}`;
   document.getElementById('cal-google').href = gcUrl;
   document.getElementById('cal-google').target = '_blank';
 
   // ICS download
-  const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${gcStart}\nDTEND:${gcEnd}\nSUMMARY:${booking.service} – Solful Kinesiology\nLOCATION:${booking.location}\nEND:VEVENT\nEND:VCALENDAR`;
+  const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${gcStart}\nDTEND:${gcEnd}\nSUMMARY:${booking.service} – ${settings.bizName || 'Your Business'}\nLOCATION:${booking.location}\nEND:VEVENT\nEND:VCALENDAR`;
   const icsBlob = new Blob([icsContent], { type: 'text/calendar' });
   document.getElementById('cal-ics').href = URL.createObjectURL(icsBlob);
-  document.getElementById('cal-ics').download = 'solful-appointment.ics';
+  document.getElementById('cal-ics').download = 'appointment.ics';
 
   // Show intake prompt if there's a form for this service
   const forms = getForms();
   const hasForm = forms.some(f => f.active && (f.serviceId === state.service.id || !f.serviceId));
   if (hasForm) {
-    const intakeUrl = `${window.location.origin}/solful-intake.html?booking=${booking.id}`;
+    const intakeUrl = `${window.location.origin}/intake.html?booking=${booking.id}`;
     const intakeEl = document.getElementById('intake-prompt');
     const wrapEl = document.getElementById('intake-prompt-wrap');
     wrapEl.classList.remove('hidden');
@@ -1566,7 +1566,7 @@ function broadcastHeight() {
     document.body.scrollHeight,
     document.documentElement.offsetHeight
   );
-  window.parent.postMessage({ type: 'solful-booking-height', height: h }, '*');
+  window.parent.postMessage({ type: 'hld-booking-height', height: h }, '*');
 }
 window.addEventListener('load', broadcastHeight);
 new ResizeObserver(broadcastHeight).observe(document.body);

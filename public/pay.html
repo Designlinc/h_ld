@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Take Payment — h_ld.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --sage:       #2A2A2E;
+    --sage-mid:   #55555C;
+    --sage-light: #E9E6E5;
+    --sage-pale:  #F7F5F4;
+    --amber:      #D84148;
+    --amber-pale: #FAE3E1;
+    --red:        #A8332E;
+    --red-pale:   #F3E0DE;
+    --ink:        #231F20;
+    --ink-mid:    #55555C;
+    --ink-soft:   #8A868A;
+    --border:     #DED9D7;
+    --bg:         #F5F2F0;
+    --white:      #FFFFFF;
+    --radius:     12px;
+    --shadow-md:  0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg:  0 8px 32px rgba(0,0,0,.10);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  .logo { height: 60px; object-fit: contain; margin-bottom: 24px; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    width: 100%; max-width: 420px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: var(--sage-pale);
+    border-bottom: 1px solid var(--sage-light);
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .card-header-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--sage-light);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-header-icon svg { width: 22px; height: 22px; color: var(--sage); }
+  .card-header-title { font-size: 17px; font-weight: 700; color: var(--ink); }
+  .card-header-sub { font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
+
+  .card-body { padding: 20px 24px; }
+
+  .detail-row {
+    display: flex; justify-content: space-between;
+    align-items: baseline; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .detail-row:last-of-type { border-bottom: none; }
+  .detail-label { color: var(--ink-soft); font-weight: 400; }
+  .detail-value { font-weight: 600; color: var(--ink); text-align: right; max-width: 60%; }
+
+  .amount-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 24px;
+    background: var(--sage-pale);
+    border-top: 1px solid var(--sage-light);
+    border-bottom: 1px solid var(--sage-light);
+  }
+  .amount-label { font-size: 13px; color: var(--ink-soft); font-weight: 500; flex: 1; }
+  .amount-display {
+    font-size: 28px; font-weight: 700; color: var(--ink);
+    letter-spacing: -1px;
+  }
+
+  .card-footer { padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 15px 20px;
+    border-radius: 12px; border: none;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+    text-decoration: none;
+  }
+  .btn-square {
+    background: var(--ink); color: #fff;
+    font-size: 16px; padding: 17px 20px;
+  }
+  .btn-square:hover { background: #2A3530; }
+  .btn-square svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .btn-confirm {
+    background: var(--sage); color: #fff;
+  }
+  .btn-confirm:hover { background: var(--sage-mid); }
+  .btn-confirm svg { width: 16px; height: 16px; }
+  .btn-ghost {
+    background: none; color: var(--ink-soft);
+    border: 1.5px solid var(--border);
+    font-size: 14px;
+  }
+  .btn-ghost:hover { background: var(--sage-pale); color: var(--sage); border-color: var(--sage-light); }
+
+  /* ── CONFIRMATION ── */
+  .confirm-screen {
+    display: none; flex-direction: column; align-items: center;
+    text-align: center; padding: 40px 24px;
+    width: 100%; max-width: 420px;
+  }
+  .confirm-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--sage-light); color: var(--sage);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .confirm-icon svg { width: 36px; height: 36px; }
+  .confirm-title { font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .confirm-sub { font-size: 14px; color: var(--ink-soft); margin-bottom: 28px; line-height: 1.6; }
+  .confirm-summary {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    width: 100%; margin-bottom: 24px; text-align: left;
+  }
+  .confirm-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .confirm-row:last-child { border-bottom: none; font-weight: 700; }
+  .confirm-row .label { color: var(--ink-soft); }
+
+  /* ── NOT FOUND ── */
+  .error-screen {
+    display: none; flex-direction: column; align-items: center;
+    text-align: center; padding: 60px 24px;
+    width: 100%; max-width: 420px;
+  }
+  .error-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+  .error-title { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .error-sub { font-size: 14px; color: var(--ink-soft); }
+
+  /* Method picker */
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .method-btn {
+    padding: 12px 8px; border-radius: 10px;
+    border: 2px solid var(--border); background: var(--white);
+    cursor: pointer; text-align: center; transition: all .15s;
+    font-family: inherit;
+  }
+  .method-btn:hover { border-color: var(--sage-mid); background: var(--sage-pale); }
+  .method-btn.active { border-color: var(--sage); background: var(--sage-pale); }
+  .method-icon { font-size: 20px; margin-bottom: 3px; }
+  .method-label { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .square-info {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 12px; color: var(--ink-soft); line-height: 1.5;
+    margin-bottom: 4px; display: none;
+  }
+  .square-info.visible { display: block; }
+
+  @media (max-width: 460px) {
+    body { padding: 16px 12px 48px; }
+    .card-body { padding: 16px 18px; }
+    .card-footer { padding: 16px 18px; }
+    .amount-row { padding: 14px 18px; }
+    .amount-display { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<svg class="logo" viewBox="0 0 155.78 70.61" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#231f20">
+    <path d="M29.71,47.43v-11.65c0-4.34-2.17-7.86-6.03-7.86-4.07,0-6.17,3.52-6.17,7.86v11.11c0,3.39,1.15,4.4,4.2,4.61v2.37H4.03v-2.37c3.19-.2,4.34-1.22,4.34-4.61v-29.54c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v12.81c0,2.44,1.22,2.91,2.1,1.9,1.56-2.03,4-4.34,9.21-4.34s10.03,2.17,10.03,11.72v13.21c0,2.3,1.02,3.52,2.98,2.78v1.42c-.88,1.97-3.25,2.64-5.35,2.64-3.93,0-6.77-2.17-6.77-6.84Z"/>
+    <path d="M87.48,47.43v-30.08c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.42,2.64-3.86,0-6.7-2.17-6.7-6.84Z"/>
+    <path d="M102.13,38.96c0-10.64,7.32-16.26,14.64-16.26s9.42,5.42,9.42-.74v-4.61c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.35,2.64-2.23,0-4.81-.81-5.62-2.84-.47-1.15-1.09-1.76-1.96-1.76-1.49,0-4.07,4.61-10.23,4.61-6.64,0-13.01-5.42-13.01-15.31ZM120.01,49.13c2.71,0,6.17-1.83,6.17-7.59v-4.2c0-8.47-4.47-11.86-8.06-11.86-3.93,0-6.31,4.34-6.31,10.23,0,6.98,3.32,13.42,8.2,13.42Z"/>
+    <path d="M141.85,49.26c0-2.78,2.23-5.01,4.94-5.01s4.95,2.24,4.95,5.01-2.24,5.01-4.95,5.01-4.94-2.23-4.94-5.01Z"/>
+  </g>
+  <path fill="#231f20" d="M79.16,48.65v5.71h-27.31v-5.71h-3.99v13.69h31.33c2.18,0,3.95-1.77,3.95-3.95v-9.73h-3.99Z"/>
+</svg>
+
+<!-- ── PAYMENT CARD ── -->
+<div class="card" id="payment-card">
+  <div class="card-header">
+    <div class="card-header-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    </div>
+    <div>
+      <div class="card-header-title" id="ph-service">Loading…</div>
+      <div class="card-header-sub" id="ph-datetime"></div>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="detail-row"><span class="detail-label">Client</span><span class="detail-value" id="ph-client"></span></div>
+    <div class="detail-row"><span class="detail-label">Duration</span><span class="detail-value" id="ph-duration"></span></div>
+    <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value" id="ph-location"></span></div>
+    <div class="detail-row" id="ph-status-row"><span class="detail-label">Status</span><span class="detail-value" id="ph-status"></span></div>
+  </div>
+
+  <div class="amount-row">
+    <div class="amount-label">Amount due</div>
+    <div style="display:flex;align-items:baseline;gap:4px">
+      <span style="font-size:18px;font-weight:600;color:var(--ink-soft)">$</span>
+      <span class="amount-display" id="amount-display"></span>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:4px">Payment method</div>
+    <div class="method-grid">
+      <button class="method-btn" id="m-card" onclick="selectMethod('card')">
+        <div class="method-icon" style="display:flex;justify-content:center">
+          <svg viewBox="0 0 32 22" width="32" height="22" fill="none">
+            <rect width="32" height="22" rx="3" fill="#1A1A1A"/>
+            <rect y="6" width="32" height="6" fill="#333"/>
+            <rect x="4" y="15" width="8" height="3" rx="1" fill="#666"/>
+            <circle cx="25" cy="15" r="3" fill="#FF6D00"/>
+            <circle cx="22" cy="15" r="3" fill="#FFB300" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="method-label">Square Tap to Pay</div>
+      </button>
+      <button class="method-btn" id="m-cash" onclick="selectMethod('cash')">
+        <div class="method-icon" style="display:flex;justify-content:center">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <circle cx="12" cy="12" r="3"/>
+            <line x1="5.5" y1="9.5" x2="5.5" y2="9.5"/>
+            <line x1="18.5" y1="14.5" x2="18.5" y2="14.5"/>
+          </svg>
+        </div>
+        <div class="method-label">Cash</div>
+      </button>
+      <button class="method-btn" id="m-transfer" onclick="selectMethod('transfer')">
+        <div class="method-icon" style="display:flex;justify-content:center">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 22 8 2 8"/>
+            <line x1="4" y1="8" x2="4" y2="19"/>
+            <line x1="9" y1="8" x2="9" y2="19"/>
+            <line x1="15" y1="8" x2="15" y2="19"/>
+            <line x1="20" y1="8" x2="20" y2="19"/>
+            <line x1="2" y1="21" x2="22" y2="21"/>
+          </svg>
+        </div>
+        <div class="method-label">Bank Transfer</div>
+      </button>
+      <button class="method-btn" id="m-link" onclick="selectMethod('link')">
+        <div class="method-icon" style="display:flex;justify-content:center">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 15l6-6"/>
+            <path d="M11 5l1-1a4 4 0 0 1 6 6l-1 1"/>
+            <path d="M13 19l-1 1a4 4 0 0 1-6-6l1-1"/>
+          </svg>
+        </div>
+        <div class="method-label">Payment Link (SMS)</div>
+      </button>
+    </div>
+    <div class="square-info" id="square-info">
+      Square Point of Sale will open with the amount pre-filled. Complete Tap to Pay there, then return here and tap <strong>Mark as Paid</strong>.
+    </div>
+    <div class="square-info" id="link-info">
+      A secure Square payment link will be texted to <strong id="link-phone"></strong>. This booking will update automatically once the client pays — no need to tap Mark as Paid.
+    </div>
+    <div class="square-info" id="link-status" style="display:none;"></div>
+    <a id="square-link" href="#" target="_blank" style="display:none"></a>
+    <button class="btn btn-confirm" id="pay-btn" onclick="onPrimaryAction()" disabled style="opacity:.5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span id="pay-btn-label">Mark as Paid</span>
+    </button>
+  </div>
+</div>
+
+<!-- ── CONFIRMATION ── -->
+<div class="confirm-screen" id="confirm-screen">
+  <div class="confirm-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="confirm-title">Payment recorded</div>
+  <div class="confirm-sub" id="confirm-sub"></div>
+  <div class="confirm-summary" id="confirm-summary"></div>
+  <a id="back-to-admin" href="#" class="btn btn-ghost">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
+    Back to Admin
+  </a>
+</div>
+
+<!-- ── NOT FOUND ── -->
+<div class="error-screen" id="error-screen">
+  <div class="error-icon">📋</div>
+  <div class="error-title">Booking not found</div>
+  <div class="error-sub">This payment link may have expired or the booking ID is invalid.</div>
+</div>
+
+<script>
+// ── Read booking ID from URL ──
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+// ── API client ──
+const API_BASE = window.location.origin + '/api';
+async function apiFetch(path, options) {
+  options = options || {};
+  var headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+  var res = await fetch(API_BASE + path, Object.assign({}, options, { headers: headers }));
+  if (!res.ok) {
+    var msg = 'Request failed';
+    try { var d = await res.json(); msg = d.error || msg; } catch(e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+var booking = null;
+var selectedMethod = null;
+var basePrice = 0;
+var adjusting = false;
+
+async function init() {
+  var id = getParam('payment');
+  if (!id) { showError(); return; }
+
+  try {
+    booking = await apiFetch('/bookings/' + id);
+  } catch(e) {
+    showError(); return;
+  }
+  if (!booking) { showError(); return; }
+
+  // Normalise date — Postgres returns full ISO string "2026-06-26T00:00:00.000Z"
+  var rawDate = booking.date || '';
+  booking.date = rawDate.slice(0, 10);
+
+  // Normalise time — handle "14:00:00" or JSON-encoded "\"14:00\""
+  var rawTime = booking.time || '00:00';
+  if (typeof rawTime === 'string' && rawTime.startsWith('"')) rawTime = JSON.parse(rawTime);
+  booking.time = rawTime.slice(0, 5);
+
+  basePrice = parseFloat(booking.price) || 0;
+
+  // Populate header
+  document.getElementById('ph-service').textContent = booking.service;
+  var d = new Date(booking.date + 'T00:00:00');
+  var dateStr = d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('ph-datetime').textContent = dateStr + ' at ' + formatTime(booking.time);
+  document.getElementById('ph-client').textContent = booking.client;
+  document.getElementById('ph-duration').textContent = (booking.duration || 60) + ' min';
+  document.getElementById('ph-location').textContent = booking.location || 'Byron Bay';
+
+  // Status badge
+  var statusMap = { awaiting:'Awaiting payment', completed:'Completed', cancelled:'Cancelled', noshow:'No show' };
+  document.getElementById('ph-status').textContent = statusMap[booking.status] || booking.status;
+
+  // Amount
+  document.getElementById('amount-display').textContent = basePrice.toFixed(2);
+
+  // If already paid, show confirmation directly
+  if (booking.paidAt) {
+    showAlreadyPaid();
+    return;
+  }
+
+  document.getElementById('payment-card').style.display = '';
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  var p = t.split(':').map(Number);
+  var h = p[0]; var m = p[1] || 0;
+  return (h % 12 || 12) + (m ? ':' + String(m).padStart(2,'0') : '') + (h < 12 ? 'am' : 'pm');
+}
+
+function getAmount() {
+  return basePrice;
+}
+
+function selectMethod(method) {
+  selectedMethod = method;
+  document.querySelectorAll('.method-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('m-' + method).classList.add('active');
+  var squareInfo = document.getElementById('square-info');
+  var linkInfo = document.getElementById('link-info');
+  var linkStatus = document.getElementById('link-status');
+  var payBtn = document.getElementById('pay-btn');
+  var payBtnLabel = document.getElementById('pay-btn-label');
+  payBtn.style.opacity = '1';
+  payBtn.disabled = false;
+  squareInfo.classList.remove('visible');
+  linkInfo.classList.remove('visible');
+  linkStatus.style.display = 'none';
+
+  if (method === 'card') {
+    squareInfo.classList.add('visible');
+    payBtnLabel.textContent = 'Mark as Paid';
+    var amount = getAmount();
+    updateSquareLink(amount);
+    // Launch Square immediately
+    document.getElementById('square-link').click();
+  } else if (method === 'link') {
+    linkInfo.classList.add('visible');
+    document.getElementById('link-phone').textContent = booking.phone || 'client (no phone on file)';
+    payBtnLabel.textContent = 'Send Payment Link';
+    if (!booking.phone) { payBtn.disabled = true; payBtn.style.opacity = '.5'; }
+  } else {
+    payBtnLabel.textContent = 'Mark as Paid';
+  }
+}
+
+function onPrimaryAction() {
+  if (selectedMethod === 'link') {
+    sendPaymentLink();
+  } else {
+    markPaid();
+  }
+}
+
+async function sendPaymentLink() {
+  var amount = getAmount();
+  var btn = document.getElementById('pay-btn');
+  var label = document.getElementById('pay-btn-label');
+  var statusEl = document.getElementById('link-status');
+  btn.disabled = true;
+  label.textContent = 'Sending…';
+
+  try {
+    var result = await apiFetch('/payments/create-link', {
+      method: 'POST',
+      body: JSON.stringify({
+        bookingId: booking.id,
+        amount: amount,
+        phone: booking.phone,
+        description: booking.service
+      })
+    });
+
+    statusEl.style.display = 'block';
+    if (result.smsSent) {
+      statusEl.innerHTML =
+        '✅ Payment link sent to <strong>' + booking.phone + '</strong>.<br>' +
+        '<a href="' + result.url + '" target="_blank" style="color:var(--sage)">' + result.url + '</a><br>' +
+        'This page updates automatically once the client pays.';
+    } else {
+      statusEl.innerHTML =
+        '⚠️ Link created but SMS failed to send. Copy and share manually:<br>' +
+        '<a href="' + result.url + '" target="_blank" style="color:var(--sage)">' + result.url + '</a>';
+    }
+    label.textContent = 'Link Sent';
+  } catch(e) {
+    btn.disabled = false;
+    label.textContent = 'Send Payment Link';
+    alert('Could not send payment link: ' + e.message);
+  }
+}
+
+function updateSquareLink(amount) {
+  if (!window.SQUARE_APP_ID) {
+    console.error('SQUARE_APP_ID not configured for this organisation — cannot generate a payment link.');
+    document.getElementById('square-link').href = '#';
+    document.getElementById('square-link').setAttribute('aria-disabled', 'true');
+    return;
+  }
+  var cents = Math.round(amount * 100);
+  var data = JSON.stringify({
+    amount_money: { amount: cents, currency_code: 'AUD' },
+    callback_url: window.location.origin + '/pay.html',
+    client_id: window.SQUARE_APP_ID,
+    version: '1.3',
+    notes: 'Booking payment' + (booking ? ' - ' + booking.service : ''),
+    options: { supported_tender_types: ['CREDIT_CARD','CASH','OTHER'] }
+  });
+  document.getElementById('square-link').href = 'square-commerce-v1://payment/create?data=' + encodeURIComponent(data);
+}
+
+async function markPaid() {
+  if (!selectedMethod) { return; }
+  var amount = getAmount();
+  var btn = document.getElementById('pay-btn');
+  btn.disabled = true;
+  btn.textContent = 'Recording…';
+
+  try {
+    await apiFetch('/bookings/' + booking.id, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: 'completed',
+        paymentMethod: selectedMethod,
+        paymentAmount: amount,
+        paidAt: new Date().toISOString(),
+      })
+    });
+    showConfirmation(amount);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Mark as paid';
+    alert('Could not record payment: ' + e.message);
+  }
+}
+
+function showConfirmation(amount) {
+  document.getElementById('payment-card').style.display = 'none';
+  var screen = document.getElementById('confirm-screen');
+  screen.style.display = 'flex';
+
+  var d = new Date(booking.date + 'T00:00:00');
+  document.getElementById('confirm-sub').textContent =
+    booking.client + "'s payment of $" + amount.toFixed(2) + ' has been recorded for ' +
+    d.toLocaleDateString('en-AU', { day:'numeric', month:'long' }) + '.';
+
+  var methodLabels = { card:'Square Tap to Pay', cash:'Cash', transfer:'Bank Transfer', link:'Online Payment Link' };
+  document.getElementById('confirm-summary').innerHTML =
+    '<div class="confirm-row"><span class="label">Service</span><span>' + booking.service + '</span></div>' +
+    '<div class="confirm-row"><span class="label">Client</span><span>' + booking.client + '</span></div>' +
+    '<div class="confirm-row"><span class="label">Method</span><span>' + (methodLabels[selectedMethod] || selectedMethod) + '</span></div>' +
+    '<div class="confirm-row"><span class="label">Amount paid</span><span>$' + amount.toFixed(2) + '</span></div>';
+
+  // Back to admin link — strips the payment param
+  document.getElementById('back-to-admin').href = window.location.pathname.replace('pay.html', 'admin.html');
+}
+
+function showAlreadyPaid() {
+  document.getElementById('payment-card').style.display = 'none';
+  var screen = document.getElementById('confirm-screen');
+  screen.style.display = 'flex';
+  document.getElementById('confirm-sub').textContent =
+    'This booking has already been marked as paid.';
+  document.getElementById('confirm-summary').innerHTML =
+    '<div class="confirm-row"><span class="label">Service</span><span>' + booking.service + '</span></div>' +
+    '<div class="confirm-row"><span class="label">Client</span><span>' + booking.client + '</span></div>' +
+    '<div class="confirm-row"><span class="label">Paid</span><span>' + new Date(booking.paidAt).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' }) + '</span></div>';
+  document.getElementById('back-to-admin').href = window.location.pathname.replace('pay.html', 'admin.html');
+}
+
+function showError() {
+  document.getElementById('payment-card').style.display = 'none';
+  document.getElementById('error-screen').style.display = 'flex';
+}
+
+init().catch(function() { showError(); });
+</script>
+</body>
+</html>
