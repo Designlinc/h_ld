@@ -1845,7 +1845,10 @@
     <div id="login-step-password">
       <form id="login-form" onsubmit="handleLogin(event)">
         <input type="email" id="login-email" class="form-input" placeholder="Email" autocomplete="username" required style="margin-bottom:10px">
-        <input type="password" id="login-password" class="form-input" placeholder="Password" autocomplete="current-password" required style="margin-bottom:36px">
+        <input type="password" id="login-password" class="form-input" placeholder="Password" autocomplete="current-password" required style="margin-bottom:12px">
+        <div style="text-align:right;margin-bottom:24px">
+          <button type="button" onclick="showForgotStep()" style="background:none;border:none;color:var(--ink-soft);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline">Forgot password?</button>
+        </div>
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center" id="login-btn">Sign in</button>
         <div id="login-error" class="login-error" style="display:none"></div>
       </form>
@@ -1869,6 +1872,30 @@
         <button type="button" onclick="backToPasswordStep()" style="background:none;border:none;color:var(--ink-soft);font-size:12px;cursor:pointer;padding:4px">&larr; Back</button>
         <button type="button" onclick="resendMfaCode()" id="mfa-resend-btn" style="background:none;border:none;color:var(--sage);font-size:12px;cursor:pointer;padding:4px;font-weight:600">Resend code</button>
       </div>
+    </div>
+
+    <div id="login-step-forgot" style="display:none">
+      <div class="login-sub" style="margin-bottom:20px;text-align:center">Enter your email and we'll send you a link to reset your password.</div>
+      <form id="forgot-form" onsubmit="handleForgotPassword(event)">
+        <input type="email" id="forgot-email" class="form-input" placeholder="Email" autocomplete="username" required style="margin-bottom:20px">
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center" id="forgot-btn">Send reset link</button>
+        <div id="forgot-error" class="login-error" style="display:none"></div>
+        <div id="forgot-status" style="text-align:center;font-size:13px;color:var(--ink-mid);margin-top:16px;min-height:16px"></div>
+      </form>
+      <div style="text-align:center;margin-top:16px">
+        <button type="button" onclick="backToPasswordStepFromForgot()" style="background:none;border:none;color:var(--ink-soft);font-size:12px;cursor:pointer;padding:4px">&larr; Back to sign in</button>
+      </div>
+    </div>
+
+    <div id="login-step-reset" style="display:none">
+      <div class="login-sub" style="margin-bottom:20px;text-align:center">Choose a new password.</div>
+      <form id="reset-form" onsubmit="handleResetPassword(event)">
+        <input type="password" id="reset-password" class="form-input" placeholder="New password" autocomplete="new-password" required minlength="8" style="margin-bottom:10px">
+        <input type="password" id="reset-password-confirm" class="form-input" placeholder="Confirm new password" autocomplete="new-password" required minlength="8" style="margin-bottom:20px">
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center" id="reset-btn">Set new password</button>
+        <div id="reset-error" class="login-error" style="display:none"></div>
+        <div id="reset-status" style="text-align:center;font-size:13px;color:var(--ink-mid);margin-top:16px;min-height:16px"></div>
+      </form>
     </div>
   </div>
 </div>
@@ -3948,6 +3975,109 @@ async function resendMfaCode() {
   }
 }
 initMfaBoxes();
+
+// ── Forgot password ──
+function showForgotStep() {
+  document.getElementById('login-step-password').style.display = 'none';
+  document.getElementById('login-step-forgot').style.display = 'block';
+  document.getElementById('forgot-email').value = document.getElementById('login-email').value;
+  document.getElementById('forgot-error').style.display = 'none';
+  document.getElementById('forgot-status').textContent = '';
+}
+
+function backToPasswordStepFromForgot() {
+  document.getElementById('login-step-forgot').style.display = 'none';
+  document.getElementById('login-step-password').style.display = 'block';
+}
+
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('forgot-email').value.trim();
+  const btn = document.getElementById('forgot-btn');
+  const errEl = document.getElementById('forgot-error');
+  const statusEl = document.getElementById('forgot-status');
+
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch(API_BASE + '/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not send reset link');
+    // Deliberately the same message whether or not the email exists here —
+    // the backend already made that call, the frontend just displays it.
+    statusEl.textContent = data.message || 'If an account exists with that email, a reset link has been sent.';
+    document.getElementById('forgot-form').reset();
+  } catch (err) {
+    errEl.textContent = err.message || 'Something went wrong. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send reset link';
+  }
+}
+
+// ── Reset password (arrived here via the emailed link's ?reset_token=) ──
+let _resetToken = null;
+
+function showResetStep(token) {
+  _resetToken = token;
+  document.getElementById('login-step-password').style.display = 'none';
+  document.getElementById('login-step-mfa').style.display = 'none';
+  document.getElementById('login-step-forgot').style.display = 'none';
+  document.getElementById('login-step-reset').style.display = 'block';
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  const password = document.getElementById('reset-password').value;
+  const confirm = document.getElementById('reset-password-confirm').value;
+  const btn = document.getElementById('reset-btn');
+  const errEl = document.getElementById('reset-error');
+  const statusEl = document.getElementById('reset-status');
+
+  errEl.style.display = 'none';
+
+  if (password !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch(API_BASE + '/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: _resetToken, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not reset password');
+
+    // Clear the token from the URL so a page refresh doesn't re-trigger
+    // this step or resubmit an already-used token.
+    window.history.replaceState({}, '', window.location.pathname);
+    statusEl.textContent = 'Password updated — you can now sign in.';
+    setTimeout(() => {
+      document.getElementById('login-step-reset').style.display = 'none';
+      document.getElementById('login-step-password').style.display = 'block';
+      document.getElementById('reset-form').reset();
+    }, 1800);
+  } catch (err) {
+    errEl.textContent = err.message || 'Something went wrong. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Set new password';
+  }
+}
 
 function showLogin() {
   document.getElementById('login-overlay').style.display = 'flex';
@@ -11387,8 +11517,14 @@ async function bootApp() {
   }
 }
 
-// Check for existing session on page load
-if (getAuthToken()) {
+// Check for existing session on page load — a reset-password link takes
+// priority over an existing session, so someone who's still logged in
+// elsewhere in the same browser still lands on the reset form, not the app.
+const _bootParams = new URLSearchParams(window.location.search);
+const _bootResetToken = _bootParams.get('reset_token');
+if (_bootResetToken) {
+  showResetStep(_bootResetToken);
+} else if (getAuthToken()) {
   bootApp();
 } else {
   showLogin();
