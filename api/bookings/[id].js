@@ -1,23 +1,28 @@
 // api/bookings/[id].js - GET single, PUT update, DELETE single
 import sql from '../../lib/db.js';
 import { requireAuth } from '../../lib/auth.js';
+import { requireOrg } from '../../lib/tenant.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  const org = await requireOrg(req, res);
+  if (!org) return;
+
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: 'Missing booking id' });
 
-  // GET is public - used by solful-pay.html (no auth needed)
+  // GET is public - used by solful-pay.html (no auth needed). Still scoped
+  // to this org — a booking ID guessed or leaked from a different org's
+  // subdomain won't resolve here, since the WHERE clause requires both.
   if (req.method === 'GET') {
     try {
       const rows = await sql`
-        SELECT * FROM bookings WHERE id::text = ${id}
+        SELECT * FROM bookings WHERE id::text = ${id} AND organization_id = ${org.id}
       `;
       const row = rows[0];
       if (!row) return res.status(404).json({ error: 'Booking not found' });
 
-      // Normalise column names to match frontend expectations
       return res.json({
         id:             row.id,
         client:         row.client_name,
@@ -55,7 +60,7 @@ export default async function handler(req, res) {
           intake_submitted   = true,
           intake_responses   = ${JSON.stringify(responses || {})},
           updated_at         = NOW()
-        WHERE id::text = ${id}
+        WHERE id::text = ${id} AND organization_id = ${org.id}
       `;
       return res.json({ ok: true });
     }
@@ -70,6 +75,11 @@ export default async function handler(req, res) {
         : 'https://connect.squareup.com';
 
       if (!squareToken) return res.status(500).json({ error: 'Square not configured' });
+
+      // Confirm this booking actually belongs to the org before taking
+      // payment against it.
+      const [booking] = await sql`SELECT id FROM bookings WHERE id::text = ${id} AND organization_id = ${org.id}`;
+      if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
       try {
         const amountCents = Math.round(parseFloat(amount) * 100);
@@ -87,10 +97,6 @@ export default async function handler(req, res) {
               price_money: { amount: amountCents, currency: 'AUD' },
               location_id: process.env.SQUARE_LOCATION_ID,
             },
-            // Square copies this onto the resulting Payment object — this is
-            // what api/webhooks/square.js matches against to find the booking.
-            // Without it, a paid deposit will succeed on Square's side but
-            // never update this booking's status.
             payment_note: `booking:${id}`,
             checkout_options: {
               redirect_url: redirectUrl,
@@ -114,12 +120,11 @@ export default async function handler(req, res) {
   if (req.method === 'PUT') {
     try {
       const b = req.body;
-      // This endpoint is intentionally public (no login) so the payment
-      // page can mark a booking paid without an admin session. To limit
-      // what a guessed/leaked booking ID could be used for, it may ONLY
-      // touch payment-related fields — never client PII or appointment
-      // details. Full-record edits go through the authenticated bulk
-      // sync endpoint (PUT /api/bookings) used by the admin app.
+      // Intentionally public (no login) so the payment page can mark a
+      // booking paid without an admin session — but scoped to this org,
+      // and still limited to payment fields only, never client PII or
+      // appointment details. Full-record edits go through the
+      // authenticated bulk sync endpoint used by the admin app.
       await sql`
         UPDATE bookings SET
           status             = ${b.status || null},
@@ -127,7 +132,7 @@ export default async function handler(req, res) {
           payment_amount     = ${b.paymentAmount  ?? b.payment_amount  ?? null},
           paid_at            = ${b.paidAt         ?? b.paid_at         ?? null},
           updated_at         = NOW()
-        WHERE id::text = ${id}
+        WHERE id::text = ${id} AND organization_id = ${org.id}
       `;
       return res.json({ ok: true });
     } catch(err) {
@@ -136,12 +141,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // DELETE requires admin auth — nothing in the app calls this without
-  // a login, so there's no legitimate reason for it to be public.
-  if (!requireAuth(req, res)) return;
+  // DELETE requires auth — nothing in the app calls this without a login.
+  if (!requireAuth(req, res, org)) return;
 
   if (req.method === 'DELETE') {
-    await sql`DELETE FROM bookings WHERE id::text = ${id}`;
+    await sql`DELETE FROM bookings WHERE id::text = ${id} AND organization_id = ${org.id}`;
     return res.json({ ok: true });
   }
 

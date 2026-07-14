@@ -1,31 +1,51 @@
 // api/settings/index.js
 import sql from '../../lib/db.js';
 import { requireAuth } from '../../lib/auth.js';
+import { requireOrg } from '../../lib/tenant.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  const org = await requireOrg(req, res);
+  if (!org) return;
+
   // GET is public — used by the client-facing booking page
   if (req.method === 'GET') {
-    const rows = await sql`SELECT key, value FROM settings`;
+    const rows = await sql`SELECT key, value FROM settings WHERE organization_id = ${org.id}`;
     const obj = {};
     rows.forEach(r => { obj[r.key] = r.value; });
 
-    // Also include OAuth connection status (non-sensitive — just provider + email)
-    const tokens = await sql`SELECT provider, email, updated_at FROM oauth_tokens`;
-    obj._connected = {};
-    tokens.forEach(t => { obj._connected[t.provider] = { email: t.email, connectedAt: t.updated_at }; });
+    // OAuth connection status (non-sensitive — just provider + email) for
+    // every practitioner in this org, not just "the" practitioner. Solo
+    // today, but this is already shaped for a clinic with several staff
+    // each connecting their own calendar.
+    const tokens = await sql`
+      SELECT ot.provider, ot.email, ot.updated_at, ot.practitioner_id
+      FROM oauth_tokens ot
+      JOIN practitioners p ON p.id = ot.practitioner_id
+      WHERE p.organization_id = ${org.id}
+    `;
+    obj._connected = tokens.map(t => ({
+      provider: t.provider,
+      email: t.email,
+      connectedAt: t.updated_at,
+      practitionerId: t.practitioner_id,
+    }));
 
     return res.json(obj);
   }
 
   // All other methods require auth
-  if (!requireAuth(req, res)) return;
+  const auth = requireAuth(req, res, org);
+  if (!auth) return;
 
   if (req.method === 'POST') {
     // AI Assistant proxy — the browser can't call api.anthropic.com directly
     // (blocked by CORS, and would require exposing an API key client-side).
     // This forwards the request server-side using ANTHROPIC_API_KEY.
+    // Deliberately using one global key across all organizations for now
+    // (you're absorbing this cost rather than each org supplying their
+    // own) — revisit if usage ever becomes meaningful.
     if (req.body?.action === 'ai_parse') {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
@@ -66,18 +86,22 @@ export default async function handler(req, res) {
 
     const { key, value } = req.body;
     await sql`
-      INSERT INTO settings (key, value, updated_at)
-      VALUES (${key}, ${JSON.stringify(value)}, NOW())
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      INSERT INTO settings (organization_id, key, value, updated_at)
+      VALUES (${org.id}, ${key}, ${JSON.stringify(value)}, NOW())
+      ON CONFLICT (organization_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
     `;
     return res.json({ ok: true });
   }
 
   if (req.method === 'DELETE') {
-    // Delete an OAuth token (disconnect a provider)
+    // Disconnect an OAuth provider — for THIS practitioner specifically,
+    // not the whole org, since each staff member connects their own
+    // calendar/payment account.
     const { provider } = req.body;
     if (!provider) return res.status(400).json({ error: 'provider required' });
-    await sql`DELETE FROM oauth_tokens WHERE provider = ${provider}`;
+    await sql`
+      DELETE FROM oauth_tokens WHERE provider = ${provider} AND practitioner_id = ${auth.practitioner_id}
+    `;
     return res.json({ ok: true });
   }
 
