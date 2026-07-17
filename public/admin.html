@@ -2687,9 +2687,21 @@
         </div>
         <div class="settings-body">
           <div id="acct-billing-summary" style="font-size:13px;color:var(--ink-mid);margin-bottom:16px;line-height:1.6"></div>
-          <div style="display:flex;gap:10px">
-            <button class="btn btn-primary" onclick="startAccountCheckout()" id="acct-checkout-btn" style="display:none">Start subscription</button>
-            <button class="btn btn-ghost" onclick="openAccountBillingPortal()" id="acct-portal-btn" style="display:none">Manage billing &amp; invoices</button>
+          <button class="btn btn-primary" onclick="startAccountCheckout()" id="acct-checkout-btn" style="display:none">Start subscription</button>
+
+          <div id="acct-billing-details" style="display:none">
+            <!-- Payment method -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--sage-pale);border:1px solid var(--sage-light);border-radius:var(--radius);margin-bottom:24px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" style="color:var(--ink-mid);flex-shrink:0"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <div id="acct-payment-method-text" style="font-size:14px;font-weight:600;color:var(--ink)">No card on file</div>
+              </div>
+              <button class="btn btn-ghost" onclick="openAccountBillingPortal()" id="acct-update-card-btn" style="font-size:13px;padding:8px 14px">Update</button>
+            </div>
+
+            <!-- Invoice history -->
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">Billing history</div>
+            <div id="acct-invoices-list"></div>
           </div>
         </div>
       </div>
@@ -4676,27 +4688,106 @@ async function loadAccountPage() {
   const org = data.organization || {};
   const summaryEl = document.getElementById('acct-billing-summary');
   const checkoutBtn = document.getElementById('acct-checkout-btn');
-  const portalBtn = document.getElementById('acct-portal-btn');
+  const detailsPanel = document.getElementById('acct-billing-details');
   const dangerZone = document.getElementById('acct-danger-zone');
 
   if (!org.hasBillingAccount) {
     summaryEl.innerHTML = `You're on a <strong>${org.planTier || 'trial'}</strong> plan. Start a subscription to keep using h_ld.`;
     checkoutBtn.style.display = 'inline-flex';
-    portalBtn.style.display = 'none';
+    detailsPanel.style.display = 'none';
     dangerZone.style.display = 'none';
   } else if (org.billingStatus === 'active') {
-    summaryEl.innerHTML = `Your subscription is <strong>active</strong>. Manage your payment method and view invoices below.`;
+    summaryEl.innerHTML = `Your subscription is <strong>active</strong>.`;
     checkoutBtn.style.display = 'none';
-    portalBtn.style.display = 'inline-flex';
+    detailsPanel.style.display = 'block';
+    loadAccountBilling();
     // Cancelling is owner-only — matches the backend restriction, so
     // staff in a future multi-practitioner org don't even see the option.
     dangerZone.style.display = (_acctRole === 'owner') ? 'block' : 'none';
   } else {
     summaryEl.innerHTML = `Your subscription is currently <strong>${org.billingStatus || 'inactive'}</strong>.`;
     checkoutBtn.style.display = 'none';
-    portalBtn.style.display = 'inline-flex';
+    detailsPanel.style.display = 'block';
+    loadAccountBilling();
     dangerZone.style.display = 'none';
   }
+}
+
+// Fetches and renders the payment method + invoice history natively —
+// called after loadAccountPage() establishes there's a billing account to
+// show details for. Separate function (not folded into loadAccountPage)
+// so a slow/failed Stripe call never blocks the rest of the account page
+// — email and password sections are usable even if this part is still
+// loading or errors out.
+async function loadAccountBilling() {
+  const cardTextEl = document.getElementById('acct-payment-method-text');
+  const listEl = document.getElementById('acct-invoices-list');
+  listEl.innerHTML = '<div style="font-size:13px;color:var(--ink-soft);padding:12px 0">Loading…</div>';
+
+  let data;
+  try {
+    data = await apiFetch('/billing/invoices');
+  } catch (err) {
+    listEl.innerHTML = '';
+    toast('Could not load billing details: ' + err.message, 'error');
+    return;
+  }
+
+  if (data.paymentMethod) {
+    const pm = data.paymentMethod;
+    cardTextEl.textContent = `${formatCardBrand(pm.brand)} •••• ${pm.last4}  —  expires ${String(pm.expMonth).padStart(2, '0')}/${pm.expYear}`;
+  } else {
+    cardTextEl.textContent = 'No card on file';
+  }
+
+  renderAccountInvoices(data.invoices || []);
+}
+
+function formatCardBrand(brand) {
+  const map = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express', discover: 'Discover', diners: 'Diners Club', jcb: 'JCB', unionpay: 'UnionPay' };
+  return map[brand] || (brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : 'Card');
+}
+
+function invoiceStatusPill(status) {
+  // Maps Stripe's invoice statuses onto the app's existing pill colour
+  // system rather than inventing a new one.
+  const map = {
+    paid:          { cls: 'completed', label: 'Paid' },
+    open:          { cls: 'awaiting',  label: 'Awaiting payment' },
+    draft:         { cls: 'awaiting',  label: 'Draft' },
+    uncollectible: { cls: 'cancelled', label: 'Failed' },
+    void:          { cls: 'cancelled', label: 'Void' },
+  };
+  const m = map[status] || { cls: 'awaiting', label: status || 'Unknown' };
+  return `<span class="pill ${m.cls}"><span class="pill-dot"></span>${m.label}</span>`;
+}
+
+function renderAccountInvoices(invoices) {
+  const listEl = document.getElementById('acct-invoices-list');
+
+  if (invoices.length === 0) {
+    listEl.innerHTML = '<div class="empty-state"><div class="empty-state-title">No invoices yet</div><div class="empty-state-sub">Your first invoice will appear here after your next billing date</div></div>';
+    return;
+  }
+
+  listEl.innerHTML = invoices.map(inv => {
+    const d = inv.date ? new Date(inv.date) : null;
+    const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const amountStr = (inv.amount != null) ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—';
+
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:16px;min-width:0">
+        <div style="font-size:13px;color:var(--ink);min-width:90px">${dateStr}</div>
+        <div style="font-size:13px;color:var(--ink-mid)">${inv.number || inv.id}</div>
+        ${invoiceStatusPill(inv.status)}
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${amountStr}</div>
+        ${inv.hostedUrl ? `<button class="icon-btn edit" title="View invoice" onclick="window.open('${inv.hostedUrl}','_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
+        ${inv.pdfUrl ? `<button class="icon-btn edit" title="Download PDF" onclick="window.open('${inv.pdfUrl}','_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function onAccountEmailInput() {
