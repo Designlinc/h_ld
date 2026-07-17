@@ -1958,6 +1958,9 @@
   <button class="nav-btn" onclick="showPage('settings')" title="Settings" id="nav-settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
+  <button class="nav-btn" onclick="showPage('account')" title="Account" id="nav-account">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5a6.5 6.5 0 0 1 11 0"/></svg>
+  </button>
 </nav>
 
 <!-- ═══ MAIN ═══ -->
@@ -2636,6 +2639,120 @@
       </div>
     </div>
 
+    <!-- ── ACCOUNT ── -->
+    <div class="page" id="page-account">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Account</div>
+          <div class="page-subtitle">Manage your login and billing</div>
+        </div>
+        <button class="btn btn-ghost" onclick="logout()" title="Sign out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
+
+      <!-- Login -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5a6.5 6.5 0 0 1 11 0"/></svg></div>
+          <span class="settings-section-title">Login</span>
+        </div>
+        <div class="settings-body">
+          <div class="form-row" style="grid-template-columns:1fr">
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="acct-email" oninput="onAccountEmailInput()" autocomplete="username"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr;display:none" id="acct-email-confirm-row">
+            <div class="form-group"><label class="form-label">Current password (to confirm this change)</label><input class="form-input" type="password" id="acct-email-current-password" autocomplete="current-password"></div>
+          </div>
+          <div id="acct-email-error" class="login-error" style="display:none;margin-bottom:16px"></div>
+          <button class="btn btn-primary" onclick="saveAccountEmail()" id="acct-email-save-btn" style="display:none;margin-bottom:8px">Save email</button>
+
+          <div style="height:1px;background:var(--border);margin:20px 0 24px"></div>
+
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Current password</label><input class="form-input" type="password" id="acct-current-password" autocomplete="current-password"></div>
+            <div class="form-group"><label class="form-label">New password</label><input class="form-input" type="password" id="acct-new-password" autocomplete="new-password" minlength="8"></div>
+          </div>
+          <div id="acct-password-error" class="login-error" style="display:none;margin-bottom:16px"></div>
+          <button class="btn btn-primary" onclick="changeAccountPassword()" id="acct-password-btn">Update password</button>
+        </div>
+      </div>
+
+      <!-- Billing -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+          <span class="settings-section-title">Billing</span>
+        </div>
+        <div class="settings-body">
+          <div id="acct-billing-summary" style="font-size:13px;color:var(--ink-mid);margin-bottom:16px;line-height:1.6"></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="startAccountCheckout()" id="acct-checkout-btn" style="display:none">Start subscription</button>
+            <button class="btn btn-ghost" onclick="openAccountBillingPortal()" id="acct-portal-btn" style="display:none">Manage billing &amp; invoices</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+          <span class="settings-section-title">Notifications</span>
+        </div>
+        <div class="settings-body">
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Product updates &amp; tips</div>
+              <div class="toggle-sub">Occasional emails about new features and how to get the most from h_ld.</div>
+            </div>
+            <button class="toggle" id="acct-notif-toggle" onclick="toggleAccountNotifications()"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger zone — cancel subscription. Hidden entirely unless the
+           practitioner is the org owner (matches the backend restriction
+           in api/billing/cancel.js) and there's an active subscription
+           to cancel in the first place. -->
+      <div class="settings-section" id="acct-danger-zone" style="display:none">
+        <div class="settings-section-header">
+          <div class="settings-section-icon" style="color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          <span class="settings-section-title" style="color:var(--red)">Cancel subscription</span>
+        </div>
+        <div class="settings-body">
+          <p style="font-size:13px;color:var(--ink-mid);margin:0 0 16px;max-width:520px;line-height:1.6">Cancelling immediately ends access to h_ld. for your whole account, including all bookings, client contact information, and notes. This can't be undone from within the app — reactivating requires contacting support directly.</p>
+          <button class="btn btn-danger" onclick="openCancelSubscriptionModal()">Cancel subscription</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ CANCEL SUBSCRIPTION MODAL ═══ -->
+<div class="modal-backdrop" id="cancel-sub-modal-backdrop" onclick="closeCancelSubModalIfBg(event)">
+  <div class="modal" style="width:460px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Cancel your subscription?</span>
+      <button class="modal-close" onclick="closeCancelSubModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--red-pale);border:1px solid #E4C4BE;border-radius:var(--radius);padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.6">
+        <strong>This will immediately end your access.</strong> All client contact information, notes, bookings, and history will become inaccessible. This cannot be undone from within h_ld. — if you need it reversed, you'll need to contact support directly.
+      </div>
+      <div style="margin-top:16px">
+        <label class="form-label">Type <strong>CANCEL</strong> to confirm</label>
+        <input class="form-input" id="cancel-sub-confirm-input" style="margin-top:8px" oninput="onCancelSubConfirmInput()" autocomplete="off">
+      </div>
+      <div id="cancel-sub-error" class="login-error" style="display:none;margin-top:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCancelSubModal()">Never mind</button>
+      <button class="btn btn-danger" onclick="confirmCancelSubscription()" id="cancel-sub-confirm-btn" disabled>Cancel subscription</button>
+    </div>
   </div>
 </div>
 
@@ -4518,6 +4635,219 @@ function showPage(name) {
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
   if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); loadNotifIcons(); renderCustomNotifs(); }
+  if (name === 'account') { loadAccountPage(); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACCOUNT PAGE
+// ═══════════════════════════════════════════════════════════
+let _acctLoadedEmail = '';
+let _acctNotifOptOut = false;
+let _acctRole = null;
+let _acctBillingStatus = null;
+
+async function loadAccountPage() {
+  let data;
+  try {
+    data = await apiFetch('/account');
+  } catch (err) {
+    toast('Could not load account: ' + err.message, 'error');
+    return;
+  }
+
+  _acctLoadedEmail = data.email || '';
+  _acctNotifOptOut = !!data.notificationsOptOut;
+  _acctRole = data.role;
+  _acctBillingStatus = data.organization?.billingStatus;
+
+  document.getElementById('acct-email').value = _acctLoadedEmail;
+  document.getElementById('acct-email-confirm-row').style.display = 'none';
+  document.getElementById('acct-email-save-btn').style.display = 'none';
+  document.getElementById('acct-email-current-password').value = '';
+  document.getElementById('acct-email-error').style.display = 'none';
+  document.getElementById('acct-current-password').value = '';
+  document.getElementById('acct-new-password').value = '';
+  document.getElementById('acct-password-error').style.display = 'none';
+
+  const notifBtn = document.getElementById('acct-notif-toggle');
+  notifBtn.classList.toggle('on', !_acctNotifOptOut);
+
+  // Billing summary + which action buttons apply
+  const org = data.organization || {};
+  const summaryEl = document.getElementById('acct-billing-summary');
+  const checkoutBtn = document.getElementById('acct-checkout-btn');
+  const portalBtn = document.getElementById('acct-portal-btn');
+  const dangerZone = document.getElementById('acct-danger-zone');
+
+  if (!org.hasBillingAccount) {
+    summaryEl.innerHTML = `You're on a <strong>${org.planTier || 'trial'}</strong> plan. Start a subscription to keep using h_ld.`;
+    checkoutBtn.style.display = 'inline-flex';
+    portalBtn.style.display = 'none';
+    dangerZone.style.display = 'none';
+  } else if (org.billingStatus === 'active') {
+    summaryEl.innerHTML = `Your subscription is <strong>active</strong>. Manage your payment method and view invoices below.`;
+    checkoutBtn.style.display = 'none';
+    portalBtn.style.display = 'inline-flex';
+    // Cancelling is owner-only — matches the backend restriction, so
+    // staff in a future multi-practitioner org don't even see the option.
+    dangerZone.style.display = (_acctRole === 'owner') ? 'block' : 'none';
+  } else {
+    summaryEl.innerHTML = `Your subscription is currently <strong>${org.billingStatus || 'inactive'}</strong>.`;
+    checkoutBtn.style.display = 'none';
+    portalBtn.style.display = 'inline-flex';
+    dangerZone.style.display = 'none';
+  }
+}
+
+function onAccountEmailInput() {
+  const changed = document.getElementById('acct-email').value.trim().toLowerCase() !== _acctLoadedEmail.toLowerCase();
+  document.getElementById('acct-email-confirm-row').style.display = changed ? 'grid' : 'none';
+  document.getElementById('acct-email-save-btn').style.display = changed ? 'inline-flex' : 'none';
+  if (!changed) document.getElementById('acct-email-error').style.display = 'none';
+}
+
+async function saveAccountEmail() {
+  const email = document.getElementById('acct-email').value.trim();
+  const currentPassword = document.getElementById('acct-email-current-password').value;
+  const errEl = document.getElementById('acct-email-error');
+  errEl.style.display = 'none';
+
+  if (!currentPassword) {
+    errEl.textContent = 'Enter your current password to confirm this change.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('acct-email-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ email, currentPassword }) });
+    toast('Email updated');
+    await loadAccountPage();
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not update email';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save email';
+  }
+}
+
+async function changeAccountPassword() {
+  const currentPassword = document.getElementById('acct-current-password').value;
+  const newPassword = document.getElementById('acct-new-password').value;
+  const errEl = document.getElementById('acct-password-error');
+  errEl.style.display = 'none';
+
+  if (!currentPassword || !newPassword) {
+    errEl.textContent = 'Both current and new password are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (newPassword.length < 8) {
+    errEl.textContent = 'New password must be at least 8 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('acct-password-btn');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+
+  try {
+    await apiFetch('/account', { method: 'POST', body: JSON.stringify({ action: 'change_password', currentPassword, newPassword }) });
+    toast('Password updated');
+    document.getElementById('acct-current-password').value = '';
+    document.getElementById('acct-new-password').value = '';
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not update password';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update password';
+  }
+}
+
+async function toggleAccountNotifications() {
+  const btn = document.getElementById('acct-notif-toggle');
+  const willBeOn = !btn.classList.contains('on');
+  btn.classList.toggle('on', willBeOn);
+  try {
+    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ notificationsOptOut: !willBeOn }) });
+  } catch (err) {
+    // Revert the toggle visually if the save failed, so the UI never
+    // shows a state that isn't actually saved.
+    btn.classList.toggle('on', !willBeOn);
+    toast('Could not save preference: ' + err.message, 'error');
+  }
+}
+
+async function startAccountCheckout() {
+  const btn = document.getElementById('acct-checkout-btn');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting…';
+  try {
+    const data = await apiFetch('/billing/checkout', { method: 'POST' });
+    window.location.href = data.url;
+  } catch (err) {
+    toast('Could not start checkout: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Start subscription';
+  }
+}
+
+async function openAccountBillingPortal() {
+  const btn = document.getElementById('acct-portal-btn');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting…';
+  try {
+    const data = await apiFetch('/billing/portal', { method: 'POST' });
+    window.location.href = data.url;
+  } catch (err) {
+    toast('Could not open billing portal: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Manage billing & invoices';
+  }
+}
+
+function openCancelSubscriptionModal() {
+  document.getElementById('cancel-sub-confirm-input').value = '';
+  document.getElementById('cancel-sub-confirm-btn').disabled = true;
+  document.getElementById('cancel-sub-error').style.display = 'none';
+  document.getElementById('cancel-sub-modal-backdrop').classList.add('open');
+}
+function closeCancelSubModal() { document.getElementById('cancel-sub-modal-backdrop').classList.remove('open'); }
+function closeCancelSubModalIfBg(e) { if (e.target === e.currentTarget) closeCancelSubModal(); }
+
+function onCancelSubConfirmInput() {
+  const val = document.getElementById('cancel-sub-confirm-input').value;
+  document.getElementById('cancel-sub-confirm-btn').disabled = (val !== 'CANCEL');
+}
+
+async function confirmCancelSubscription() {
+  const btn = document.getElementById('cancel-sub-confirm-btn');
+  const errEl = document.getElementById('cancel-sub-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Cancelling…';
+
+  try {
+    await apiFetch('/billing/cancel', { method: 'POST' });
+    closeCancelSubModal();
+    toast('Subscription cancelled');
+    // Cancelling immediately revokes access at the API level (requireOrg
+    // blocks cancelled orgs), so every subsequent request from this
+    // session would fail anyway — sign out cleanly now rather than leave
+    // the practitioner sitting in a dashboard that no longer works.
+    setTimeout(() => { clearAuthToken(); window.location.reload(); }, 1500);
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not cancel subscription';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Cancel subscription';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
