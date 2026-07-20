@@ -1,6 +1,6 @@
 // api/settings/index.js
 import sql from '../../lib/db.js';
-import { requireAuth } from '../../lib/auth.js';
+import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 
 export default async function handler(req, res) {
@@ -15,22 +15,27 @@ export default async function handler(req, res) {
     const obj = {};
     rows.forEach(r => { obj[r.key] = r.value; });
 
-    // OAuth connection status (non-sensitive — just provider + email) for
-    // every practitioner in this org, not just "the" practitioner. Solo
-    // today, but this is already shaped for a clinic with several staff
-    // each connecting their own calendar.
-    const tokens = await sql`
-      SELECT ot.provider, ot.email, ot.updated_at, ot.practitioner_id
-      FROM oauth_tokens ot
-      JOIN practitioners p ON p.id = ot.practitioner_id
-      WHERE p.organization_id = ${org.id}
-    `;
-    obj._connected = tokens.map(t => ({
-      provider: t.provider,
-      email: t.email,
-      connectedAt: t.updated_at,
-      practitionerId: t.practitioner_id,
-    }));
+    // Connection status is only meaningful to an authenticated practitioner
+    // looking at their own settings — the public booking page doesn't get
+    // this at all. Shaped as an object keyed by provider (e.g.
+    // connected.google.email) to match what the frontend's getCalAccounts()
+    // actually reads; an earlier version of this endpoint returned an
+    // array here, which getCalAccounts() would never have matched against
+    // — connected accounts would never have shown as connected in the UI
+    // regardless of whether the OAuth flow itself worked correctly.
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const payload = token ? verifyToken(token) : null;
+
+    if (payload && payload.organization_id === org.id) {
+      const tokens = await sql`
+        SELECT provider, email, updated_at FROM oauth_tokens WHERE practitioner_id = ${payload.practitioner_id}
+      `;
+      obj._connected = {};
+      tokens.forEach(t => {
+        obj._connected[t.provider] = { email: t.email, connectedAt: t.updated_at };
+      });
+    }
 
     return res.json(obj);
   }

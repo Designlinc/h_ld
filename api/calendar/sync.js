@@ -1,49 +1,33 @@
 // api/calendar/sync.js — push a booking to Google Calendar
 import sql from '../../lib/db.js';
 import { requireAuth } from '../../lib/auth.js';
-
-async function getAccessToken() {
-  const [token] = await sql`SELECT * FROM oauth_tokens WHERE provider = 'google'`;
-  if (!token) throw new Error('Google not connected');
-
-  // Refresh if expired
-  if (new Date(token.expires_at) < new Date(Date.now() + 60000)) {
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        refresh_token: token.refresh_token,
-        grant_type:    'refresh_token',
-      }),
-    });
-    const data = await res.json();
-    await sql`
-      UPDATE oauth_tokens SET
-        access_token = ${data.access_token},
-        expires_at   = ${new Date(Date.now() + data.expires_in * 1000).toISOString()},
-        updated_at   = NOW()
-      WHERE provider = 'google'
-    `;
-    return data.access_token;
-  }
-  return token.access_token;
-}
+import { requireOrg } from '../../lib/tenant.js';
+import { getValidGoogleToken } from '../../lib/googleCalendar.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!requireAuth(req, res)) return;
+
+  const org = await requireOrg(req, res);
+  if (!org) return;
+  const auth = requireAuth(req, res, org);
+  if (!auth) return;
   if (req.method !== 'POST') return res.status(405).end();
 
   const { bookingId } = req.body;
-  const [b] = await sql`SELECT * FROM bookings WHERE id = ${bookingId}`;
+  // Scoped by organization_id — this was previously a bare lookup by ID
+  // with no tenant check at all.
+  const [b] = await sql`SELECT * FROM bookings WHERE id = ${bookingId} AND organization_id = ${org.id}`;
   if (!b) return res.status(404).json({ error: 'Booking not found' });
 
   try {
-    const accessToken = await getAccessToken();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const paymentUrl = `${appUrl}/solful-pay.html?payment=${b.id}`;
+    // Sync to whichever practitioner actually owns the booking, not
+    // necessarily whoever is currently logged in — matters once an org
+    // has more than one staff member, each with their own calendar.
+    // Falls back to the calling practitioner for org-wide/legacy bookings
+    // with no practitioner assigned.
+    const accessToken = await getValidGoogleToken(b.practitioner_id || auth.practitioner_id);
+
+    const paymentUrl = `https://${org.subdomain}.h-ld.com/pay.html?payment=${b.id}`;
 
     // Normalise date — Postgres DATE comes back as a Date object or ISO string
     const dateStr = typeof b.date === 'string'
@@ -75,14 +59,12 @@ export default async function handler(req, res) {
 
     let gcRes;
     if (b.google_event_id) {
-      // Update existing event
       gcRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${b.google_event_id}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
       });
     } else {
-      // Create new event
       gcRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -92,7 +74,10 @@ export default async function handler(req, res) {
 
     const gcData = await gcRes.json();
     if (gcData.id) {
-      await sql`UPDATE bookings SET google_event_id = ${gcData.id} WHERE id = ${b.id}`;
+      // Still scoped by organization_id on the write, even though we
+      // already confirmed ownership above — cheap extra guarantee against
+      // this ever updating the wrong row.
+      await sql`UPDATE bookings SET google_event_id = ${gcData.id} WHERE id = ${b.id} AND organization_id = ${org.id}`;
     }
 
     return res.json({ ok: true, eventId: gcData.id });

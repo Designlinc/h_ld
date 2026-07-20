@@ -2637,6 +2637,28 @@
           </div>
         </div>
       </div>
+
+      <div class="settings-section">
+        <div class="settings-section-header">
+          <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+          <span class="settings-section-title">Payment Gateway</span>
+        </div>
+        <div class="settings-body" id="payment-gateway-body">
+          <div id="payment-gateway-connected"></div>
+          <div id="payment-gateway-picker">
+            <button class="cal-provider-btn" onclick="connectSquare()">
+              <div class="cal-provider-icon" style="background:#F5F9F5">
+                <svg viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="5" fill="#25CA6B"/><rect x="6" y="6" width="12" height="12" rx="2" fill="#fff"/></svg>
+              </div>
+              <div class="cal-provider-info">
+                <div class="cal-provider-name">Square</div>
+                <div class="cal-provider-desc">Take card payments &amp; send payment links to clients</div>
+              </div>
+              <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── ACCOUNT ── -->
@@ -4646,7 +4668,7 @@ function showPage(name) {
   if (name === 'communications') renderComms();
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
-  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); loadNotifIcons(); renderCustomNotifs(); }
+  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); loadNotifIcons(); renderCustomNotifs(); }
   if (name === 'account') { loadAccountPage(); }
 }
 
@@ -7685,6 +7707,55 @@ async function disconnectCal(provider) {
   toast('Calendar disconnected');
 }
 
+// ═══════════════════════════════════════════════════════════
+// PAYMENT GATEWAY (Square)
+// ═══════════════════════════════════════════════════════════
+async function connectSquare() {
+  try {
+    const data = await apiFetch('/auth/square');
+    window.location.href = data.url;
+  } catch (err) {
+    toast('Could not start Square connection: ' + err.message, 'error');
+  }
+}
+
+async function disconnectSquare() {
+  if (!confirm('Disconnect Square? You will not be able to send payment links to clients until you reconnect.')) return;
+  try {
+    await apiFetch('/settings', { method: 'DELETE', body: JSON.stringify({ provider: 'square' }) });
+    await loadSettings();
+  } catch (err) {
+    toast('Could not disconnect: ' + err.message, 'error');
+    return;
+  }
+  renderPaymentGatewayStatus();
+  toast('Square disconnected');
+}
+
+function renderPaymentGatewayStatus() {
+  const connected = getConnected();
+  const connectedEl = document.getElementById('payment-gateway-connected');
+  const pickerEl = document.getElementById('payment-gateway-picker');
+  if (!connectedEl || !pickerEl) return;
+
+  if (connected.square) {
+    connectedEl.innerHTML =
+      '<div class="cal-connected-card">' +
+        '<div class="cal-connected-icon" style="background:#F5F9F5"><svg viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="5" fill="#25CA6B"/><rect x="6" y="6" width="12" height="12" rx="2" fill="#fff"/></svg></div>' +
+        '<div class="cal-connected-info">' +
+          '<div class="cal-connected-name">Square</div>' +
+          '<div class="cal-connected-email">' + (connected.square.email || 'Connected') + '</div>' +
+          '<div class="cal-connected-status">Connected &middot; Ready to take payments</div>' +
+        '</div>' +
+        '<button class="cal-disconnect-btn" onclick="disconnectSquare()">Disconnect</button>' +
+      '</div>';
+    pickerEl.style.display = 'none';
+  } else {
+    connectedEl.innerHTML = '';
+    pickerEl.style.display = 'block';
+  }
+}
+
 function startCalConnect(provider) {
   calConnectProvider = provider;
   calConnectStep = 1;
@@ -7756,10 +7827,14 @@ function renderCalStep() {
   `;
 }
 
-function calSignIn() {
+async function calSignIn() {
   if (calConnectProvider === 'google') {
-    // Redirect to real Google OAuth — callback returns to /admin.html?cal_connected=1
-    window.location.href = '/api/auth/google';
+    try {
+      const data = await apiFetch('/auth/google');
+      window.location.href = data.url;
+    } catch (err) {
+      toast('Could not start Google connection: ' + err.message, 'error');
+    }
   } else if (calConnectProvider === 'microsoft') {
     // Microsoft OAuth — not yet configured, show placeholder
     toast('Microsoft Calendar connection coming soon — contact support to set this up', '');
@@ -11934,6 +12009,15 @@ async function bootApp() {
   } else if (params.get('cal_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Google Calendar connection failed — please try again', 'error');
+    setTimeout(() => showPage('settings'), 400);
+  } else if (params.get('square_connected')) {
+    window.history.replaceState({}, '', window.location.pathname);
+    renderPaymentGatewayStatus();
+    toast('Square connected successfully', 'success');
+    setTimeout(() => showPage('settings'), 400);
+  } else if (params.get('square_error')) {
+    window.history.replaceState({}, '', window.location.pathname);
+    toast('Square connection failed — please try again', 'error');
     setTimeout(() => showPage('settings'), 400);
   }
 }

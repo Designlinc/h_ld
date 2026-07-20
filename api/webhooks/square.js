@@ -2,11 +2,9 @@
 import sql from '../../lib/db.js';
 import crypto from 'crypto';
 
-// Square signs the exact raw bytes it sent. Vercel's default body parser
-// re-serializes the parsed JSON, which can differ from the original bytes
-// (key order, spacing, number formatting) and cause valid signatures to
-// fail verification. Body parsing is disabled below so we can read and
-// verify against the untouched raw body.
+// Square signs the exact raw bytes it sent. Body parsing is disabled below
+// so we can verify against the untouched raw body — see api/webhooks/stripe.js
+// for the same reasoning, applied there too.
 function getRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -21,11 +19,15 @@ export default async function handler(req, res) {
 
   const rawBody = await getRawBody(req);
 
-  // Verify Square webhook signature against the raw bytes
+  // One Square Application (yours), one webhook signing key — this stays
+  // global even though tokens are now per-practitioner, because Square's
+  // webhook model delivers events for every merchant connected to your
+  // app through this single signed endpoint, distinguished by merchant_id
+  // in the payload rather than by a per-merchant signature.
   const signature = req.headers['x-square-hmacsha256-signature'];
   const expected = crypto
     .createHmac('sha256', process.env.SQUARE_WEBHOOK_SIGNATURE_KEY)
-    .update(process.env.NEXT_PUBLIC_APP_URL + '/api/webhooks/square' + rawBody)
+    .update('https://h-ld.com/api/webhooks/square' + rawBody)
     .digest('base64');
 
   if (signature !== expected) {
@@ -43,9 +45,31 @@ export default async function handler(req, res) {
   const { type, data } = payload;
   if (type === 'payment.updated' && data?.object?.payment?.status === 'COMPLETED') {
     const note = data?.object?.payment?.note || '';
-    const match = note.match(/booking:([a-z0-9]+)/i);
+    const match = note.match(/booking:([a-z0-9-]+)/i);
     if (match) {
       const bookingId = match[1];
+      const merchantId = data.object.payment.merchant_id || payload.merchant_id;
+
+      const [booking] = await sql`SELECT id, organization_id, practitioner_id FROM bookings WHERE id = ${bookingId}`;
+      if (!booking) {
+        console.warn('Square webhook: booking not found for id', bookingId);
+        return res.status(200).json({ ok: true });
+      }
+
+      // Confirm this payment actually belongs to the practitioner this
+      // booking is for — a booking ID is already a hard-to-guess UUID, so
+      // this is defense-in-depth rather than the only thing standing
+      // between tenants, but it closes the gap cheaply.
+      const [tokenRow] = await sql`
+        SELECT metadata FROM oauth_tokens
+        WHERE practitioner_id = ${booking.practitioner_id} AND provider = 'square'
+      `;
+      const expectedMerchantId = tokenRow?.metadata?.merchantId;
+      if (expectedMerchantId && merchantId && expectedMerchantId !== merchantId) {
+        console.error('Square webhook: merchant_id mismatch for booking', bookingId);
+        return res.status(200).json({ ok: true }); // acknowledge, don't apply
+      }
+
       await sql`
         UPDATE bookings SET
           status         = 'completed',
@@ -53,7 +77,7 @@ export default async function handler(req, res) {
           payment_amount = ${data.object.payment.amount_money.amount / 100},
           paid_at        = NOW(),
           updated_at     = NOW()
-        WHERE id = ${bookingId}
+        WHERE id = ${bookingId} AND organization_id = ${booking.organization_id}
       `;
     }
   }
