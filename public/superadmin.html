@@ -167,10 +167,13 @@
   </header>
 
   <main>
-    <div class="toolbar">
-      <input type="text" class="form-input" id="org-search" placeholder="Search by name, subdomain, or owner email" oninput="renderOrganizations()">
+    <div id="list-view">
+      <div class="toolbar">
+        <input type="text" class="form-input" id="org-search" placeholder="Search by name, subdomain, or owner email" oninput="renderOrganizations()">
+      </div>
+      <div id="org-table-wrap"></div>
     </div>
-    <div id="org-table-wrap"></div>
+    <div id="detail-view" style="display:none"></div>
   </main>
 </div>
 
@@ -185,6 +188,74 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeImpersonateModal()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmImpersonate()" id="impersonate-confirm-btn">Start session</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESTORE ACCESS MODAL (cancelled org) ═══ -->
+<div class="modal-backdrop" id="restore-modal-backdrop" onclick="closeRestoreModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Restore access without billing?</div>
+    <div class="modal-sub">This organization's subscription was cancelled — restoring access here does <strong>not</strong> recreate a Stripe subscription. They'll have full access with no active billing until they resubscribe themselves or you follow up. Use this for goodwill extensions or resolving support issues, not as a routine action.</div>
+    <div id="restore-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRestoreModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmRestoreAccess()" id="restore-confirm-btn">Restore access</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHANGE SUBDOMAIN MODAL ═══ -->
+<div class="modal-backdrop" id="subdomain-modal-backdrop" onclick="closeSubdomainModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Change subdomain</div>
+    <div class="modal-sub">The organization will move from <span id="subdomain-current"></span> to whatever you enter below. Existing bookmarks and any shared links using the old subdomain will stop working immediately.</div>
+    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">New subdomain</label>
+    <input type="text" id="subdomain-new" class="form-input" placeholder="e.g. sarah-wellness">
+    <div id="subdomain-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSubdomainModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmChangeSubdomain()" id="subdomain-confirm-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESET PASSWORD MODAL ═══ -->
+<div class="modal-backdrop" id="reset-pw-modal-backdrop" onclick="closeResetPwModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div id="reset-pw-confirm-view">
+      <div class="modal-title">Reset this practitioner's password?</div>
+      <div class="modal-sub">A new temporary password will be generated. It's shown once, here — nothing is emailed. Relay it directly to them, and let them know to change it once they're back in.</div>
+      <div id="reset-pw-error" class="error-msg" style="display:none"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeResetPwModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmResetPassword()" id="reset-pw-confirm-btn">Reset password</button>
+      </div>
+    </div>
+    <div id="reset-pw-result-view" style="display:none">
+      <div class="modal-title">New temporary password</div>
+      <div class="modal-sub">For <strong id="reset-pw-result-email"></strong> — this won't be shown again.</div>
+      <div style="background:var(--sage-pale);border-radius:8px;padding:16px;text-align:center;font-size:20px;font-weight:700;letter-spacing:1px;margin-bottom:16px" id="reset-pw-result-value"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeResetPwModal()" style="width:100%">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SEND MESSAGE MODAL ═══ -->
+<div class="modal-backdrop" id="message-modal-backdrop" onclick="closeMessageModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Send a message</div>
+    <div class="modal-sub">Emailed directly to <strong id="message-recipient-email"></strong>.</div>
+    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Subject</label>
+    <input type="text" id="message-subject" class="form-input" style="margin-bottom:14px">
+    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Message</label>
+    <textarea id="message-body" class="form-input" rows="5" style="resize:vertical;font-family:inherit"></textarea>
+    <div id="message-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeMessageModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSendMessage()" id="message-confirm-btn">Send</button>
     </div>
   </div>
 </div>
@@ -315,8 +386,6 @@ function renderOrganizations() {
   const rows = filtered.map(o => {
     const statusCls = o.billing_status || 'trial';
     const created = o.created_at ? new Date(o.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const canSuspend = o.billing_status === 'active';
-    const canReactivate = o.billing_status === 'suspended';
 
     return `<tr>
       <td>
@@ -334,9 +403,8 @@ function renderOrganizations() {
       <td>${created}</td>
       <td>
         <div class="row-actions">
+          <button class="btn btn-ghost" onclick="openOrgDetail('${o.id}')">View</button>
           <button class="btn btn-ghost" onclick="openImpersonateModal('${o.id}')">Impersonate</button>
-          ${canSuspend ? `<button class="btn btn-danger" onclick="setBillingStatus('${o.id}','suspended')">Suspend</button>` : ''}
-          ${canReactivate ? `<button class="btn btn-primary" onclick="setBillingStatus('${o.id}','active')">Reactivate</button>` : ''}
         </div>
       </td>
     </tr>`;
@@ -348,17 +416,6 @@ function renderOrganizations() {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-}
-
-async function setBillingStatus(organizationId, billingStatus) {
-  const label = billingStatus === 'suspended' ? 'suspend' : 'reactivate';
-  if (!confirm(`Are you sure you want to ${label} this organization?`)) return;
-  try {
-    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId, billingStatus }) });
-    await loadOrganizations();
-  } catch (err) {
-    alert('Could not update status: ' + err.message);
-  }
 }
 
 // ── Impersonation ──
@@ -398,6 +455,303 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+// ── Org detail view ──
+let _currentDetailOrg = null;
+let _currentDetailPractitioners = [];
+
+async function openOrgDetail(orgId) {
+  document.getElementById('list-view').style.display = 'none';
+  const detailEl = document.getElementById('detail-view');
+  detailEl.style.display = 'block';
+  detailEl.innerHTML = '<div class="empty">Loading…</div>';
+
+  try {
+    const data = await apiFetch('/admin/organizations?organizationId=' + orgId);
+    _currentDetailOrg = data.organization;
+    _currentDetailPractitioners = data.practitioners || [];
+    renderOrgDetail();
+    loadOrgInvoices(orgId);
+  } catch (err) {
+    detailEl.innerHTML = '<div class="empty">Could not load organization: ' + err.message + '</div>';
+  }
+}
+
+function closeOrgDetail() {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('list-view').style.display = 'block';
+  _currentDetailOrg = null;
+  loadOrganizations();
+}
+
+function billingActionButton(org) {
+  if (org.billing_status === 'suspended') {
+    return `<button class="btn btn-primary" onclick="setBillingStatus('${org.id}','active', true)">Reactivate</button>`;
+  }
+  if (org.billing_status === 'cancelled') {
+    return `<button class="btn btn-danger" onclick="openRestoreModal()">Restore access</button>`;
+  }
+  return `<button class="btn btn-danger" onclick="setBillingStatus('${org.id}','suspended', true)">Suspend</button>`;
+}
+
+function renderOrgDetail() {
+  const org = _currentDetailOrg;
+  const created = org.created_at ? new Date(org.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  const practitionerRows = _currentDetailPractitioners.map(p => {
+    const providers = p.connected_providers || [];
+    const integrations = ['google', 'square'].map(prov =>
+      `<span class="integration-dot ${providers.includes(prov) ? 'on' : 'off'}" title="${capitalize(prov)}"></span>`
+    ).join('');
+    return `<tr>
+      <td>${escapeHtml(p.email)}</td>
+      <td>${escapeHtml(p.name || '—')}</td>
+      <td>${escapeHtml(capitalize(p.role))}</td>
+      <td>${integrations}</td>
+      <td>${p.notifications_opt_out ? 'Opted out' : 'Subscribed'}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-ghost" onclick="openResetPwModal('${p.id}')">Reset password</button>
+          <button class="btn btn-ghost" onclick="openMessageModal('${p.id}')">Message</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('detail-view').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeOrgDetail()" style="margin-bottom:20px">&larr; Back to all organizations</button>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div style="font-size:22px;font-weight:700">${escapeHtml(org.name)}</div>
+        <div style="font-size:13px;color:var(--ink-soft)">${escapeHtml(org.subdomain)}.h-ld.com</div>
+      </div>
+      <span class="pill ${org.billing_status}"><span class="pill-dot"></span>${capitalize(org.billing_status)}</span>
+    </div>
+
+    <div style="display:flex;gap:24px;margin:20px 0;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:13px">
+      <div><span style="color:var(--ink-soft)">Plan:</span> ${escapeHtml(org.plan_tier)}</div>
+      <div><span style="color:var(--ink-soft)">Created:</span> ${created}</div>
+      <div><span style="color:var(--ink-soft)">Staff:</span> ${_currentDetailPractitioners.length}</div>
+      <div><span style="color:var(--ink-soft)">Stripe status:</span> ${escapeHtml(org.stripe_status || '—')}</div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:32px;flex-wrap:wrap">
+      ${billingActionButton(org)}
+      <button class="btn btn-ghost" onclick="openSubdomainModal()">Change subdomain</button>
+      <button class="btn btn-ghost" onclick="resyncFromStripe('${org.id}')" id="resync-btn">Resync from Stripe</button>
+      <button class="btn btn-ghost" onclick="openImpersonateModal('${org.id}')">Impersonate</button>
+    </div>
+
+    <div style="font-size:15px;font-weight:700;margin-bottom:12px">Practitioners</div>
+    <table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:32px">
+      <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Connected</th><th>Notifications</th><th></th></tr></thead>
+      <tbody>${practitionerRows || '<tr><td colspan="6" class="empty">No practitioners</td></tr>'}</tbody>
+    </table>
+
+    <div style="font-size:15px;font-weight:700;margin-bottom:12px">Billing history</div>
+    <div id="org-invoices-wrap"><div class="empty">Loading…</div></div>
+  `;
+}
+
+async function loadOrgInvoices(orgId) {
+  const wrap = document.getElementById('org-invoices-wrap');
+  try {
+    const data = await apiFetch('/admin/invoices?organizationId=' + orgId);
+    renderInvoiceTable(wrap, data.invoices || []);
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty">Could not load billing history: ' + err.message + '</div>';
+  }
+}
+
+function invoiceStatusPill(status) {
+  const map = {
+    paid:          { cls: 'active', label: 'Paid' },
+    open:          { cls: 'trial', label: 'Awaiting payment' },
+    draft:         { cls: 'trial', label: 'Draft' },
+    uncollectible: { cls: 'suspended', label: 'Failed' },
+    void:          { cls: 'suspended', label: 'Void' },
+  };
+  const m = map[status] || { cls: 'trial', label: status || 'Unknown' };
+  return `<span class="pill ${m.cls}"><span class="pill-dot"></span>${m.label}</span>`;
+}
+
+function renderInvoiceTable(wrap, invoices) {
+  if (invoices.length === 0) {
+    wrap.innerHTML = '<div class="empty">No invoices yet.</div>';
+    return;
+  }
+  const rows = invoices.map(inv => {
+    const d = inv.date ? new Date(inv.date) : null;
+    const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const amountStr = (inv.amount != null) ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—';
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${escapeHtml(inv.number || inv.id)}</td>
+      <td>${invoiceStatusPill(inv.status)}</td>
+      <td>${amountStr}</td>
+      <td style="text-align:right">
+        ${inv.hostedUrl ? `<button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="window.open('${inv.hostedUrl}','_blank')">View</button>` : ''}
+        ${inv.pdfUrl ? `<button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="window.open('${inv.pdfUrl}','_blank')">Download</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+    <thead><tr><th>Date</th><th>Invoice #</th><th>Status</th><th>Amount</th><th style="text-align:right">Action</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Suspend/reactivate (used from detail view; refreshInline=true keeps
+// the detail panel open and re-renders it in place instead of bouncing
+// back to the list) ──
+async function setBillingStatus(organizationId, billingStatus, refreshInline) {
+  const label = billingStatus === 'suspended' ? 'suspend' : 'reactivate';
+  if (!confirm(`Are you sure you want to ${label} this organization?`)) return;
+  try {
+    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId, billingStatus }) });
+    if (refreshInline) { await openOrgDetail(organizationId); } else { await loadOrganizations(); }
+  } catch (err) {
+    alert('Could not update status: ' + err.message);
+  }
+}
+
+// ── Restore access (cancelled org) ──
+function openRestoreModal() {
+  document.getElementById('restore-error').style.display = 'none';
+  document.getElementById('restore-modal-backdrop').classList.add('open');
+}
+function closeRestoreModal() { document.getElementById('restore-modal-backdrop').classList.remove('open'); }
+function closeRestoreModalIfBg(e) { if (e.target === e.currentTarget) closeRestoreModal(); }
+
+async function confirmRestoreAccess() {
+  const btn = document.getElementById('restore-confirm-btn');
+  const errEl = document.getElementById('restore-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Restoring…';
+  try {
+    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId: _currentDetailOrg.id, billingStatus: 'active' }) });
+    closeRestoreModal();
+    await openOrgDetail(_currentDetailOrg.id);
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Restore access';
+  }
+}
+
+// ── Change subdomain ──
+function openSubdomainModal() {
+  document.getElementById('subdomain-current').textContent = _currentDetailOrg.subdomain + '.h-ld.com';
+  document.getElementById('subdomain-new').value = _currentDetailOrg.subdomain;
+  document.getElementById('subdomain-error').style.display = 'none';
+  document.getElementById('subdomain-modal-backdrop').classList.add('open');
+}
+function closeSubdomainModal() { document.getElementById('subdomain-modal-backdrop').classList.remove('open'); }
+function closeSubdomainModalIfBg(e) { if (e.target === e.currentTarget) closeSubdomainModal(); }
+
+async function confirmChangeSubdomain() {
+  const subdomain = document.getElementById('subdomain-new').value.trim();
+  const btn = document.getElementById('subdomain-confirm-btn');
+  const errEl = document.getElementById('subdomain-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId: _currentDetailOrg.id, subdomain }) });
+    closeSubdomainModal();
+    await openOrgDetail(_currentDetailOrg.id);
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+// ── Resync from Stripe ──
+async function resyncFromStripe(organizationId) {
+  const btn = document.getElementById('resync-btn');
+  btn.disabled = true; btn.textContent = 'Resyncing…';
+  try {
+    await apiFetch('/admin/resync-stripe', { method: 'POST', body: JSON.stringify({ organizationId }) });
+    await openOrgDetail(organizationId);
+  } catch (err) {
+    alert('Could not resync: ' + err.message);
+    btn.disabled = false; btn.textContent = 'Resync from Stripe';
+  }
+}
+
+// ── Reset practitioner password ──
+let _resetPwPractitionerId = null;
+
+function openResetPwModal(practitionerId) {
+  const practitioner = _currentDetailPractitioners.find(p => p.id === practitionerId);
+  if (!practitioner) return;
+  _resetPwPractitionerId = practitionerId;
+  document.getElementById('reset-pw-confirm-view').style.display = 'block';
+  document.getElementById('reset-pw-result-view').style.display = 'none';
+  document.getElementById('reset-pw-error').style.display = 'none';
+  document.getElementById('reset-pw-modal-backdrop').classList.add('open');
+}
+function closeResetPwModal() { document.getElementById('reset-pw-modal-backdrop').classList.remove('open'); }
+function closeResetPwModalIfBg(e) { if (e.target === e.currentTarget) closeResetPwModal(); }
+
+async function confirmResetPassword() {
+  const btn = document.getElementById('reset-pw-confirm-btn');
+  const errEl = document.getElementById('reset-pw-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Resetting…';
+  try {
+    const data = await apiFetch('/admin/reset-password', { method: 'POST', body: JSON.stringify({ practitionerId: _resetPwPractitionerId }) });
+    document.getElementById('reset-pw-confirm-view').style.display = 'none';
+    document.getElementById('reset-pw-result-view').style.display = 'block';
+    document.getElementById('reset-pw-result-email').textContent = data.email;
+    document.getElementById('reset-pw-result-value').textContent = data.tempPassword;
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reset password';
+  }
+}
+
+// ── Send message ──
+let _messagePractitionerId = null;
+
+function openMessageModal(practitionerId) {
+  const practitioner = _currentDetailPractitioners.find(p => p.id === practitionerId);
+  if (!practitioner) return;
+  _messagePractitionerId = practitionerId;
+  document.getElementById('message-recipient-email').textContent = practitioner.email;
+  document.getElementById('message-subject').value = '';
+  document.getElementById('message-body').value = '';
+  document.getElementById('message-error').style.display = 'none';
+  document.getElementById('message-modal-backdrop').classList.add('open');
+}
+function closeMessageModal() { document.getElementById('message-modal-backdrop').classList.remove('open'); }
+function closeMessageModalIfBg(e) { if (e.target === e.currentTarget) closeMessageModal(); }
+
+async function confirmSendMessage() {
+  const subject = document.getElementById('message-subject').value.trim();
+  const message = document.getElementById('message-body').value.trim();
+  const btn = document.getElementById('message-confirm-btn');
+  const errEl = document.getElementById('message-error');
+  errEl.style.display = 'none';
+
+  if (!subject || !message) {
+    errEl.textContent = 'Subject and message are both required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try {
+    await apiFetch('/admin/message-practitioner', { method: 'POST', body: JSON.stringify({ practitionerId: _messagePractitionerId, subject, message }) });
+    closeMessageModal();
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send';
+  }
+}
 
 // ── Boot ──
 if (getAuthToken()) { showApp(); } else { showLogin(); }

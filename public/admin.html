@@ -4852,24 +4852,35 @@ function renderAccountInvoices(invoices) {
     return;
   }
 
-  listEl.innerHTML = invoices.map(inv => {
+  const rows = invoices.map(inv => {
     const d = inv.date ? new Date(inv.date) : null;
     const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
     const amountStr = (inv.amount != null) ? `$${inv.amount.toFixed(2)} ${inv.currency}` : '—';
 
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:16px;min-width:0">
-        <div style="font-size:13px;color:var(--ink);min-width:90px">${dateStr}</div>
-        <div style="font-size:13px;color:var(--ink-mid)">${inv.number || inv.id}</div>
-        ${invoiceStatusPill(inv.status)}
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${amountStr}</div>
+    return `<tr>
+      <td style="padding:12px 8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink)">${dateStr}</td>
+      <td style="padding:12px 8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink-mid)">${inv.number || inv.id}</td>
+      <td style="padding:12px 8px;border-bottom:1px solid var(--border)">${invoiceStatusPill(inv.status)}</td>
+      <td style="padding:12px 8px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--ink)">${amountStr}</td>
+      <td style="padding:12px 8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap">
         ${inv.hostedUrl ? `<button class="icon-btn edit" title="View invoice" onclick="window.open('${inv.hostedUrl}','_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
         ${inv.pdfUrl ? `<button class="icon-btn edit" title="Download PDF" onclick="window.open('${inv.pdfUrl}','_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : ''}
-      </div>
-    </div>`;
+      </td>
+    </tr>`;
   }).join('');
+
+  listEl.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);border-bottom:1px solid var(--border)">Date</th>
+        <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);border-bottom:1px solid var(--border)">Invoice #</th>
+        <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);border-bottom:1px solid var(--border)">Status</th>
+        <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);border-bottom:1px solid var(--border)">Amount</th>
+        <th style="text-align:right;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);border-bottom:1px solid var(--border)">Action</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 function onAccountEmailInput() {
