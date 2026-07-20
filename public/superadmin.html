@@ -438,6 +438,7 @@ function renderOrganizations() {
 let _impersonateOrgId = null;
 
 function openImpersonateModal(orgId) {
+  stopImpersonatePolling();
   const org = _orgs.find(o => o.id === orgId);
   if (!org) return;
   _impersonateOrgId = orgId;
@@ -449,7 +450,10 @@ function openImpersonateModal(orgId) {
   document.getElementById('impersonate-pending-view').style.display = 'none';
   document.getElementById('impersonate-modal-backdrop').classList.add('open');
 }
-function closeImpersonateModal() { document.getElementById('impersonate-modal-backdrop').classList.remove('open'); }
+function closeImpersonateModal() {
+  stopImpersonatePolling();
+  document.getElementById('impersonate-modal-backdrop').classList.remove('open');
+}
 function closeImpersonateModalIfBg(e) { if (e.target === e.currentTarget) closeImpersonateModal(); }
 
 async function startImmediateSession() {
@@ -485,6 +489,7 @@ async function requestPermissionFirst() {
     document.getElementById('impersonate-pending-sub').textContent =
       `Sent via ${data.sentVia === 'sms' ? 'SMS' : 'email'} — waiting for them to respond. Click "Check status" once they've replied.`;
     document.getElementById('impersonate-start-approved-btn').style.display = 'none';
+    startImpersonatePolling();
   } catch (err) {
     errEl.textContent = err.message; errEl.style.display = 'block';
   } finally {
@@ -492,11 +497,24 @@ async function requestPermissionFirst() {
   }
 }
 
-async function checkRequestStatus() {
+let _impersonatePollTimer = null;
+const IMPERSONATE_POLL_INTERVAL_MS = 4000; // 4s — actively watched during a call, faster than the 15s bookings poll
+
+function startImpersonatePolling() {
+  stopImpersonatePolling();
+  _impersonatePollTimer = setInterval(() => checkRequestStatus(true), IMPERSONATE_POLL_INTERVAL_MS);
+}
+function stopImpersonatePolling() {
+  if (_impersonatePollTimer) { clearInterval(_impersonatePollTimer); _impersonatePollTimer = null; }
+}
+
+// silent=true is the background-poll path: no button text/disabled churn,
+// and stops polling itself once there's nothing left to wait for.
+async function checkRequestStatus(silent) {
   const errEl = document.getElementById('impersonate-pending-error');
   const btn = document.getElementById('impersonate-check-btn');
   errEl.style.display = 'none';
-  btn.disabled = true; btn.textContent = 'Checking…';
+  if (!silent) { btn.disabled = true; btn.textContent = 'Checking…'; }
 
   try {
     const data = await apiFetch('/admin/impersonate-request?requestId=' + _impersonateRequestId);
@@ -506,24 +524,30 @@ async function checkRequestStatus() {
     if (data.status === 'approved') {
       subEl.textContent = 'Approved — you can start the session now.';
       startBtn.style.display = 'inline-flex';
+      stopImpersonatePolling();
     } else if (data.status === 'denied') {
       subEl.textContent = 'They denied this request. No access was granted.';
       startBtn.style.display = 'none';
+      stopImpersonatePolling();
     } else if (data.status === 'expired') {
       subEl.textContent = 'This request expired before they responded.';
       startBtn.style.display = 'none';
-    } else {
+      stopImpersonatePolling();
+    } else if (!silent) {
       subEl.textContent = 'Still pending — no response yet.';
       startBtn.style.display = 'none';
     }
   } catch (err) {
-    errEl.textContent = err.message; errEl.style.display = 'block';
+    // A background poll hitting a transient error shouldn't interrupt
+    // someone watching the modal — only surface it on a manual click.
+    if (!silent) { errEl.textContent = err.message; errEl.style.display = 'block'; }
   } finally {
-    btn.disabled = false; btn.textContent = 'Check status';
+    if (!silent) { btn.disabled = false; btn.textContent = 'Check status'; }
   }
 }
 
 async function startFromApprovedRequest() {
+  stopImpersonatePolling();
   const errEl = document.getElementById('impersonate-pending-error');
   const btn = document.getElementById('impersonate-start-approved-btn');
   errEl.style.display = 'none';
