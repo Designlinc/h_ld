@@ -1904,6 +1904,33 @@
         <div id="reset-status" style="text-align:center;font-size:13px;color:var(--ink-mid);margin-top:16px;min-height:16px"></div>
       </form>
     </div>
+
+    <div id="login-step-consent" style="display:none">
+      <div id="consent-loading" style="text-align:center;font-size:13px;color:var(--ink-mid)">Loading…</div>
+      <div id="consent-body" style="display:none">
+        <div class="login-sub" style="margin-bottom:8px;text-align:center;font-weight:700;color:var(--ink);font-size:15px">Permission requested</div>
+        <div class="login-sub" style="margin-bottom:16px;text-align:center">h_ld. support is asking to see your account and act on your behalf to help with your support request.</div>
+        <div id="consent-reason-wrap" style="display:none;background:var(--sage-pale);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--ink)">
+          <strong>Reason given:</strong> <span id="consent-reason-text"></span>
+        </div>
+        <details style="margin-bottom:20px">
+          <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--sage)">What will they be able to see and do?</summary>
+          <ul style="font-size:12px;color:var(--ink-mid);line-height:1.7;margin:10px 0 0;padding-left:18px">
+            <li>All client contact details, session notes, and booking history</li>
+            <li>Business settings, services, and message templates</li>
+            <li>The ability to create, edit, or cancel bookings</li>
+            <li>Your connected calendar and payment integrations</li>
+          </ul>
+          <p style="font-size:12px;color:var(--ink-mid);margin:10px 0 0">Access is limited to one hour and is automatically logged, including the reason given above.</p>
+        </details>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="respondToConsent(false)" id="consent-deny-btn">Deny</button>
+          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="respondToConsent(true)" id="consent-allow-btn">Allow</button>
+        </div>
+        <div id="consent-error" class="login-error" style="display:none;margin-top:14px"></div>
+      </div>
+      <div id="consent-result" style="display:none;text-align:center;font-size:14px;color:var(--ink)"></div>
+    </div>
   </div>
 </div>
 
@@ -4195,6 +4222,79 @@ function showResetStep(token) {
   document.getElementById('login-step-mfa').style.display = 'none';
   document.getElementById('login-step-forgot').style.display = 'none';
   document.getElementById('login-step-reset').style.display = 'block';
+}
+
+let _consentToken = null;
+
+async function showConsentStep(token) {
+  _consentToken = token;
+  document.getElementById('login-step-password').style.display = 'none';
+  document.getElementById('login-step-mfa').style.display = 'none';
+  document.getElementById('login-step-forgot').style.display = 'none';
+  document.getElementById('login-step-reset').style.display = 'none';
+  document.getElementById('login-step-consent').style.display = 'block';
+
+  const loadingEl = document.getElementById('consent-loading');
+  const bodyEl = document.getElementById('consent-body');
+  const resultEl = document.getElementById('consent-result');
+
+  try {
+    const res = await fetch(API_BASE + '/admin/impersonate-respond?token=' + encodeURIComponent(token));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not load this request');
+
+    loadingEl.style.display = 'none';
+
+    if (data.status === 'pending') {
+      bodyEl.style.display = 'block';
+      if (data.reason) {
+        document.getElementById('consent-reason-wrap').style.display = 'block';
+        document.getElementById('consent-reason-text').textContent = data.reason;
+      }
+    } else {
+      const messages = {
+        approved: 'You already approved this request.',
+        denied: 'You already denied this request.',
+        expired: 'This request has expired — ask them to send a new one if access is still needed.',
+        used: 'This request has already been used.',
+      };
+      resultEl.style.display = 'block';
+      resultEl.textContent = messages[data.status] || 'This request is no longer active.';
+    }
+  } catch (err) {
+    loadingEl.style.display = 'none';
+    resultEl.style.display = 'block';
+    resultEl.textContent = err.message || 'Something went wrong loading this request.';
+  }
+}
+
+async function respondToConsent(approve) {
+  const allowBtn = document.getElementById('consent-allow-btn');
+  const denyBtn = document.getElementById('consent-deny-btn');
+  const errEl = document.getElementById('consent-error');
+  errEl.style.display = 'none';
+  allowBtn.disabled = true; denyBtn.disabled = true;
+
+  try {
+    const res = await fetch(API_BASE + '/admin/impersonate-respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: _consentToken, approve }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not submit your response');
+
+    document.getElementById('consent-body').style.display = 'none';
+    const resultEl = document.getElementById('consent-result');
+    resultEl.style.display = 'block';
+    resultEl.textContent = approve
+      ? 'Access approved. Support will be notified and can now assist you.'
+      : 'Request denied. No access was granted.';
+  } catch (err) {
+    errEl.textContent = err.message || 'Something went wrong.';
+    errEl.style.display = 'block';
+    allowBtn.disabled = false; denyBtn.disabled = false;
+  }
 }
 
 async function handleResetPassword(e) {
@@ -12099,8 +12199,11 @@ async function bootApp() {
 const _bootParams = new URLSearchParams(window.location.search);
 const _bootResetToken = _bootParams.get('reset_token');
 const _bootImpersonateToken = _bootParams.get('impersonate_token');
+const _bootConsentToken = _bootParams.get('consent_token');
 if (_bootResetToken) {
   showResetStep(_bootResetToken);
+} else if (_bootConsentToken) {
+  showConsentStep(_bootConsentToken);
 } else if (_bootImpersonateToken) {
   setAuthToken(_bootImpersonateToken);
   window.history.replaceState({}, '', window.location.pathname);

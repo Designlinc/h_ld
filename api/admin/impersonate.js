@@ -9,8 +9,25 @@ export default async function handler(req, res) {
     const auth = requireSuperAdmin(req, res);
     if (!auth) return;
 
-    const { organizationId, reason } = req.body || {};
-    if (!organizationId) return res.status(400).json({ error: 'organizationId required' });
+    let { organizationId, reason } = req.body || {};
+    const { requestId } = req.body || {};
+
+    // Starting from an approved consent request — verify it's actually
+    // approved (not pending/denied/expired/already-used) and consume it
+    // immediately so the same approval can't be replayed to open a
+    // second session later.
+    if (requestId) {
+      const [request] = await sql`SELECT * FROM impersonation_requests WHERE id = ${requestId}`;
+      if (!request) return res.status(404).json({ error: 'Request not found' });
+      if (request.status !== 'approved') {
+        return res.status(400).json({ error: 'This request has not been approved yet' });
+      }
+      organizationId = request.organization_id;
+      reason = request.reason;
+      await sql`UPDATE impersonation_requests SET status = 'used' WHERE id = ${requestId}`;
+    }
+
+    if (!organizationId) return res.status(400).json({ error: 'organizationId or requestId required' });
 
     const [org] = await sql`SELECT id, subdomain, name FROM organizations WHERE id = ${organizationId}`;
     if (!org) return res.status(404).json({ error: 'Organization not found' });

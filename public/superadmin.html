@@ -180,14 +180,30 @@
 <!-- ═══ IMPERSONATE MODAL ═══ -->
 <div class="modal-backdrop" id="impersonate-modal-backdrop" onclick="closeImpersonateModalIfBg(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">Impersonate this account?</div>
-    <div class="modal-sub" id="impersonate-modal-org-name"></div>
-    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Reason (optional, logged for audit)</label>
-    <input type="text" id="impersonate-reason" class="form-input" placeholder="e.g. investigating a support ticket">
-    <div id="impersonate-error" class="error-msg" style="display:none"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeImpersonateModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmImpersonate()" id="impersonate-confirm-btn">Start session</button>
+    <div id="impersonate-choice-view">
+      <div class="modal-title">Access this account</div>
+      <div class="modal-sub" id="impersonate-modal-org-name"></div>
+      <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Reason (logged for audit, and shown to them if you request permission)</label>
+      <input type="text" id="impersonate-reason" class="form-input" placeholder="e.g. investigating a support ticket">
+      <div id="impersonate-error" class="error-msg" style="display:none"></div>
+      <div class="modal-footer" style="justify-content:space-between">
+        <button class="btn btn-ghost" onclick="closeImpersonateModal()">Cancel</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" onclick="startImmediateSession()" id="impersonate-immediate-btn" title="For urgent cases only — starts without asking first">Start immediately</button>
+          <button class="btn btn-primary" onclick="requestPermissionFirst()" id="impersonate-request-btn">Request permission</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="impersonate-pending-view" style="display:none">
+      <div class="modal-title">Waiting for approval</div>
+      <div class="modal-sub" id="impersonate-pending-sub">Request sent — waiting for them to respond.</div>
+      <div id="impersonate-pending-error" class="error-msg" style="display:none"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeImpersonateModal()">Close</button>
+        <button class="btn btn-ghost" onclick="checkRequestStatus()" id="impersonate-check-btn">Check status</button>
+        <button class="btn btn-primary" onclick="startFromApprovedRequest()" id="impersonate-start-approved-btn" style="display:none">Start session</button>
+      </div>
     </div>
   </div>
 </div>
@@ -425,23 +441,96 @@ function openImpersonateModal(orgId) {
   const org = _orgs.find(o => o.id === orgId);
   if (!org) return;
   _impersonateOrgId = orgId;
+  _impersonateRequestId = null;
   document.getElementById('impersonate-modal-org-name').textContent = org.name;
   document.getElementById('impersonate-reason').value = '';
   document.getElementById('impersonate-error').style.display = 'none';
+  document.getElementById('impersonate-choice-view').style.display = 'block';
+  document.getElementById('impersonate-pending-view').style.display = 'none';
   document.getElementById('impersonate-modal-backdrop').classList.add('open');
 }
 function closeImpersonateModal() { document.getElementById('impersonate-modal-backdrop').classList.remove('open'); }
 function closeImpersonateModalIfBg(e) { if (e.target === e.currentTarget) closeImpersonateModal(); }
 
-async function confirmImpersonate() {
+async function startImmediateSession() {
   const reason = document.getElementById('impersonate-reason').value.trim();
   const errEl = document.getElementById('impersonate-error');
-  const btn = document.getElementById('impersonate-confirm-btn');
+  const btn = document.getElementById('impersonate-immediate-btn');
   errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Starting…';
 
   try {
     const data = await apiFetch('/admin/impersonate', { method: 'POST', body: JSON.stringify({ organizationId: _impersonateOrgId, reason }) });
+    window.location.href = `https://${data.organization.subdomain}.h-ld.com/admin.html?impersonate_token=${data.token}`;
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Start immediately';
+  }
+}
+
+let _impersonateRequestId = null;
+
+async function requestPermissionFirst() {
+  const reason = document.getElementById('impersonate-reason').value.trim();
+  const errEl = document.getElementById('impersonate-error');
+  const btn = document.getElementById('impersonate-request-btn');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try {
+    const data = await apiFetch('/admin/impersonate-request', { method: 'POST', body: JSON.stringify({ organizationId: _impersonateOrgId, reason }) });
+    _impersonateRequestId = data.requestId;
+    document.getElementById('impersonate-choice-view').style.display = 'none';
+    document.getElementById('impersonate-pending-view').style.display = 'block';
+    document.getElementById('impersonate-pending-sub').textContent =
+      `Sent via ${data.sentVia === 'sms' ? 'SMS' : 'email'} — waiting for them to respond. Click "Check status" once they've replied.`;
+    document.getElementById('impersonate-start-approved-btn').style.display = 'none';
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Request permission';
+  }
+}
+
+async function checkRequestStatus() {
+  const errEl = document.getElementById('impersonate-pending-error');
+  const btn = document.getElementById('impersonate-check-btn');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Checking…';
+
+  try {
+    const data = await apiFetch('/admin/impersonate-request?requestId=' + _impersonateRequestId);
+    const subEl = document.getElementById('impersonate-pending-sub');
+    const startBtn = document.getElementById('impersonate-start-approved-btn');
+
+    if (data.status === 'approved') {
+      subEl.textContent = 'Approved — you can start the session now.';
+      startBtn.style.display = 'inline-flex';
+    } else if (data.status === 'denied') {
+      subEl.textContent = 'They denied this request. No access was granted.';
+      startBtn.style.display = 'none';
+    } else if (data.status === 'expired') {
+      subEl.textContent = 'This request expired before they responded.';
+      startBtn.style.display = 'none';
+    } else {
+      subEl.textContent = 'Still pending — no response yet.';
+      startBtn.style.display = 'none';
+    }
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check status';
+  }
+}
+
+async function startFromApprovedRequest() {
+  const errEl = document.getElementById('impersonate-pending-error');
+  const btn = document.getElementById('impersonate-start-approved-btn');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Starting…';
+
+  try {
+    const data = await apiFetch('/admin/impersonate', { method: 'POST', body: JSON.stringify({ requestId: _impersonateRequestId }) });
     window.location.href = `https://${data.organization.subdomain}.h-ld.com/admin.html?impersonate_token=${data.token}`;
   } catch (err) {
     errEl.textContent = err.message; errEl.style.display = 'block';
