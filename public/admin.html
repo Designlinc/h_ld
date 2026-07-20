@@ -137,6 +137,13 @@
     display: flex;
     height: 100vh;
   }
+  #impersonation-banner {
+    position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 500;
+    background: var(--amber); color: #fff; display: none; align-items: center; justify-content: center;
+    gap: 14px; font-size: 13px; font-weight: 600;
+  }
+  #impersonation-banner.show { display: flex; }
+  #app-root.impersonating { margin-top: 36px; height: calc(100vh - 36px); }
 
   .hidden { display: none !important; }
 
@@ -1898,6 +1905,12 @@
       </form>
     </div>
   </div>
+</div>
+
+<!-- ═══ SUPPORT-MODE BANNER (shown only during an impersonation session) ═══ -->
+<div id="impersonation-banner">
+  <span id="impersonation-banner-text"></span>
+  <button onclick="endImpersonation()" style="background:rgba(255,255,255,.22);border:none;color:#fff;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">End session</button>
 </div>
 
 <!-- ═══ APP ═══ -->
@@ -4235,13 +4248,60 @@ function showLogin() {
   document.getElementById('app-root').style.display = 'none';
 }
 
+function decodeJwtPayload(token) {
+  // Client-side only, purely for UI display (which banner to show) — the
+  // server independently verifies the signature on every request, so
+  // there's no trust placed in this decode beyond what to render.
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(atob(base64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+    return JSON.parse(json);
+  } catch { return null; }
+}
+
+function checkImpersonation() {
+  const token = getAuthToken();
+  const payload = token ? decodeJwtPayload(token) : null;
+  const banner = document.getElementById('impersonation-banner');
+  const root = document.getElementById('app-root');
+  if (payload && payload.impersonating) {
+    document.getElementById('impersonation-banner-text').textContent =
+      'Support mode — viewing as ' + (payload.organization_name || 'this account');
+    banner.classList.add('show');
+    root.classList.add('impersonating');
+  } else {
+    banner.classList.remove('show');
+    root.classList.remove('impersonating');
+  }
+}
+
+async function endImpersonation() {
+  if (!confirm('End this support session?')) return;
+  try { await apiFetch('/admin/impersonate', { method: 'DELETE' }); } catch {}
+  clearAuthToken();
+  window.location.href = 'https://admin.h-ld.com/superadmin.html';
+}
+
 function showApp() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('app-root').style.display = '';
+  checkImpersonation();
 }
 
 function logout() {
   stopBookingsPolling();
+  // If this session is an impersonation session, close its audit log
+  // entry properly regardless of which "sign out" control was used to
+  // get here — someone impersonating shouldn't be able to accidentally
+  // leave a support session looking "still open" just by using the
+  // regular sign-out button instead of the banner's "End session".
+  const payload = decodeJwtPayload(getAuthToken() || '');
+  if (payload && payload.impersonating) {
+    apiFetch('/admin/impersonate', { method: 'DELETE' }).catch(() => {});
+    clearAuthToken();
+    window.location.href = 'https://admin.h-ld.com/superadmin.html';
+    return;
+  }
   clearAuthToken();
   showLogin();
 }
@@ -12027,8 +12087,13 @@ async function bootApp() {
 // elsewhere in the same browser still lands on the reset form, not the app.
 const _bootParams = new URLSearchParams(window.location.search);
 const _bootResetToken = _bootParams.get('reset_token');
+const _bootImpersonateToken = _bootParams.get('impersonate_token');
 if (_bootResetToken) {
   showResetStep(_bootResetToken);
+} else if (_bootImpersonateToken) {
+  setAuthToken(_bootImpersonateToken);
+  window.history.replaceState({}, '', window.location.pathname);
+  bootApp();
 } else if (getAuthToken()) {
   bootApp();
 } else {

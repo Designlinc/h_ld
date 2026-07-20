@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>h_ld. — Super Admin</title>
+<style>
+  :root {
+    --sage:       #2A2A2E;
+    --sage-mid:   #55555C;
+    --sage-light: #E9E6E5;
+    --sage-pale:  #F7F5F4;
+    --amber:      #D84148;
+    --amber-pale: #FAE3E1;
+    --red:        #A8332E;
+    --red-pale:   #F3E0DE;
+    --ink:        #231F20;
+    --ink-mid:    #55555C;
+    --ink-soft:   #8A868A;
+    --border:     #DED9D7;
+    --bg:         #F5F2F0;
+    --white:      #FFFFFF;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--amber); color: #fff; }
+  .btn-ghost { background: var(--sage-pale); color: var(--ink); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .form-input {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; background: var(--white); color: var(--ink);
+  }
+  .form-input:focus { outline: none; border-color: var(--amber); }
+  .error-msg { color: var(--red); font-size: 13px; margin-top: 8px; }
+
+  /* ── Login ── */
+  #login-overlay {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); z-index: 100;
+  }
+  .login-card {
+    width: 380px; background: var(--white); border-radius: 16px; padding: 40px 36px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.08);
+  }
+  .login-logo { width: 140px; margin: 0 auto 28px; display: block; }
+  .login-sub { text-align: center; font-size: 13px; color: var(--ink-mid); margin-bottom: 24px; }
+
+  /* ── App shell ── */
+  #app { display: none; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px; background: var(--white); border-bottom: 1px solid var(--border);
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-logo { width: 30px; height: 30px; }
+  .header-title { font-size: 15px; font-weight: 700; }
+  .header-badge {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    background: var(--amber-pale); color: var(--amber); padding: 3px 8px; border-radius: 5px;
+  }
+  main { padding: 28px 32px; max-width: 1300px; margin: 0 auto; }
+  .toolbar { display: flex; gap: 12px; margin-bottom: 20px; }
+  .toolbar .form-input { max-width: 320px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .org-name { font-weight: 600; }
+  .org-sub { color: var(--ink-soft); font-size: 12px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .pill.active { background: var(--sage-light); color: var(--sage); }
+  .pill.active .pill-dot { background: var(--sage); }
+  .pill.trial { background: var(--amber-pale); color: var(--amber); }
+  .pill.trial .pill-dot { background: var(--amber); }
+  .pill.suspended { background: var(--red-pale); color: var(--red); }
+  .pill.suspended .pill-dot { background: var(--red); }
+  .pill.cancelled { background: #F0EEF8; color: #7B6FBC; }
+  .pill.cancelled .pill-dot { background: #7B6FBC; }
+
+  .integration-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .integration-dot.on { background: var(--sage); }
+  .integration-dot.off { background: var(--border); }
+
+  .row-actions { display: flex; gap: 8px; }
+  .row-actions .btn { padding: 7px 12px; font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 200;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal { width: 420px; background: var(--white); border-radius: 14px; padding: 28px; }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 13px; color: var(--ink-mid); margin-bottom: 18px; line-height: 1.5; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--ink-soft); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-card">
+    <svg class="login-logo" viewBox="0 0 155.78 70.61" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#231f20">
+        <path d="M29.71,47.43v-11.65c0-4.34-2.17-7.86-6.03-7.86-4.07,0-6.17,3.52-6.17,7.86v11.11c0,3.39,1.15,4.4,4.2,4.61v2.37H4.03v-2.37c3.19-.2,4.34-1.22,4.34-4.61v-29.54c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v12.81c0,2.44,1.22,2.91,2.1,1.9,1.56-2.03,4-4.34,9.21-4.34s10.03,2.17,10.03,11.72v13.21c0,2.3,1.02,3.52,2.98,2.78v1.42c-.88,1.97-3.25,2.64-5.35,2.64-3.93,0-6.77-2.17-6.77-6.84Z"/>
+        <path d="M87.48,47.43v-30.08c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.42,2.64-3.86,0-6.7-2.17-6.7-6.84Z"/>
+        <path d="M102.13,38.96c0-10.64,7.32-16.26,14.64-16.26s9.42,5.42,9.42-.74v-4.61c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.35,2.64-2.23,0-4.81-.81-5.62-2.84-.47-1.15-1.09-1.76-1.96-1.76-1.49,0-4.07,4.61-10.23,4.61-6.64,0-13.01-5.42-13.01-15.31ZM120.01,49.13c2.71,0,6.17-1.83,6.17-7.59v-4.2c0-8.47-4.47-11.86-8.06-11.86-3.93,0-6.31,4.34-6.31,10.23,0,6.98,3.32,13.42,8.2,13.42Z"/>
+        <path d="M141.85,49.26c0-2.78,2.23-5.01,4.94-5.01s4.95,2.24,4.95,5.01-2.24,5.01-4.95,5.01-4.94-2.23-4.94-5.01Z"/>
+      </g>
+      <path fill="#231f20" d="M79.16,48.65v5.71h-27.31v-5.71h-3.99v13.69h31.33c2.18,0,3.95-1.77,3.95-3.95v-9.73h-3.99Z"/>
+    </svg>
+    <div class="login-sub">Super Admin</div>
+
+    <div id="login-step-password">
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <input type="email" id="login-email" class="form-input" placeholder="Email" autocomplete="username" required style="margin-bottom:10px">
+        <input type="password" id="login-password" class="form-input" placeholder="Password" autocomplete="current-password" required style="margin-bottom:20px">
+        <button type="submit" class="btn btn-primary" style="width:100%" id="login-btn">Sign in</button>
+        <div id="login-error" class="error-msg" style="display:none"></div>
+      </form>
+    </div>
+
+    <div id="login-step-mfa" style="display:none">
+      <div class="login-sub" style="margin-bottom:16px">Enter the 6-digit code sent to your email.</div>
+      <form id="mfa-form" onsubmit="handleVerifyMfa(event)">
+        <input type="text" id="mfa-code" class="form-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" required style="margin-bottom:20px;text-align:center;letter-spacing:6px;font-size:18px">
+        <button type="submit" class="btn btn-primary" style="width:100%" id="mfa-btn">Verify</button>
+        <div id="mfa-error" class="error-msg" style="display:none"></div>
+      </form>
+      <div style="display:flex;justify-content:space-between;margin-top:14px">
+        <button type="button" onclick="backToPasswordStep()" style="background:none;border:none;color:var(--ink-soft);font-size:12px;cursor:pointer">&larr; Back</button>
+        <button type="button" onclick="resendMfaCode()" style="background:none;border:none;color:var(--amber);font-size:12px;font-weight:600;cursor:pointer">Resend code</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-left">
+      <svg class="header-logo" viewBox="0 0 141.73 141.73" xmlns="http://www.w3.org/2000/svg">
+        <rect fill="#231f20" width="141.73" height="141.73" rx="21.35" ry="21.35"/>
+        <path fill="#fff" d="M95.78,75.43v10.43h-49.84v-10.43h-7.27v24.98h57.17c3.99,0,7.22-3.23,7.22-7.22v-17.76h-7.27Z"/>
+        <path fill="#fff" d="M38.67,47.01c0-5.07,4.08-9.15,9.02-9.15s9.03,4.08,9.03,9.15-4.09,9.15-9.03,9.15-9.02-4.08-9.02-9.15Z"/>
+        <path fill="#fff" d="M84.43,47.01c0-5.07,4.08-9.15,9.02-9.15s9.03,4.08,9.03,9.15-4.09,9.15-9.03,9.15-9.02-4.08-9.02-9.15Z"/>
+      </svg>
+      <span class="header-title">h_ld.</span>
+      <span class="header-badge">Super Admin</span>
+    </div>
+    <button class="btn btn-ghost" onclick="logout()">Sign out</button>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <input type="text" class="form-input" id="org-search" placeholder="Search by name, subdomain, or owner email" oninput="renderOrganizations()">
+    </div>
+    <div id="org-table-wrap"></div>
+  </main>
+</div>
+
+<!-- ═══ IMPERSONATE MODAL ═══ -->
+<div class="modal-backdrop" id="impersonate-modal-backdrop" onclick="closeImpersonateModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Impersonate this account?</div>
+    <div class="modal-sub" id="impersonate-modal-org-name"></div>
+    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Reason (optional, logged for audit)</label>
+    <input type="text" id="impersonate-reason" class="form-input" placeholder="e.g. investigating a support ticket">
+    <div id="impersonate-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeImpersonateModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmImpersonate()" id="impersonate-confirm-btn">Start session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api';
+
+function getAuthToken() { return localStorage.getItem('hld_admin_token'); }
+function setAuthToken(t) { localStorage.setItem('hld_admin_token', t); }
+function clearAuthToken() { localStorage.removeItem('hld_admin_token'); }
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API_BASE + path, { ...options, headers });
+  if (res.status === 401 || res.status === 403) {
+    clearAuthToken();
+    showLogin();
+    throw new Error('Session expired');
+  }
+  if (!res.ok) {
+    let msg = 'Request failed';
+    try { const data = await res.json(); msg = data.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// ── Login / MFA ──
+let _pendingEmail = '';
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  try {
+    const data = await apiFetch('/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    if (data.mfaRequired) {
+      _pendingEmail = email;
+      document.getElementById('login-step-password').style.display = 'none';
+      document.getElementById('login-step-mfa').style.display = 'block';
+      document.getElementById('mfa-code').focus();
+    }
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+async function handleVerifyMfa(e) {
+  e.preventDefault();
+  const code = document.getElementById('mfa-code').value.trim();
+  const btn = document.getElementById('mfa-btn');
+  const errEl = document.getElementById('mfa-error');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Verifying…';
+
+  try {
+    const data = await apiFetch('/admin/login', { method: 'POST', body: JSON.stringify({ email: _pendingEmail, code }) });
+    setAuthToken(data.token);
+    showApp();
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Verify';
+  }
+}
+
+async function resendMfaCode() {
+  try {
+    await apiFetch('/admin/login', { method: 'POST', body: JSON.stringify({ email: _pendingEmail, resend: true }) });
+  } catch {}
+}
+
+function backToPasswordStep() {
+  document.getElementById('login-step-mfa').style.display = 'none';
+  document.getElementById('login-step-password').style.display = 'block';
+}
+
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+function showApp() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadOrganizations();
+}
+function logout() { clearAuthToken(); showLogin(); }
+
+// ── Organizations ──
+let _orgs = [];
+
+async function loadOrganizations() {
+  const wrap = document.getElementById('org-table-wrap');
+  wrap.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    const data = await apiFetch('/admin/organizations');
+    _orgs = data.organizations || [];
+    renderOrganizations();
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty">Could not load organizations: ' + err.message + '</div>';
+  }
+}
+
+function renderOrganizations() {
+  const q = document.getElementById('org-search').value.trim().toLowerCase();
+  const wrap = document.getElementById('org-table-wrap');
+
+  const filtered = !q ? _orgs : _orgs.filter(o =>
+    (o.name || '').toLowerCase().includes(q) ||
+    (o.subdomain || '').toLowerCase().includes(q) ||
+    (o.owner_email || '').toLowerCase().includes(q)
+  );
+
+  if (filtered.length === 0) {
+    wrap.innerHTML = '<div class="empty">No organizations found.</div>';
+    return;
+  }
+
+  const rows = filtered.map(o => {
+    const statusCls = o.billing_status || 'trial';
+    const created = o.created_at ? new Date(o.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const canSuspend = o.billing_status === 'active';
+    const canReactivate = o.billing_status === 'suspended';
+
+    return `<tr>
+      <td>
+        <div class="org-name">${escapeHtml(o.name)}</div>
+        <div class="org-sub">${escapeHtml(o.subdomain)}.h-ld.com</div>
+      </td>
+      <td>${escapeHtml(o.owner_email || '—')}</td>
+      <td>${escapeHtml(o.plan_tier || '—')}</td>
+      <td><span class="pill ${statusCls}"><span class="pill-dot"></span>${capitalize(o.billing_status)}</span></td>
+      <td>${o.practitioner_count}</td>
+      <td>
+        <span class="integration-dot ${o.google_connected > 0 ? 'on' : 'off'}" title="Google Calendar"></span>
+        <span class="integration-dot ${o.square_connected > 0 ? 'on' : 'off'}" title="Square"></span>
+      </td>
+      <td>${created}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-ghost" onclick="openImpersonateModal('${o.id}')">Impersonate</button>
+          ${canSuspend ? `<button class="btn btn-danger" onclick="setBillingStatus('${o.id}','suspended')">Suspend</button>` : ''}
+          ${canReactivate ? `<button class="btn btn-primary" onclick="setBillingStatus('${o.id}','active')">Reactivate</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>Organization</th><th>Owner</th><th>Plan</th><th>Status</th><th>Staff</th><th>Integrations</th><th>Created</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+async function setBillingStatus(organizationId, billingStatus) {
+  const label = billingStatus === 'suspended' ? 'suspend' : 'reactivate';
+  if (!confirm(`Are you sure you want to ${label} this organization?`)) return;
+  try {
+    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId, billingStatus }) });
+    await loadOrganizations();
+  } catch (err) {
+    alert('Could not update status: ' + err.message);
+  }
+}
+
+// ── Impersonation ──
+let _impersonateOrgId = null;
+
+function openImpersonateModal(orgId) {
+  const org = _orgs.find(o => o.id === orgId);
+  if (!org) return;
+  _impersonateOrgId = orgId;
+  document.getElementById('impersonate-modal-org-name').textContent = org.name;
+  document.getElementById('impersonate-reason').value = '';
+  document.getElementById('impersonate-error').style.display = 'none';
+  document.getElementById('impersonate-modal-backdrop').classList.add('open');
+}
+function closeImpersonateModal() { document.getElementById('impersonate-modal-backdrop').classList.remove('open'); }
+function closeImpersonateModalIfBg(e) { if (e.target === e.currentTarget) closeImpersonateModal(); }
+
+async function confirmImpersonate() {
+  const reason = document.getElementById('impersonate-reason').value.trim();
+  const errEl = document.getElementById('impersonate-error');
+  const btn = document.getElementById('impersonate-confirm-btn');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Starting…';
+
+  try {
+    const data = await apiFetch('/admin/impersonate', { method: 'POST', body: JSON.stringify({ organizationId: _impersonateOrgId, reason }) });
+    window.location.href = `https://${data.organization.subdomain}.h-ld.com/admin.html?impersonate_token=${data.token}`;
+  } catch (err) {
+    errEl.textContent = err.message; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Start session';
+  }
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+// ── Boot ──
+if (getAuthToken()) { showApp(); } else { showLogin(); }
+</script>
+</body>
+</html>
