@@ -137,10 +137,13 @@ export default async function handler(req, res) {
       RETURNING organization_id, reason, request_id, started_at, ended_at
     `;
 
-    // Fire-and-forget — the practitioner ending their own session
-    // shouldn't have to wait on an email send to get their response back.
+    // Deliberately awaited, not fire-and-forget — Vercel's serverless
+    // runtime can freeze/terminate the function the moment the response
+    // is sent, so background work started but not awaited before
+    // returning is not reliably guaranteed to finish. A few hundred ms
+    // added to "End session" is worth it for the email actually arriving.
     if (logRow) {
-      (async () => {
+      try {
         const [org] = await sql`SELECT name FROM organizations WHERE id = ${logRow.organization_id}`;
         const [practitioner] = await sql`SELECT email FROM practitioners WHERE id = ${payload.practitioner_id}`;
         const actions = await sql`
@@ -155,7 +158,11 @@ export default async function handler(req, res) {
           startedAt: logRow.started_at,
           endedAt: logRow.ended_at,
         });
-      })().catch(err => console.error('Failed to send session summary:', err.message));
+      } catch (err) {
+        // A failed summary email shouldn't stop "End session" from
+        // succeeding — the session is still correctly closed either way.
+        console.error('Failed to send session summary:', err.message);
+      }
     }
 
     return res.json({ ok: true });
