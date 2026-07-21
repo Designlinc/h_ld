@@ -585,6 +585,7 @@ async function openOrgDetail(orgId) {
     _currentDetailPractitioners = data.practitioners || [];
     renderOrgDetail();
     loadOrgInvoices(orgId);
+    loadOrgActivity(orgId);
   } catch (err) {
     detailEl.innerHTML = '<div class="empty">Could not load organization: ' + err.message + '</div>';
   }
@@ -664,6 +665,10 @@ function renderOrgDetail() {
 
     <div style="font-size:15px;font-weight:700;margin-bottom:12px">Billing history</div>
     <div id="org-invoices-wrap"><div class="empty">Loading…</div></div>
+
+    <div style="font-size:15px;font-weight:700;margin:32px 0 12px">Support activity</div>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">Every impersonation session for this organization, and what was changed during each one.</div>
+    <div id="org-activity-wrap"><div class="empty">Loading…</div></div>
   `;
 }
 
@@ -674,6 +679,69 @@ async function loadOrgInvoices(orgId) {
     renderInvoiceTable(wrap, data.invoices || []);
   } catch (err) {
     wrap.innerHTML = '<div class="empty">Could not load billing history: ' + err.message + '</div>';
+  }
+}
+
+async function loadOrgActivity(orgId) {
+  const wrap = document.getElementById('org-activity-wrap');
+  try {
+    const data = await apiFetch('/admin/impersonation-log?organizationId=' + orgId);
+    renderActivityLog(wrap, data.sessions || []);
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty">Could not load activity: ' + err.message + '</div>';
+  }
+}
+
+function renderActivityLog(wrap, sessions) {
+  if (sessions.length === 0) {
+    wrap.innerHTML = '<div class="empty">No support sessions yet.</div>';
+    return;
+  }
+
+  const fmt = (d) => d ? new Date(d).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+
+  const rows = sessions.map(s => `
+    <tr style="cursor:pointer" onclick="toggleSessionActions('${s.id}')">
+      <td>${fmt(s.started_at)}</td>
+      <td>${escapeHtml(s.super_admin_email || '—')}</td>
+      <td>${escapeHtml(s.reason || '—')}</td>
+      <td>${s.ended_at ? fmt(s.ended_at) : '<span class="pill trial"><span class="pill-dot"></span>Still open</span>'}</td>
+      <td>${s.action_count} action${s.action_count == 1 ? '' : 's'}</td>
+    </tr>
+    <tr id="session-actions-${s.id}" style="display:none">
+      <td colspan="5" style="background:var(--sage-pale);padding:12px 16px" id="session-actions-body-${s.id}"></td>
+    </tr>
+  `).join('');
+
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+    <thead><tr><th>Started</th><th>Admin</th><th>Reason</th><th>Ended</th><th>Actions</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+let _loadedSessionActions = new Set();
+
+async function toggleSessionActions(logId) {
+  const row = document.getElementById('session-actions-' + logId);
+  const isOpen = row.style.display !== 'none';
+  row.style.display = isOpen ? 'none' : 'table-row';
+  if (isOpen || _loadedSessionActions.has(logId)) return;
+
+  const bodyEl = document.getElementById('session-actions-body-' + logId);
+  bodyEl.innerHTML = '<span style="font-size:12px;color:var(--ink-soft)">Loading…</span>';
+  try {
+    const data = await apiFetch('/admin/impersonation-log?logId=' + logId);
+    const actions = data.actions || [];
+    if (actions.length === 0) {
+      bodyEl.innerHTML = '<span style="font-size:12px;color:var(--ink-soft)">No changes were made — a view-only session.</span>';
+    } else {
+      bodyEl.innerHTML = actions.map(a =>
+        `<div style="font-size:12px;font-family:monospace;color:var(--ink);padding:3px 0">${a.method} ${escapeHtml(a.path)} <span style="color:var(--ink-soft)">— ${new Date(a.created_at).toLocaleTimeString('en-AU')}</span></div>`
+      ).join('');
+    }
+    _loadedSessionActions.add(logId);
+  } catch (err) {
+    bodyEl.innerHTML = '<span style="font-size:12px;color:var(--red)">Could not load: ' + err.message + '</span>';
   }
 }
 
