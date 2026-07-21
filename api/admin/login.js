@@ -1,6 +1,7 @@
 // api/admin/login.js — super-admin login (password + MFA email code)
 import sql from '../../lib/db.js';
 import { signToken } from '../../lib/auth.js';
+import { renderEmail, codeBlockHtml } from '../../lib/emailTemplate.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
@@ -24,9 +25,7 @@ async function sendMfaEmail(email, code) {
       from: MFA_FROM_EMAIL,
       to: email,
       subject: 'Your h_ld. super-admin login code',
-      html: `<p>Your super-admin login code is:</p>`
-        + `<h2 style="letter-spacing:4px">${code}</h2>`
-        + `<p>This code expires in ${MFA_CODE_TTL_MINUTES} minutes. If you didn't request this, you can ignore this email.</p>`,
+      html: renderEmail({ bodyHtml: codeBlockHtml(code, MFA_CODE_TTL_MINUTES) }),
     }),
   });
 }

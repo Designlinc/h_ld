@@ -3,6 +3,7 @@
 // if there's no phone number on file for this org.
 import sql from '../../lib/db.js';
 import { requireSuperAdmin } from '../../lib/auth.js';
+import { renderEmail, buttonHtml } from '../../lib/emailTemplate.js';
 import { randomBytes, randomUUID } from 'crypto';
 
 const REQUEST_TTL_MINUTES = 30;
@@ -74,7 +75,11 @@ export default async function handler(req, res) {
             from: FROM_EMAIL,
             to: practitioner.email,
             subject: 'h_ld. support is requesting access to your account',
-            html: `<p>h_ld. support needs temporary access to your account to help with your request.</p><p><a href="${link}">Review and respond</a></p><p>This link expires in ${REQUEST_TTL_MINUTES} minutes.</p>`,
+            html: renderEmail({ bodyHtml: `
+              <p style="margin:0 0 8px;font-size:15px;color:#231F20;line-height:1.6">h_ld. support needs temporary access to your account to help with your request.</p>
+              ${buttonHtml(link, 'Review and respond')}
+              <p style="margin:0;font-size:13px;color:#8A868A;line-height:1.6">This link expires in ${REQUEST_TTL_MINUTES} minutes.</p>
+            ` }),
           }),
         });
         if (emailRes.ok) sentVia = 'email';

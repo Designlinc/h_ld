@@ -4,6 +4,7 @@
 // OWN clients — this is you messaging them, not them messaging anyone.
 import sql from '../../lib/db.js';
 import { requireSuperAdmin } from '../../lib/auth.js';
+import { renderEmail } from '../../lib/emailTemplate.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
@@ -27,13 +28,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Email is not configured on this server' });
   }
 
-  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f2f0;margin:0;padding:24px">
-    <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;padding:28px 32px">
-      ${message.split('\n').map(line => line.trim() ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#231F20">${line}</p>` : '').join('')}
-      <hr style="border:none;border-top:1px solid #DED9D7;margin:24px 0">
-      <p style="margin:0;font-size:12px;color:#8A868A">Sent from h_ld. support</p>
-    </div>
-  </body></html>`;
+  const bodyHtml = message.split('\n').map(line =>
+    line.trim() ? `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#231F20">${line}</p>` : ''
+  ).join('');
+
+  const html = renderEmail({ bodyHtml, footerText: 'Sent from h_ld. support' });
 
   const emailRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',

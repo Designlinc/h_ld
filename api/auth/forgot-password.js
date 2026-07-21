@@ -1,6 +1,7 @@
 // api/auth/forgot-password.js
 import sql from '../../lib/db.js';
 import { requireOrg } from '../../lib/tenant.js';
+import { renderEmail, buttonHtml } from '../../lib/emailTemplate.js';
 import { randomBytes } from 'crypto';
 
 const RESET_TTL_MINUTES = 30;
@@ -12,6 +13,11 @@ async function sendResetEmail(email, org, resetUrl) {
     console.warn('RESEND_API_KEY not set — password reset link not emailed. Link was:', resetUrl);
     return;
   }
+  const bodyHtml = `
+    <p style="margin:0 0 8px;font-size:15px;color:#231F20;line-height:1.6">We received a request to reset the password for your <strong>${org.name}</strong> account.</p>
+    ${buttonHtml(resetUrl, 'Reset your password')}
+    <p style="margin:0;font-size:13px;color:#8A868A;line-height:1.6">This link expires in ${RESET_TTL_MINUTES} minutes. If you didn't request this, you can safely ignore this email — your password hasn't been changed.</p>
+  `;
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -22,9 +28,7 @@ async function sendResetEmail(email, org, resetUrl) {
       from: MFA_FROM_EMAIL,
       to: email,
       subject: 'Reset your h_ld. password',
-      html: `<p>We received a request to reset the password for your ${org.name} account.</p>`
-        + `<p><a href="${resetUrl}" style="display:inline-block;background:#D84148;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Reset your password</a></p>`
-        + `<p>This link expires in ${RESET_TTL_MINUTES} minutes. If you didn't request this, you can safely ignore this email — your password hasn't been changed.</p>`,
+      html: renderEmail({ bodyHtml }),
     }),
   });
 }

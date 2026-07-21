@@ -2,6 +2,7 @@
 import sql from '../../lib/db.js';
 import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
+import { renderEmail } from '../../lib/emailTemplate.js';
 
 // Helper - format time to 12hr
 function fmtTime(t) {
@@ -71,30 +72,24 @@ async function sendEmail(to, subject, text, org, settings) {
   const apiKey = process.env.RESEND_API_KEY;
   const from   = settings?.emailFrom || process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
   if (!apiKey || !to) return;
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;margin:0;padding:20px">
-<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-  <div style="padding:28px 32px 0">
-    <hr style="border:none;border-top:1px solid #E0E8E4;margin:0 0 20px">
+
+  const bodyHtml = `
+    <hr style="border:none;border-top:1px solid #DED9D7;margin:0 0 20px">
     ${text.split('\n').map(line => {
       const t = line.trim();
       if (!t) return '';
       if (t.startsWith('https://') && t.includes('/solful-intake')) {
-        return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#3D6B5C;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Complete Intake Form</a></div>`;
+        return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#D84148;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Complete Intake Form</a></div>`;
       }
       const locationMatch = t.match(/^Location:\s*(https?:\/\/\S+)\s*$/i);
       if (locationMatch) {
-        return `<p style="margin:6px 0;font-size:15px;line-height:1.6">Location: <a href="${locationMatch[1]}" style="color:#3D6B5C;text-decoration:underline">${locationMatch[1]}</a></p>`;
+        return `<p style="margin:6px 0;font-size:15px;line-height:1.6;color:#231F20">Location: <a href="${locationMatch[1]}" style="color:#D84148;text-decoration:underline">${locationMatch[1]}</a></p>`;
       }
-      return `<p style="margin:6px 0;font-size:15px;line-height:1.6">${t}</p>`;
+      return `<p style="margin:6px 0;font-size:15px;line-height:1.6;color:#231F20">${t}</p>`;
     }).join('')}
-  </div>
-  <div style="padding:20px 32px;background:#f8faf9;margin-top:24px;text-align:center">
-    <p style="margin:0;font-size:12px;color:#888">${org.name}</p>
-  </div>
-</div>
-</body></html>`;
+  `;
+
+  const html = renderEmail({ bodyHtml, footerText: org.name });
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
