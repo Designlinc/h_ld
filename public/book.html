@@ -776,7 +776,7 @@ async function apiFetch(path, options = {}) {
 let _services = null;
 let _settings = null;
 
-function getServices() { return _services || defaultServices(); }
+function getServices() { return _services || []; }
 function getSettings() { return _settings || defaultSettings(); }
 
 async function loadServicesAndSettings() {
@@ -824,15 +824,6 @@ function getForms() {
 
 function defaultSettings() {
   return { bizName:'Your Business', pracName:'', email:'', phone:'', address:'', daySchedule:{ Mon:{active:true,start:'09:00',end:'17:00'}, Tue:{active:true,start:'09:00',end:'17:00'}, Wed:{active:true,start:'09:00',end:'17:00'}, Thu:{active:true,start:'09:00',end:'17:00'}, Fri:{active:true,start:'09:00',end:'17:00'}, Sat:{active:false,start:'09:00',end:'17:00'}, Sun:{active:false,start:'09:00',end:'17:00'} }, buffer:15, cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.' };
-}
-
-function defaultServices() {
-  return [
-    { id:'s1', name:'Initial Kinesiology Session', icon:'✨', desc:'A comprehensive first session including full assessment, goal setting, and initial balance. Ideal for new clients beginning their wellness journey.', duration:90, price:150, category:'initial', location:'123 Wellness St, Byron Bay NSW 2481', active:true },
-    { id:'s2', name:'Follow-Up Balance', icon:'🌀', desc:'Continuing your kinesiology journey with a focused balance session addressing ongoing goals.', duration:60, price:110, category:'followup', location:'123 Wellness St, Byron Bay NSW 2481', active:true },
-    { id:'s3', name:'Emotional Stress Release', icon:'🧠', desc:'Specialised session focused on releasing emotional stress patterns and restoring emotional balance.', duration:75, price:130, category:'specialised', location:'123 Wellness St, Byron Bay NSW 2481', active:true },
-    { id:'s4', name:'3-Session Wellness Package', icon:'💚', desc:'Commit to your healing with three follow-up sessions at a discounted rate. Valid for 3 months.', duration:60, price:290, category:'package', location:'123 Wellness St, Byron Bay NSW 2481', active:true },
-  ];
 }
 
 // ═══════════════════════════════════════

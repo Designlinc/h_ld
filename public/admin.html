@@ -174,7 +174,7 @@
     width: 82px; height: 38px;
     background: none;
     display: flex; align-items: center; justify-content: center;
-    margin: 20px 0 36px;
+    margin: 26px 0 30px;
     flex-shrink: 0;
   }
   .sidebar-logo svg { width: 100%; height: auto; }
@@ -436,6 +436,19 @@
   .service-card:hover { box-shadow: var(--glass-shadow), var(--shadow-md); background: var(--glass-bg-strong); }
   .service-card-actions { position: absolute; top: 14px; right: 14px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; z-index: 3; }
   .service-card:hover .service-card-actions { opacity: 1; }
+
+  .service-card-add {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; min-height: 180px; padding: 20px;
+    border: 1.5px dashed var(--border); border-radius: var(--radius-lg);
+    background: transparent; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .service-card-add:hover { border-color: var(--sage); background: var(--sage-pale); }
+  .service-card-add .plus-icon {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--sage-pale);
+    display: flex; align-items: center; justify-content: center; color: var(--sage);
+  }
+  .service-card-add span { font-size: 13px; font-weight: 600; color: var(--ink-mid); }
 
   /* ── SERVICE CARD DRAG & DROP REORDERING ── */
   .service-card { cursor: grab; user-select: none; -webkit-user-select: none; }
@@ -3167,9 +3180,15 @@
   <div class="modal" style="width:860px;max-width:96vw">
     <div class="modal-header">
       <span class="modal-title" id="form-modal-title">New Intake Form</span>
-      <button class="modal-close" onclick="closeFormModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px" onclick="openFormPreviewModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          View
+        </button>
+        <button class="modal-close" onclick="closeFormModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="form-row">
@@ -3251,6 +3270,22 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeFormModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveForm()" id="form-save-btn">Save Form</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FORM PREVIEW MODAL ═══ -->
+<div class="modal-backdrop" id="form-preview-modal-backdrop" onclick="closeFormPreviewModalIfBg(event)">
+  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <span class="modal-title">Preview</span>
+      <button class="modal-close" onclick="closeFormPreviewModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto">
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px">This is how the form will look to a client — shown read-only, including any unsaved changes you've made.</div>
+      <div id="form-preview-body"></div>
     </div>
   </div>
 </div>
@@ -4627,7 +4662,7 @@ function flushServicesSync() {
 
 async function loadServices() {
   const rows = await apiFetch('/services');
-  const services = rows.length ? rows.map(normalizeService) : defaultServices();
+  const services = rows.map(normalizeService);
   // If the backend returns a sort_order, use it — otherwise leave the API's
   // own row order as-is (services without the field just keep their place).
   if (services.some(s => s.sortOrder != null)) {
@@ -4724,28 +4759,6 @@ function defaultSettings() {
     buffer:15,
     cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.',
   };
-}
-
-function defaultServices() {
-  return [
-    { id: 's1', name: 'Initial Kinesiology Session', icon: '✨', desc: 'A comprehensive first session including full assessment, goal setting, and initial balance. Ideal for new clients beginning their wellness journey.', duration: 90, price: 150, category: 'initial', location: '', active: true },
-    { id: 's2', name: 'Follow-Up Balance', icon: '🌀', desc: 'Continuing your kinesiology journey with a focused balance session addressing ongoing goals.', duration: 60, price: 110, category: 'followup', location: '', active: true },
-    { id: 's3', name: 'Emotional Stress Release', icon: '🧠', desc: 'Specialised session focused on releasing emotional stress patterns and restoring emotional balance.', duration: 75, price: 130, category: 'specialised', location: '', active: true },
-    { id: 's4', name: '3-Session Wellness Package', icon: '💚', desc: 'Commit to your healing with three follow-up sessions at a discounted rate. Valid for 3 months.', duration: 60, price: 290, category: 'package', location: '', active: true },
-  ];
-}
-
-function defaultBookings() {
-  const today = new Date();
-  const fmt = (d) => localDateStr(d);
-  const d = (offset) => { const x = new Date(today); x.setDate(x.getDate() + offset); return fmt(x); };
-  return [
-    { id: 'b1', client: 'Lincoln Kilworth', email: 'lincoln@designlinc.com.au', phone: '0421956567', service: 'Initial Kinesiology Session', serviceId: 's1', date: d(6), time: '10:00', duration: 90, price: 150, location: '', status: 'awaiting', notes: '', practitionerNotes: '' },
-    { id: 'b2', client: 'Alicia Kilworth', email: 'alicia@example.com', phone: '0412000111', service: 'Initial Kinesiology Session', serviceId: 's1', date: d(1), time: '10:30', duration: 90, price: 150, location: '', status: 'completed', notes: '', practitionerNotes: 'Great first session. Very receptive.' },
-    { id: 'b3', client: 'Clarke Kilworth', email: 'clarke@example.com', phone: '0412000222', service: 'Initial Kinesiology Session', serviceId: 's1', date: d(1), time: '12:30', duration: 90, price: 150, location: '', status: 'awaiting', notes: '', practitionerNotes: '' },
-    { id: 'b4', client: 'Lincoln Kilworth', email: 'lincoln@designlinc.com.au', phone: '0421956567', service: 'Follow-Up Balance', serviceId: 's2', date: fmt(today), time: '12:30', duration: 60, price: 110, location: '', status: 'awaiting', notes: '', practitionerNotes: '' },
-    { id: 'b5', client: 'Emma Walsh', email: 'emma@example.com', phone: '0412000333', service: 'Emotional Stress Release', serviceId: 's3', date: d(-5), time: '14:00', duration: 75, price: 130, location: '', status: 'completed', notes: '', practitionerNotes: '' },
-  ];
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6672,11 +6685,16 @@ function closeCustomEmbedModal() {
 function renderServices() {
   const services = getServices();
   const el = document.getElementById('services-grid');
+  const addCard = `<div class="service-card-add" onclick="openServiceModal()">
+    <div class="plus-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <span>Add a service</span>
+  </div>`;
+
   if (!services.length) {
-    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">✨</div><div class="empty-state-title">No services yet</div><div class="empty-state-sub">Add your first service to get started</div></div>';
+    el.innerHTML = addCard;
     return;
   }
-  el.innerHTML = services.map(s => {
+  el.innerHTML = addCard + services.map(s => {
     const cat = catMap[s.category] || { label: s.category, cls: 'tag-initial' };
     return `<div class="service-card${s.active === false ? ' service-card-hidden' : ''}" data-service-id="${s.id}">
       <div class="service-card-actions">
@@ -7594,6 +7612,70 @@ function _fbCreateFieldDefault(type) {
     bodymap:     { id, type: 'bodymap', label: 'Where do you feel pain or discomfort?', required: false },
   };
   return defaults[type];
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORM PREVIEW — read-only render of the fields currently being
+// edited (fbFields), including unsaved changes. Deliberately simpler
+// than intake.html's real interactive renderer (plain disabled inputs
+// rather than the custom-styled radio/checkbox components) — this is
+// for the practitioner to sanity-check order/wording, not a pixel-exact
+// replica of the client-facing page.
+// ═══════════════════════════════════════════════════════════
+function openFormPreviewModal() {
+  const el = document.getElementById('form-preview-body');
+  if (!fbFields.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--ink-soft);font-size:13px">No fields added yet.</div>';
+  } else {
+    el.innerHTML = fbFields.map(renderFieldPreview).join('');
+  }
+  document.getElementById('form-preview-modal-backdrop').classList.add('open');
+}
+function closeFormPreviewModal() { document.getElementById('form-preview-modal-backdrop').classList.remove('open'); }
+function closeFormPreviewModalIfBg(e) { if (e.target === e.currentTarget) closeFormPreviewModal(); }
+
+function renderFieldPreview(f) {
+  const req = f.required ? '<span style="color:var(--red)">*</span>' : '';
+  if (f.type === 'section') {
+    return `<div style="font-size:15px;font-weight:700;color:var(--ink);margin:20px 0 10px;padding-top:${fbFields.indexOf(f) === 0 ? '0' : '8px'};border-top:${fbFields.indexOf(f) === 0 ? 'none' : '1px solid var(--border)'}">${f.label}</div>`;
+  }
+  if (f.type === 'paragraph') {
+    return `<p style="font-size:13px;color:var(--ink-mid);line-height:1.6;margin:0 0 14px">${f.text || ''}</p>`;
+  }
+  if (f.type === 'divider') {
+    return `<hr style="border:none;border-top:1px solid var(--border);margin:16px 0">`;
+  }
+  if (f.type === 'text') {
+    return `<div class="form-group"><label class="form-label">${f.label}${req}</label><input class="form-input" disabled placeholder="Client's answer"></div>`;
+  }
+  if (f.type === 'dropdown') {
+    const opts = (f.options || []).map(o => `<option>${o}</option>`).join('');
+    return `<div class="form-group"><label class="form-label">${f.label}${req}</label><select class="form-input" disabled><option>Select an option…</option>${opts}</select></div>`;
+  }
+  if (f.type === 'choice' || f.type === 'imagechoice') {
+    const inputType = f.multi ? 'checkbox' : 'radio';
+    const opts = (f.options || []).map(o => {
+      const label = typeof o === 'object' ? o.label : o;
+      return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);padding:4px 0"><input type="${inputType}" disabled>${label}</label>`;
+    }).join('');
+    return `<div class="form-group"><label class="form-label" style="margin-bottom:8px">${f.label}${req}</label>${opts}</div>`;
+  }
+  if (f.type === 'scale') {
+    const steps = [];
+    for (let i = f.min ?? 1; i <= (f.max ?? 10); i++) steps.push(`<span style="width:26px;height:26px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-soft)">${i}</span>`);
+    return `<div class="form-group"><label class="form-label" style="margin-bottom:8px">${f.label}${req}</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">${steps.join('')}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft)"><span>${f.minLabel || ''}</span><span>${f.maxLabel || ''}</span></div>
+    </div>`;
+  }
+  if (f.type === 'rating') {
+    const stars = Array.from({ length: f.maxStars || 5 }).map(() => '☆').join(' ');
+    return `<div class="form-group"><label class="form-label" style="margin-bottom:8px">${f.label}${req}</label><div style="font-size:20px;color:var(--ink-soft)">${stars}</div></div>`;
+  }
+  if (f.type === 'bodymap') {
+    return `<div class="form-group"><label class="form-label" style="margin-bottom:8px">${f.label}${req}</label><div style="border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;font-size:12px;color:var(--ink-soft)">Body map — client taps areas of discomfort</div></div>`;
+  }
+  return '';
 }
 
 // Sync helpers for contenteditable elements (no re-render on every keystroke,
@@ -12226,7 +12308,7 @@ async function bootApp() {
     if (err.message === 'Session expired') return; // showLogin already called
     toast('Could not load data: ' + err.message, 'error');
     _cache.bookings = _cache.bookings || [];
-    _cache.services = _cache.services || defaultServices();
+    _cache.services = _cache.services || [];
     _cache.clients = _cache.clients || [];
     _cache.settings = _cache.settings || defaultSettings();
     _cache.noteTemplates = _cache.noteTemplates || [];
