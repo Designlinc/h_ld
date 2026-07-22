@@ -1560,7 +1560,8 @@
     display: block; border-radius: calc(var(--radius) - 2px);
   }
   .img-upload-placeholder { pointer-events: none; }
-  .img-upload-icon { font-size: 28px; margin-bottom: 8px; opacity: .5; }
+  .img-upload-icon { margin-bottom: 8px; opacity: .5; display: flex; justify-content: center; }
+  .img-upload-icon svg { width: 44px; height: auto; }
   .img-upload-label { font-size: 11px; font-weight: 500; color: var(--ink-mid); }
   .img-upload-sub { font-size: 9px; color: var(--ink-soft); margin-top: 3px; }
   .img-upload-overlay {
@@ -3123,7 +3124,15 @@
             <button class="img-overlay-btn remove" onclick="event.stopPropagation();removeServiceImage()">Remove</button>
           </div>
           <div class="img-upload-placeholder" id="img-upload-placeholder">
-            <div class="img-upload-icon">🖼️</div>
+            <div class="img-upload-icon">
+            <svg viewBox="0 0 38 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="26" height="20" rx="3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="9" cy="8" r="2.2" stroke="currentColor" stroke-width="2"/>
+              <path d="M3,18 L9,12 L13,16 L19,9 L25,18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="30" cy="24" r="7" fill="currentColor"/>
+              <path d="M30,20.5 V27.5 M26.5,24 H33.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
             <div class="img-upload-label">Click to upload an image</div>
             <div class="img-upload-sub">PNG, JPG or WebP — shown on the service card</div>
           </div>
