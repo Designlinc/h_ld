@@ -163,7 +163,10 @@
       <span class="header-title">h_ld.</span>
       <span class="header-badge">Super Admin</span>
     </div>
-    <button class="btn btn-ghost" onclick="logout()">Sign out</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn btn-ghost" onclick="openBackgroundEditor()">Background</button>
+      <button class="btn btn-ghost" onclick="logout()">Sign out</button>
+    </div>
   </header>
 
   <main>
@@ -174,6 +177,7 @@
       <div id="org-table-wrap"></div>
     </div>
     <div id="detail-view" style="display:none"></div>
+    <div id="background-view" style="display:none"></div>
   </main>
 </div>
 
@@ -931,6 +935,236 @@ async function confirmSendMessage() {
     errEl.textContent = err.message; errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Send';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKGROUND EDITOR — controls the login screen's animated
+// gradient (colours + noise/grain) shown across every tenant
+// subdomain, or swaps it for a static image instead. Stored under
+// platform_settings key 'login_background', read by admin.html's
+// login screen before anyone has signed in (hence GET being public).
+// ═══════════════════════════════════════════════════════════
+const BG_DEFAULTS = {
+  mode: 'gradient',
+  color1: '#dfcecb',
+  color2: '#b3e0e2',
+  color3: '#dfcba2',
+  noiseScale: 2,
+  grainAmount: 0.1,
+  grainScale: 2,
+  grainAnimated: false,
+  imageUrl: null,
+};
+
+let _bgSettings = { ...BG_DEFAULTS };
+
+async function openBackgroundEditor() {
+  document.getElementById('list-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'none';
+  const el = document.getElementById('background-view');
+  el.style.display = 'block';
+  el.innerHTML = `<div class="empty">Loading background settings…</div>`;
+
+  try {
+    const saved = await apiFetch('/admin/platform-settings?key=login_background');
+    _bgSettings = { ...BG_DEFAULTS, ...(saved || {}) };
+  } catch (err) {
+    _bgSettings = { ...BG_DEFAULTS };
+  }
+  renderBackgroundEditor();
+}
+
+function closeBackgroundEditor() {
+  document.getElementById('background-view').style.display = 'none';
+  document.getElementById('list-view').style.display = 'block';
+}
+
+function renderBackgroundEditor() {
+  const s = _bgSettings;
+  const el = document.getElementById('background-view');
+  el.innerHTML = `
+    <button class="btn btn-ghost" onclick="closeBackgroundEditor()" style="margin-bottom:20px">&larr; Back to organizations</button>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start">
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.05);padding:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">Login screen background</div>
+        <div style="font-size:13px;color:var(--ink-mid);margin-bottom:20px;line-height:1.5">Shown behind the login card on every organization's subdomain. Choose an animated gradient, tuned by colour and grain, or a static image.</div>
+
+        <div style="display:flex;gap:10px;margin-bottom:24px">
+          <button class="btn ${s.mode === 'gradient' ? 'btn-primary' : 'btn-ghost'}" id="bg-mode-gradient-btn" onclick="setBgMode('gradient')" style="flex:1">Gradient</button>
+          <button class="btn ${s.mode === 'image' ? 'btn-primary' : 'btn-ghost'}" id="bg-mode-image-btn" onclick="setBgMode('image')" style="flex:1">Image</button>
+        </div>
+
+        <div id="bg-gradient-controls" style="display:${s.mode === 'gradient' ? 'block' : 'none'}">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:12px">Colour</div>
+          <div style="display:flex;gap:16px;margin-bottom:24px">
+            ${['color1', 'color2', 'color3'].map((key, i) => `
+              <div style="flex:1">
+                <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Colour ${i + 1}</label>
+                <input type="color" id="bg-${key}" value="${s[key]}" oninput="updateBgPreview()" style="width:100%;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer">
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:12px">Noise &amp; grain</div>
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:flex;justify-content:space-between;margin-bottom:6px"><span>Noise scale</span><span id="bg-noise-scale-val">${s.noiseScale}</span></label>
+            <input type="range" id="bg-noise-scale" min="0" max="6" step="0.1" value="${s.noiseScale}" oninput="document.getElementById('bg-noise-scale-val').textContent=this.value" style="width:100%">
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:flex;justify-content:space-between;margin-bottom:6px"><span>Grain amount</span><span id="bg-grain-amount-val">${s.grainAmount}</span></label>
+            <input type="range" id="bg-grain-amount" min="0" max="0.5" step="0.01" value="${s.grainAmount}" oninput="document.getElementById('bg-grain-amount-val').textContent=this.value" style="width:100%">
+          </div>
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:flex;justify-content:space-between;margin-bottom:6px"><span>Grain scale</span><span id="bg-grain-scale-val">${s.grainScale}</span></label>
+            <input type="range" id="bg-grain-scale" min="0.5" max="6" step="0.1" value="${s.grainScale}" oninput="document.getElementById('bg-grain-scale-val').textContent=this.value" style="width:100%">
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-mid);cursor:pointer">
+            <input type="checkbox" id="bg-grain-animated" ${s.grainAnimated ? 'checked' : ''}>
+            Animate grain
+          </label>
+        </div>
+
+        <div id="bg-image-controls" style="display:${s.mode === 'image' ? 'block' : 'none'}">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div id="bg-image-preview-wrap" style="width:96px;height:64px;border-radius:8px;border:1px solid var(--border);background:var(--sage-pale);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+              <img id="bg-image-preview" src="${s.imageUrl || ''}" alt="" style="width:100%;height:100%;object-fit:cover;display:${s.imageUrl ? 'block' : 'none'}">
+              <svg id="bg-image-placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:24px;height:24px;color:var(--ink-soft);display:${s.imageUrl ? 'none' : 'block'}"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <input type="hidden" id="bg-image-url" value="${s.imageUrl || ''}">
+              <input type="file" id="bg-image-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="handleBgImageUpload(this)">
+              <button type="button" class="btn btn-ghost" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('bg-image-file').click()">Upload image</button>
+              <button type="button" class="btn btn-ghost" id="bg-image-remove-btn" style="font-size:12px;padding:6px 12px;display:${s.imageUrl ? 'inline-flex' : 'none'};color:var(--red)" onclick="removeBgImage()">Remove</button>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:12px">A wide, low-detail image works best — the login card sits centred on top of it. 5MB max.</div>
+        </div>
+
+        <div id="bg-save-error" class="error-msg" style="display:none;margin-top:16px"></div>
+        <button class="btn btn-primary" onclick="saveBackgroundSettings()" id="bg-save-btn" style="margin-top:20px">Save background</button>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">Preview</div>
+        <div id="bg-preview" style="width:100%;aspect-ratio:3/4;border-radius:14px;overflow:hidden;background:${bgPreviewCss(s)};box-shadow:0 1px 3px rgba(0,0,0,.1)"></div>
+      </div>
+    </div>
+  `;
+}
+
+function bgPreviewCss(s) {
+  if (s.mode === 'image' && s.imageUrl) {
+    return `center / cover no-repeat url('${s.imageUrl}')`;
+  }
+  return `linear-gradient(135deg, ${s.color1} 0%, ${s.color3} 50%, ${s.color2} 100%)`;
+}
+
+function setBgMode(mode) {
+  _bgSettings.mode = mode;
+  document.getElementById('bg-gradient-controls').style.display = mode === 'gradient' ? 'block' : 'none';
+  document.getElementById('bg-image-controls').style.display = mode === 'image' ? 'block' : 'none';
+  document.getElementById('bg-mode-gradient-btn').className = 'btn ' + (mode === 'gradient' ? 'btn-primary' : 'btn-ghost');
+  document.getElementById('bg-mode-image-btn').className = 'btn ' + (mode === 'image' ? 'btn-primary' : 'btn-ghost');
+  updateBgPreview();
+}
+
+function updateBgPreview() {
+  const s = readBgFormState();
+  document.getElementById('bg-preview').style.background = bgPreviewCss(s);
+}
+
+function readBgFormState() {
+  const mode = _bgSettings.mode || 'gradient';
+  if (mode === 'gradient') {
+    return {
+      ...(_bgSettings),
+      mode,
+      color1: document.getElementById('bg-color1')?.value || _bgSettings.color1,
+      color2: document.getElementById('bg-color2')?.value || _bgSettings.color2,
+      color3: document.getElementById('bg-color3')?.value || _bgSettings.color3,
+      noiseScale: parseFloat(document.getElementById('bg-noise-scale')?.value ?? _bgSettings.noiseScale),
+      grainAmount: parseFloat(document.getElementById('bg-grain-amount')?.value ?? _bgSettings.grainAmount),
+      grainScale: parseFloat(document.getElementById('bg-grain-scale')?.value ?? _bgSettings.grainScale),
+      grainAnimated: !!document.getElementById('bg-grain-animated')?.checked,
+      imageUrl: document.getElementById('bg-image-url')?.value || _bgSettings.imageUrl,
+    };
+  }
+  return {
+    ...(_bgSettings),
+    mode,
+    imageUrl: document.getElementById('bg-image-url')?.value || _bgSettings.imageUrl,
+  };
+}
+
+async function handleBgImageUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const btn = input.closest('div').querySelector('button');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    const data = await apiFetch('/upload', {
+      method: 'POST',
+      body: JSON.stringify({ dataUrl, filename: file.name, scope: 'platform' }),
+    });
+    document.getElementById('bg-image-url').value = data.url;
+    document.getElementById('bg-image-preview').src = data.url;
+    document.getElementById('bg-image-preview').style.display = 'block';
+    document.getElementById('bg-image-placeholder').style.display = 'none';
+    document.getElementById('bg-image-remove-btn').style.display = 'inline-flex';
+    updateBgPreview();
+  } catch (err) {
+    alert(err.message || 'Upload failed');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+    input.value = '';
+  }
+}
+
+function removeBgImage() {
+  document.getElementById('bg-image-url').value = '';
+  document.getElementById('bg-image-preview').style.display = 'none';
+  document.getElementById('bg-image-placeholder').style.display = 'block';
+  document.getElementById('bg-image-remove-btn').style.display = 'none';
+  updateBgPreview();
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveBackgroundSettings() {
+  const value = readBgFormState();
+  if (value.mode === 'image' && !value.imageUrl) {
+    const errEl = document.getElementById('bg-save-error');
+    errEl.textContent = 'Upload an image first, or switch back to Gradient.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('bg-save-error').style.display = 'none';
+  const btn = document.getElementById('bg-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await apiFetch('/admin/platform-settings', { method: 'POST', body: JSON.stringify({ key: 'login_background', value }) });
+    _bgSettings = value;
+    btn.textContent = 'Saved';
+    setTimeout(() => { btn.textContent = 'Save background'; }, 1500);
+  } catch (err) {
+    document.getElementById('bg-save-error').textContent = err.message;
+    document.getElementById('bg-save-error').style.display = 'block';
+    btn.textContent = 'Save background';
+  } finally {
+    btn.disabled = false;
   }
 }
 

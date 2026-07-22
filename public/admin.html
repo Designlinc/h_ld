@@ -2430,6 +2430,24 @@
         </div>
         <div class="settings-body">
           <div class="form-row">
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Business Logo</label>
+              <div style="display:flex;align-items:center;gap:16px">
+                <div id="s-logo-preview-wrap" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--border);background:var(--sage-pale);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+                  <img id="s-logo-preview" src="" alt="" style="width:100%;height:100%;object-fit:contain;display:none">
+                  <svg id="s-logo-placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:26px;height:26px;color:var(--ink-soft)"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <input type="file" id="s-logo-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none" onchange="handleLogoUpload(this)">
+                  <button type="button" class="btn btn-ghost" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('s-logo-file').click()">Upload logo</button>
+                  <button type="button" class="btn btn-ghost" id="s-logo-remove-btn" style="font-size:12px;padding:6px 12px;display:none;color:var(--red)" onclick="removeLogo()">Remove</button>
+                </div>
+                <input type="hidden" id="s-logo-url" value="">
+              </div>
+              <div style="font-size:12px;color:var(--ink-soft);margin-top:8px">Shown on your booking page and in emails sent to clients. PNG, JPEG, WebP, GIF, or SVG — 5MB max.</div>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group"><label class="form-label">Business Name</label><input class="form-input" id="s-biz-name" value="Your Business"></div>
             <div class="form-group"><label class="form-label">Practitioner Name</label><input class="form-input" id="s-prac-name" value=""></div>
           </div>
@@ -2736,6 +2754,17 @@
           <span class="settings-section-title">Login</span>
         </div>
         <div class="settings-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+            <div id="acct-avatar-preview-wrap" style="width:64px;height:64px;border-radius:50%;border:1px solid var(--border);background:var(--sage-pale);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+              <img id="acct-avatar-preview" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:none">
+              <svg id="acct-avatar-placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:26px;height:26px;color:var(--ink-soft)"><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5a6.5 6.5 0 0 1 11 0"/><circle cx="12" cy="12" r="10"/></svg>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <input type="file" id="acct-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none" onchange="handleAvatarUpload(this)">
+              <button type="button" class="btn btn-ghost" style="font-size:13px;padding:8px 14px" onclick="document.getElementById('acct-avatar-file').click()">Upload photo</button>
+              <button type="button" class="btn btn-ghost" id="acct-avatar-remove-btn" style="font-size:12px;padding:6px 12px;display:none;color:var(--red)" onclick="removeAvatar()">Remove</button>
+            </div>
+          </div>
           <div class="form-row" style="grid-template-columns:1fr">
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="acct-email" oninput="onAccountEmailInput()" autocomplete="username"></div>
           </div>
@@ -4083,6 +4112,31 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
+// ── Shared image upload — reads a file, POSTs it to the shared upload
+// route, returns the public Blob URL. Used by the business logo upload in
+// Settings and the avatar upload on the Account page. Caller is
+// responsible for saving the returned URL wherever it belongs (settings,
+// account, etc) — this only handles getting the file to Blob storage.
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImage(file) {
+  if (!file) return null;
+  if (file.size > 5 * 1024 * 1024) throw new Error('File too large — 5MB max');
+  const dataUrl = await fileToDataUrl(file);
+  const data = await apiFetch('/upload', {
+    method: 'POST',
+    body: JSON.stringify({ dataUrl, filename: file.name, scope: 'org' }),
+  });
+  return data.url;
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -4801,6 +4855,15 @@ function closeAiPanel() {
   }
 }
 
+// Logo shown at the top of client-facing emails (booking confirmations,
+// session notes, etc). Uses the business logo uploaded in Settings when
+// there is one, falling back to the default h_ld mark. Always an absolute
+// URL — a relative "logo.png" only resolves while viewing the page itself,
+// not once this HTML is sitting in someone's inbox.
+function getEmailLogoSrc(settings) {
+  return settings?.logoUrl || (location.origin + '/logo.png');
+}
+
 // Build HTML email from plain text template
 function buildEmailHtml(body, settings) {
   // Handle double-encoded strings from localStorage
@@ -4857,7 +4920,7 @@ function buildEmailHtml(body, settings) {
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;margin:0;padding:20px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
   <div style="padding:28px 32px 0">
-    <img src="logo.png" style="width:100px;display:block;margin-bottom:24px" alt="${bizName}">
+    <img src="${getEmailLogoSrc(settings)}" style="width:100px;display:block;margin-bottom:24px" alt="${bizName}">
     <hr style="border:none;border-top:1px solid #E0E8E4;margin:0 0 20px">
     ${html}
     ${intakeBtnHtml}
@@ -4894,6 +4957,54 @@ let _acctNotifOptOut = false;
 let _acctRole = null;
 let _acctBillingStatus = null;
 
+function setAvatarPreview(url) {
+  const img = document.getElementById('acct-avatar-preview');
+  const placeholder = document.getElementById('acct-avatar-placeholder');
+  const removeBtn = document.getElementById('acct-avatar-remove-btn');
+  if (url) {
+    img.src = url;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+    removeBtn.style.display = 'inline-flex';
+  } else {
+    img.src = '';
+    img.style.display = 'none';
+    placeholder.style.display = 'block';
+    removeBtn.style.display = 'none';
+  }
+}
+
+async function handleAvatarUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const btn = input.closest('div').querySelector('button');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try {
+    const url = await uploadImage(file);
+    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ avatarUrl: url }) });
+    setAvatarPreview(url);
+    toast('Photo updated', 'success');
+  } catch (err) {
+    toast(err.message || 'Upload failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+    input.value = '';
+  }
+}
+
+async function removeAvatar() {
+  try {
+    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ avatarUrl: null }) });
+    setAvatarPreview(null);
+    toast('Photo removed', 'success');
+  } catch (err) {
+    toast(err.message || 'Could not remove photo', 'error');
+  }
+}
+
 async function loadAccountPage() {
   let data;
   try {
@@ -4907,6 +5018,7 @@ async function loadAccountPage() {
   _acctNotifOptOut = !!data.notificationsOptOut;
   _acctRole = data.role;
   _acctBillingStatus = data.organization?.billingStatus;
+  setAvatarPreview(data.avatarUrl || null);
 
   document.getElementById('acct-email').value = _acctLoadedEmail;
   document.getElementById('acct-email-confirm-row').style.display = 'none';
@@ -5698,7 +5810,7 @@ async function sendSessionNotesEmail() {
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;margin:0;padding:20px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
   <div style="padding:28px 32px">
-    <img src="logo.png" style="width:100px;display:block;margin-bottom:20px" alt="${settings.bizName || 'Your Business'}">
+    <img src="${getEmailLogoSrc(settings)}" style="width:100px;display:block;margin-bottom:20px" alt="${settings.bizName || 'Your Business'}">
     <hr style="border:none;border-top:1px solid #E0E8E4;margin:0 0 20px">
     <p style="margin:0 0 4px;font-size:14px;color:#7A8C86">${b.client.split(' ')[0]} &mdash; ${b.service}</p>
     <p style="margin:0 0 20px;font-size:13px;color:#7A8C86">${dateStr}</p>
@@ -7034,6 +7146,51 @@ function toggleDayRow(day) {
   }
 }
 
+function setLogoPreview(url) {
+  const img = document.getElementById('s-logo-preview');
+  const placeholder = document.getElementById('s-logo-placeholder');
+  const removeBtn = document.getElementById('s-logo-remove-btn');
+  document.getElementById('s-logo-url').value = url || '';
+  if (url) {
+    img.src = url;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+    removeBtn.style.display = 'inline-flex';
+  } else {
+    img.src = '';
+    img.style.display = 'none';
+    placeholder.style.display = 'block';
+    removeBtn.style.display = 'none';
+  }
+}
+
+async function handleLogoUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const btn = input.closest('div').querySelector('button');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try {
+    const url = await uploadImage(file);
+    setLogoPreview(url);
+    saveSettings();
+    toast('Logo uploaded', 'success');
+  } catch (err) {
+    toast(err.message || 'Upload failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+    input.value = '';
+  }
+}
+
+function removeLogo() {
+  setLogoPreview(null);
+  saveSettings();
+  toast('Logo removed', 'success');
+}
+
 function saveSettings() {
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const daySchedule = {};
@@ -7051,6 +7208,7 @@ function saveSettings() {
     email: document.getElementById('s-email').value,
     phone: document.getElementById('s-phone').value,
     address: document.getElementById('s-address').value,
+    logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
     buffer: parseInt(document.getElementById('s-buffer').value) || 15,
     cancelPolicy: document.getElementById('s-cancel-policy').value,
@@ -7745,6 +7903,7 @@ function loadSettingsUI() {
   if (s.email) document.getElementById('s-email').value = s.email;
   if (s.phone) document.getElementById('s-phone').value = s.phone;
   if (s.address) document.getElementById('s-address').value = s.address;
+  setLogoPreview(s.logoUrl || null);
   if (s.buffer) document.getElementById('s-buffer').value = s.buffer;
   if (s.cancelPolicy) document.getElementById('s-cancel-policy').value = s.cancelPolicy;
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -12510,8 +12669,9 @@ void main(){
 }
 `;
 
-// h_ld. brand settings — same values as the design reference.
-const settings = {
+// h_ld. brand settings — defaults, overridden by whatever the super-admin
+// has configured in the background editor (see applyPlatformBackground below).
+let settings = {
   timeSpeed: 0.25,
   colorBalance: 0,
   warpStrength: 1,
@@ -12630,7 +12790,42 @@ function initGrainient(container) {
   tryStart();
 }
 
-initGrainient(document.getElementById('bg-layer'));
+// Pulls the super-admin's background config (see superadmin.html's
+// background editor) before mounting the animated gradient. Public,
+// unauthenticated GET — this runs on the login screen, before anyone has
+// signed in. A network hiccup here just means the shipped defaults above
+// are used instead, so this never blocks the login screen from rendering.
+async function applyPlatformBackground() {
+  const container = document.getElementById('bg-layer');
+  if (!container) return;
+
+  let bg = null;
+  try {
+    const res = await fetch('/api/admin/platform-settings?key=login_background');
+    if (res.ok) bg = await res.json();
+  } catch {
+    // fall through to defaults
+  }
+
+  if (bg && bg.mode === 'image' && bg.imageUrl) {
+    container.style.background = `center / cover no-repeat url('${bg.imageUrl}')`;
+    return; // static image — the WebGL canvas never mounts
+  }
+
+  if (bg && bg.mode === 'gradient') {
+    if (bg.color1) settings.color1 = bg.color1;
+    if (bg.color2) settings.color2 = bg.color2;
+    if (bg.color3) settings.color3 = bg.color3;
+    if (typeof bg.noiseScale === 'number') settings.noiseScale = bg.noiseScale;
+    if (typeof bg.grainAmount === 'number') settings.grainAmount = bg.grainAmount;
+    if (typeof bg.grainScale === 'number') settings.grainScale = bg.grainScale;
+    if (typeof bg.grainAnimated === 'boolean') settings.grainAnimated = bg.grainAnimated;
+  }
+
+  initGrainient(container);
+}
+
+applyPlatformBackground();
 </script>
 </body>
 </html>

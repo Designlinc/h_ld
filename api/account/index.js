@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     const [practitioner] = await sql`
-      SELECT email, name, notifications_opt_out FROM practitioners WHERE id = ${auth.practitioner_id}
+      SELECT email, name, notifications_opt_out, avatar_url FROM practitioners WHERE id = ${auth.practitioner_id}
     `;
     const [orgRow] = await sql`
       SELECT plan_tier, billing_status, stripe_status, stripe_customer_id
@@ -25,6 +25,7 @@ export default async function handler(req, res) {
       email: practitioner.email,
       name: practitioner.name,
       notificationsOptOut: practitioner.notifications_opt_out,
+      avatarUrl: practitioner.avatar_url,
       role: auth.role,
       organization: {
         name: org.name,
@@ -37,8 +38,12 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const { email, notificationsOptOut, currentPassword } = req.body || {};
+    const { email, notificationsOptOut, currentPassword, avatarUrl } = req.body || {};
     const updates = [];
+
+    if (avatarUrl !== undefined) {
+      await sql`UPDATE practitioners SET avatar_url = ${avatarUrl || null} WHERE id = ${auth.practitioner_id}`;
+    }
 
     if (email !== undefined) {
       if (!currentPassword) {
