@@ -459,10 +459,11 @@ async function init() {
     if (!bRes.ok) { showError('Booking not found or link has expired.'); return; }
     booking = await bRes.json();
 
-    // Load forms from settings
-    const sRes = await fetch(API_BASE + '/settings');
-    const settings = await sRes.json();
-    forms = settings.intake_forms || [];
+    // Load forms — the real forms table, not settings (a leftover
+    // location nothing writes to anymore)
+    const fRes = await fetch(API_BASE + '/forms');
+    forms = fRes.ok ? await fRes.json() : [];
+    forms = forms.map(f => ({ id: f.id, name: f.name, serviceId: f.service_id, active: f.active, fields: f.fields }));
 
     // Find matching form: exact service match first, then catch-all
     currentForm = forms.find(f => f.active && f.serviceId === booking.serviceId)

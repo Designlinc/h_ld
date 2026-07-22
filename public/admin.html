@@ -4414,6 +4414,9 @@ let _cache = {
   services: null,
   clients: null,
   settings: null,
+  comms: null,
+  noteTemplates: null,
+  forms: null,
 };
 
 // Local-only data (not yet migrated to server — Phase 3b)
@@ -4633,8 +4636,11 @@ function denormalizeServicesForSync(services) {
   return services.map((s, i) => ({ ...s, sort_order: i }));
 }
 
-function getComms() { return DB.get('comms') || []; }
-function setComms(c) { DB.set('comms', c); }
+function getComms() { return _cache.comms || []; }
+async function loadComms() {
+  _cache.comms = await apiFetch('/communications');
+  return _cache.comms;
+}
 function getSettings() { return _cache.settings || defaultSettings(); }
 
 let _settingsSyncTimer = null;
@@ -4825,7 +4831,7 @@ function showPage(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'bookings') refreshBookingsView();
   if (name === 'services') renderServices();
-  if (name === 'communications') renderComms();
+  if (name === 'communications') { loadComms().then(renderComms).catch(err => toast('Could not load communications: ' + err.message, 'error')); }
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
   if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); loadNotifIcons(); renderCustomNotifs(); }
@@ -5491,7 +5497,7 @@ async function sendCancellationNotification(b) {
   const smsEnabled = tmpl?.channels?.sms !== false;
   const smsText = tmpl?.sms || 'Hi {client_name}, your {service} appointment on {date} at {time} has been cancelled by {business_name}. Please contact us to reschedule.';
   if (smsEnabled && b.phone) {
-    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.phone, message: fillVars(smsText) }) })
+    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.phone, message: fillVars(smsText), clientName: b.client, commType: 'cancellation' }) })
       .then(() => toast('Cancellation SMS sent to ' + b.client, 'success'))
       .catch(err => console.warn('Cancellation SMS failed:', err.message));
   }
@@ -5504,7 +5510,7 @@ async function sendCancellationNotification(b) {
     const filledBody = fillVars(emailBody);
     const filledSubject = fillVars(emailSubject);
     const emailHtml = buildEmailHtml(filledBody, settings);
-    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject: filledSubject, html: emailHtml, text: filledBody }) })
+    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject: filledSubject, html: emailHtml, text: filledBody, clientName: b.client, commType: 'cancellation' }) })
       .then(() => toast('Cancellation email sent to ' + b.client, 'success'))
       .catch(err => console.warn('Cancellation email failed:', err.message));
   }
@@ -5663,7 +5669,7 @@ async function sendSessionNotesEmail() {
   })();
 
   try {
-    await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject, html, text }) });
+    await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject, html, text, clientName: b.client, commType: 'session-notes' }) });
     toast('Session notes sent to ' + b.client, 'success');
   } catch (e) {
     toast('Could not send notes: ' + e.message, 'error');
@@ -6085,17 +6091,17 @@ async function sendComm(type) {
     bookingId: b.id,
   }, settings);
 
-  // Log to comms history
-  const comms = getComms();
-  comms.unshift({ id: 'c' + Date.now(), type, bookingId: selectedBookingId, client: b.client, email: b.email, service: b.service, date: new Date().toLocaleDateString('en-AU'), time: new Date().toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit'}), status: 'sent' });
-  setComms(comms);
+  // Communications are now logged server-side, inside
+  // /api/notifications/send, at the moment each message actually sends
+  // (or fails) — no need to optimistically log here before we even know
+  // whether it worked.
 
   // Send SMS if enabled and phone number exists
   const smsAccounts = getSmsAccounts();
   const clicksend = smsAccounts.find(a => a.provider === 'clicksend');
   if (smsEnabled && b.phone && clicksend && message) {
     try {
-      await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.phone, message }) });
+      await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.phone, message, clientName: b.client, commType: type }) });
       console.log('[SMS sendComm] Sent to', b.phone);
       toast(`${type === 'reminder' ? 'Reminder' : 'Follow-up'} SMS sent to ${b.client}`, 'success');
     } catch(e) {
@@ -6123,7 +6129,7 @@ async function sendComm(type) {
     const emailSubjectFilled = fillMessageTemplate(emailSubject, emailCtx, settings);
     try {
       const emailHtml2 = buildEmailHtml(emailBody, settings);
-      await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject: emailSubjectFilled, html: emailHtml2, text: emailBody }) });
+      await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.email, subject: emailSubjectFilled, html: emailHtml2, text: emailBody, clientName: b.client, commType: type }) });
       toast(`${type === 'reminder' ? 'Reminder' : 'Follow-up'} email sent to ${b.client}`, 'success');
     } catch(e) {
       toast(`Email failed: ${e.message}`, 'error');
@@ -6454,7 +6460,7 @@ function saveBooking() {
       duration: savedBooking.duration, price: savedBooking.price,
       location: savedBooking.location || settings.address, bookingId: savedBooking.id,
     }, settings);
-    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: savedBooking.phone, message: smsMsg }) })
+    apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: savedBooking.phone, message: smsMsg, clientName: savedBooking.client, commType: 'confirmation' }) })
       .then(r => { console.log('[SMS] Result:', JSON.stringify(r)); toast('SMS confirmation sent', 'success'); })
       .catch(err => { console.error('[SMS] Failed:', err.message); toast('SMS failed: ' + err.message, 'error'); });
   }
@@ -6483,7 +6489,7 @@ function saveBooking() {
         fetch('/api/notifications/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
-          body: JSON.stringify({ to: savedBooking.email, subject: emailSubjectFilled, html: emailHtml, text: emailBody })
+          body: JSON.stringify({ to: savedBooking.email, subject: emailSubjectFilled, html: emailHtml, text: emailBody, clientName: savedBooking.client, commType: 'confirmation' })
         })
           .then(r => r.json())
           .then(r => { console.log('[email] Result:', JSON.stringify(r)); if (r.ok) toast('Email confirmation sent', 'success'); else toast('Email failed: ' + r.error, 'error'); })
@@ -6925,16 +6931,26 @@ function renderComms() {
     el.innerHTML = '<div class="empty-state panel"><div class="empty-state-icon">💬</div><div class="empty-state-title">No communications yet</div><div class="empty-state-sub">Send a reminder or follow-up from any booking to see it here</div></div>';
     return;
   }
-  const typeMap = { reminder: { label: '24h Reminder', cls: 'reminder' }, followup: { label: 'Follow-Up', cls: 'followup' }, confirmation: { label: 'Confirmation', cls: 'confirmation' }, cancellation: { label: 'Cancellation', cls: 'reminder' } };
+  const typeMap = {
+    reminder: { label: '24h Reminder', cls: 'reminder' },
+    followup: { label: 'Follow-Up', cls: 'followup' },
+    confirmation: { label: 'Confirmation', cls: 'confirmation' },
+    cancellation: { label: 'Cancellation', cls: 'reminder' },
+    'session-notes': { label: 'Session Notes', cls: 'confirmation' },
+    sms: { label: 'SMS', cls: 'confirmation' },
+    email: { label: 'Email', cls: 'confirmation' },
+  };
   el.innerHTML = comms.map(c => {
     const t = typeMap[c.type] || { label: c.type, cls: 'confirmation' };
+    const when = c.created_at ? new Date(c.created_at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+    const failed = c.status === 'failed';
     return `<div class="comms-item">
       <span class="comms-type ${t.cls}">${t.label}</span>
       <div style="flex:1">
-        <div style="font-size: 11px;font-weight:500;color:var(--ink)">${c.client} · ${c.service}</div>
-        <div class="comms-meta">${c.email} · ${c.date} ${c.time}</div>
+        <div style="font-size: 11px;font-weight:500;color:var(--ink)">${c.client_name || c.to_address || ''}</div>
+        <div class="comms-meta">${c.to_address || ''} · ${when}</div>
       </div>
-      <span style="font-size: 9px;color:var(--sage);font-weight:500">✓ Sent</span>
+      <span style="font-size: 9px;color:${failed ? 'var(--red)' : 'var(--sage)'};font-weight:500">${failed ? '✕ Failed' : '✓ Sent'}</span>
     </div>`;
   }).join('');
 }
@@ -7004,11 +7020,15 @@ function toast(msg, type = '') {
 // ═══════════════════════════════════════════════════════════
 // INTAKE FORMS
 // ═══════════════════════════════════════════════════════════
-function getForms() { return DB.get('forms') || defaultForms(); }
+function getForms() { return _cache.forms || defaultForms(); }
+async function loadForms() {
+  const rows = await apiFetch('/forms');
+  _cache.forms = rows.length ? rows.map(r => ({ id: r.id, name: r.name, serviceId: r.service_id, active: r.active, fields: r.fields })) : defaultForms();
+  return _cache.forms;
+}
 function setForms(f) {
-  DB.set('forms', f);
-  // Also persist to database so intake page can load forms server-side
-  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'intake_forms', value: f }) })
+  _cache.forms = f;
+  apiFetch('/forms', { method: 'PUT', body: JSON.stringify(f) })
     .catch(err => console.warn('Forms sync failed:', err.message));
 }
 
@@ -10324,8 +10344,17 @@ function closeClientModalIfBg(e) { if (e.target === e.currentTarget) closeClient
 // ═══════════════════════════════════════════════════════════
 // NOTE TEMPLATES
 // ═══════════════════════════════════════════════════════════
-function getNoteTemplates() { return DB.get('note_templates') || []; }
-function setNoteTemplates(t) { DB.set('note_templates', t); }
+function getNoteTemplates() { return _cache.noteTemplates || []; }
+async function loadNoteTemplates() {
+  const rows = await apiFetch('/note-templates');
+  _cache.noteTemplates = rows.map(r => ({ id: r.id, name: r.name, html: r.html, isDefault: r.is_default }));
+  return _cache.noteTemplates;
+}
+function setNoteTemplates(t) {
+  _cache.noteTemplates = t;
+  apiFetch('/note-templates', { method: 'PUT', body: JSON.stringify(t) })
+    .catch(err => console.warn('Note templates sync failed:', err.message));
+}
 
 let editingNoteTemplateId = null;
 
@@ -12122,7 +12151,7 @@ function updateAiLearnedCount() {
 // ═══════════════════════════════════════════════════════════
 async function bootApp() {
   try {
-    await Promise.all([loadBookings(), loadServices(), loadClients(), loadSettings()]);
+    await Promise.all([loadBookings(), loadServices(), loadClients(), loadSettings(), loadNoteTemplates(), loadForms()]);
   } catch (err) {
     console.error('Failed to load data:', err);
     if (err.message === 'Session expired') return; // showLogin already called
@@ -12131,6 +12160,8 @@ async function bootApp() {
     _cache.services = _cache.services || defaultServices();
     _cache.clients = _cache.clients || [];
     _cache.settings = _cache.settings || defaultSettings();
+    _cache.noteTemplates = _cache.noteTemplates || [];
+    _cache.forms = _cache.forms || defaultForms();
   }
 
   showApp();
@@ -12160,13 +12191,6 @@ async function bootApp() {
   const localSmsAccounts = DB.get('sms_accounts');
   if (localSmsAccounts && localSmsAccounts.length) {
     apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'sms_accounts', value: localSmsAccounts }) })
-      .catch(() => {});
-  }
-
-  // Ensure intake forms are synced to DB on boot so intake page can load them
-  const localForms = DB.get('forms');
-  if (localForms && localForms.length) {
-    apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'intake_forms', value: localForms }) })
       .catch(() => {});
   }
 
