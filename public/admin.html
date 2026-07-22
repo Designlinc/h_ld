@@ -133,17 +133,25 @@
   }
   #bg-layer canvas { display: block; width: 100%; height: 100%; }
 
+  #business-name-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 700;
+    background: #000; display: flex; align-items: center; padding: 0 32px;
+  }
+  #business-name-bar .biz-name {
+    font-family: "quincy-cf", serif; font-weight: 400; font-size: 21px; color: #fff; letter-spacing: -.2px;
+  }
   #app-root {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 48px);
+    margin-top: 48px;
   }
   #impersonation-banner {
-    position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 500;
+    position: fixed; top: 48px; left: 0; right: 0; height: 36px; z-index: 500;
     background: var(--amber); color: #fff; display: none; align-items: center; justify-content: center;
     gap: 14px; font-size: 13px; font-weight: 600;
   }
   #impersonation-banner.show { display: flex; }
-  #app-root.impersonating { margin-top: 36px; height: calc(100vh - 36px); }
+  #app-root.impersonating { margin-top: 84px; height: calc(100vh - 84px); }
 
   .hidden { display: none !important; }
 
@@ -1934,6 +1942,11 @@
   </div>
 </div>
 
+<!-- ═══ BUSINESS NAME BAR ═══ -->
+<div id="business-name-bar" style="display:none">
+  <span class="biz-name" id="biz-name-text"></span>
+</div>
+
 <!-- ═══ SUPPORT-MODE BANNER (shown only during an impersonation session) ═══ -->
 <div id="impersonation-banner">
   <span id="impersonation-banner-text"></span>
@@ -2309,10 +2322,16 @@
           <div class="page-title">Forms</div>
           <div class="page-subtitle">Build custom forms to collect client information before appointments</div>
         </div>
-        <button class="btn btn-primary" onclick="openFormModal()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Form
-        </button>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" onclick="openTemplatePickerModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Use a template
+          </button>
+          <button class="btn btn-primary" onclick="openFormModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Form
+          </button>
+        </div>
       </div>
 
       <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">Intake Forms</div>
@@ -2808,6 +2827,22 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeCancelSubModal()">Never mind</button>
       <button class="btn btn-danger" onclick="confirmCancelSubscription()" id="cancel-sub-confirm-btn" disabled>Cancel subscription</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FORM TEMPLATE PICKER MODAL ═══ -->
+<div class="modal-backdrop" id="template-picker-modal-backdrop" onclick="closeTemplatePickerModalIfBg(event)">
+  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <span class="modal-title">Use a template</span>
+      <button class="modal-close" onclick="closeTemplatePickerModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto">
+      <div style="font-size:13px;color:var(--ink-mid);margin-bottom:16px">Starts with a shared client-details section, then adds fields specific to the discipline you pick. You can edit anything afterwards.</div>
+      <div id="template-picker-list" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 </div>
@@ -3952,6 +3987,7 @@
 
 </div><!-- /app-root -->
 
+<script src="/form-templates.js"></script>
 <script>
 console.log('[h_ld. Admin] v2.7 — SMS+Email+Intake');
 // ═══════════════════════════════════════════════════════════
@@ -4367,11 +4403,19 @@ async function endImpersonation() {
 function showApp() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('app-root').style.display = '';
+  document.getElementById('business-name-bar').style.display = 'flex';
+  updateBusinessNameBar();
   checkImpersonation();
+}
+
+function updateBusinessNameBar() {
+  const settings = getSettings();
+  document.getElementById('biz-name-text').textContent = settings?.bizName || '';
 }
 
 function logout() {
   stopBookingsPolling();
+  document.getElementById('business-name-bar').style.display = 'none';
   // If this session is an impersonation session, close its audit log
   // entry properly regardless of which "sign out" control was used to
   // get here — someone impersonating shouldn't be able to accidentally
@@ -6985,6 +7029,7 @@ function saveSettings() {
     cancelPolicy: document.getElementById('s-cancel-policy').value,
   };
   setSettings(s);
+  updateBusinessNameBar();
   toast('Settings saved', 'success');
 }
 
@@ -7030,6 +7075,48 @@ function defaultForms() {
 }
 
 let editingFormId = null;
+
+// ═══════════════════════════════════════════════════════════
+// FORM TEMPLATES (pre-built, one per practitioner type — see
+// public/form-templates.js for the actual content)
+// ═══════════════════════════════════════════════════════════
+function openTemplatePickerModal() {
+  const listEl = document.getElementById('template-picker-list');
+  const templates = (typeof INTAKE_FORM_TEMPLATES !== 'undefined') ? INTAKE_FORM_TEMPLATES : [];
+  if (!templates.length) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--ink-soft)">No templates available.</div>';
+  } else {
+    listEl.innerHTML = templates.map(t => `
+      <button class="cal-provider-btn" onclick="applyFormTemplate('${t.key}')" style="text-align:left">
+        <div class="cal-provider-info">
+          <div class="cal-provider-name">${t.name}</div>
+          <div class="cal-provider-desc">${t.fields.length} fields, including shared client details &amp; consent</div>
+        </div>
+        <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    `).join('');
+  }
+  document.getElementById('template-picker-modal-backdrop').classList.add('open');
+}
+function closeTemplatePickerModal() { document.getElementById('template-picker-modal-backdrop').classList.remove('open'); }
+function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget) closeTemplatePickerModal(); }
+
+function applyFormTemplate(templateKey) {
+  const template = (INTAKE_FORM_TEMPLATES || []).find(t => t.key === templateKey);
+  if (!template) return;
+
+  // Fresh IDs on every use — never reuse the static template's own field
+  // IDs, so applying the same template twice (or two practitioners using
+  // it independently) can never collide.
+  const fields = template.fields.map(f => ({ ...f, id: 'fld' + Date.now() + Math.random().toString(36).slice(2, 7) }));
+
+  const forms = getForms();
+  forms.push({ id: 'f' + Date.now(), name: template.name + ' Intake', serviceId: null, active: true, fields });
+  setForms(forms);
+  closeTemplatePickerModal();
+  renderForms();
+  toast(template.name + ' template added — customise it, then save', 'success');
+}
 let fbFields = []; // working copy of fields being edited
 
 function renderForms() {
