@@ -54,22 +54,21 @@
     --today-highlight: #FDF5F6;
 
     /* ── glassmorphism tokens (single consistent edge treatment, used on every glass surface) ── */
-    --glass-bg:        rgba(255,255,255,.28);
-    --glass-bg-strong: rgba(255,255,255,.42);
-    --glass-blur:      saturate(150%) blur(14px);
+    --glass-bg:        rgba(255,255,255,.4);
+    --glass-bg-strong: rgba(255,255,255,.52);
+    --glass-blur:      saturate(150%) blur(13px);
 
     /* A real border reads as glass far more convincingly than the heavier mask-gradient
        ring this used to be — light, uniform, and it never looks like a hard painted line. */
-    --glass-border:    1px solid rgba(255,255,255,.35);
+    --glass-border:    1px solid rgba(255,255,255,.3);
 
-    /* outer depth shadow (soft, for lift off the page) + a subtle inset highlight along the
-       top edge and a faint inset shadow along the bottom, the way light actually catches the
-       rim of a pane of glass — plus a very soft all-around inner glow. All kept well short of
-       opaque; a solid white line here reads as painted-on rather than as glass. */
-    --glass-shadow:    0 8px 32px rgba(40,50,56,.10), 0 2px 8px rgba(40,50,56,.04),
+    /* outer depth shadow (soft, for lift off the page) + a highlight along the top edge and
+       a faint inset shadow along the bottom, the way light actually catches the rim of a
+       pane of glass — plus a stronger all-around inner glow for real refraction, not just tint. */
+    --glass-shadow:    0 8px 32px rgba(0,0,0,.1),
                         inset 0 1px 0 rgba(255,255,255,.5),
-                        inset 0 -1px 0 rgba(255,255,255,.08),
-                        inset 0 0 4px 2px rgba(255,255,255,.12);
+                        inset 0 -1px 0 rgba(255,255,255,.1),
+                        inset 0 0 8px 4px rgba(255,255,255,.4);
   }
 
   /* ── LIQUID GLASS EDGE ──
@@ -85,6 +84,24 @@
      app on its right side, so it only gets that one edge rather than a full frame. */
   .sidebar {
     border-right: var(--glass-border);
+  }
+  /* Thin light-catching streaks along the top and left edges — on top of the border, this is
+     what actually reads as light bending through glass rather than just a tinted panel. Left
+     off .slideout and .sidebar: both scroll or sit fixed in a way that would either clip these
+     out of view or need the same position:fixed workaround the old border trick did. */
+  .stat-card::before, .panel::before, .settings-section::before,
+  .modal::before, .login-card::before, .service-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.8), transparent);
+    pointer-events: none; z-index: 2;
+  }
+  .stat-card::after, .panel::after, .settings-section::after,
+  .modal::after, .login-card::after, .service-card::after {
+    content: '';
+    position: absolute; top: 0; left: 0; width: 1px; height: 100%;
+    background: linear-gradient(180deg, rgba(255,255,255,.8), transparent, rgba(255,255,255,.3));
+    pointer-events: none; z-index: 2;
   }
 
   body {
@@ -250,6 +267,7 @@
     backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-shadow);
     border-radius: var(--radius-lg);
+    overflow: hidden;
     padding: 20px;
     display: flex;
     justify-content: space-between;
@@ -407,6 +425,7 @@
     backdrop-filter: var(--glass-blur);
     box-shadow: var(--glass-shadow);
     border-radius: var(--radius-lg);
+    overflow: hidden;
     padding: 20px;
     transition: box-shadow .15s, background .15s;
   }
@@ -1469,6 +1488,7 @@
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     border-radius: var(--radius-xl);
+    overflow: hidden;
     box-shadow: var(--glass-shadow);
     padding: 36px 32px;
     text-align: center;
