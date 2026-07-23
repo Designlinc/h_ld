@@ -54,77 +54,37 @@
     --today-highlight: #FDF5F6;
 
     /* ── glassmorphism tokens (single consistent edge treatment, used on every glass surface) ── */
-    --glass-bg:        rgba(255,255,255,.55);
-    --glass-bg-strong: rgba(255,255,255,.68);
-    --glass-blur:      saturate(170%) blur(24px);
+    --glass-bg:        rgba(255,255,255,.28);
+    --glass-bg-strong: rgba(255,255,255,.42);
+    --glass-blur:      saturate(150%) blur(14px);
 
-    /* Gradient edge — bright at the top, fading to near-nothing at the bottom, like light
-       catching the top rim of glass. A faint brand-colour undertone keeps it feeling like
-       it's reflecting what's behind it, without the edge itself looking busy. Kept short of
-       fully opaque even at its brightest point — solid white here reads as a hard painted
-       line rather than a highlight catching the light. */
-    --glass-edge-gradient: linear-gradient(180deg,
-      rgba(255,255,255,.8) 0%,
-      rgba(240,232,222,.4) 35%,
-      rgba(255,255,255,.12) 70%,
-      rgba(255,255,255,.03) 100%);
+    /* A real border reads as glass far more convincingly than the heavier mask-gradient
+       ring this used to be — light, uniform, and it never looks like a hard painted line. */
+    --glass-border:    1px solid rgba(255,255,255,.35);
 
-    /* outer depth shadow (soft, for lift off the page) + an inset top highlight
-       to make the bright edge pop + a faint inset bottom shadow for shape. The
-       highlight stays semi-transparent for the same reason as the edge gradient
-       above — full white here would look like a hard line, not glass. */
-    --glass-shadow:    0 20px 50px rgba(40,50,56,.11), 0 4px 14px rgba(40,50,56,.04),
-                        inset 0 1.5px 2px rgba(255,255,255,.7),
-                        inset 0 -8px 14px -12px rgba(20,30,34,.05);
+    /* outer depth shadow (soft, for lift off the page) + a subtle inset highlight along the
+       top edge and a faint inset shadow along the bottom, the way light actually catches the
+       rim of a pane of glass — plus a very soft all-around inner glow. All kept well short of
+       opaque; a solid white line here reads as painted-on rather than as glass. */
+    --glass-shadow:    0 8px 32px rgba(40,50,56,.10), 0 2px 8px rgba(40,50,56,.04),
+                        inset 0 1px 0 rgba(255,255,255,.5),
+                        inset 0 -1px 0 rgba(255,255,255,.08),
+                        inset 0 0 4px 2px rgba(255,255,255,.12);
   }
 
   /* ── LIQUID GLASS EDGE ──
-     A real gradient border (not a flat colour), built with the mask/padding trick so it
-     works with border-radius. Applied as generated content so no markup changes are needed. */
-  .stat-card::before, .panel::before, .settings-section::before,
-  .modal::before, .login-card::before, .service-card::before {
-    content: '';
-    position: absolute; inset: 0;
-    border-radius: inherit;
-    padding: 1.5px;
-    background: var(--glass-edge-gradient);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 2;
+     A plain semi-transparent border does this more convincingly than the old mask-gradient
+     ring did, and it works everywhere — cards, panels, modals, and the slideout — without
+     needing a pseudo-element or a position:fixed workaround for elements that scroll or
+     carry a transform. */
+  .stat-card, .panel, .settings-section,
+  .modal, .login-card, .service-card, .slideout {
+    border: var(--glass-border);
   }
-  /* The sidebar is a plain rectangular strip, not a card — it only borders the
-     rest of the app on its right side, so it gets a single edge line rather
-     than the full-perimeter ring the mask trick above produces. Same gradient,
-     just laid out vertically down that one edge instead of framing all four. */
-  .sidebar::before {
-    content: '';
-    position: absolute;
-    top: 0; right: 0; bottom: 0;
-    width: 1.5px;
-    background: var(--glass-edge-gradient);
-    pointer-events: none;
-    z-index: 2;
-  }
-  /* .slideout scrolls its own outer box, so its edge uses position:fixed instead of
-     absolute — .slideout always has an active `transform`, which per spec makes it the
-     containing block for fixed descendants, so this frame stays pinned to the panel
-     and never scrolls away with the content. */
-  .slideout::before {
-    content: '';
-    position: fixed;
-    top: 0; right: 0; bottom: 0; width: var(--slideout-w);
-    border-radius: inherit;
-    padding: 1.5px;
-    background: var(--glass-edge-gradient);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    pointer-events: none;
-    z-index: 2;
+  /* The sidebar is a plain rectangular strip, not a card — it only borders the rest of the
+     app on its right side, so it only gets that one edge rather than a full frame. */
+  .sidebar {
+    border-right: var(--glass-border);
   }
 
   body {
@@ -261,7 +221,7 @@
   }
   .btn-primary { background: var(--ink); color: #fff; }
   .btn-primary:hover { background: var(--sage); }
-  .btn-ghost { background: rgba(255,255,255,.4); color: var(--ink-mid); border: 1px solid var(--glass-border); }
+  .btn-ghost { background: rgba(255,255,255,.4); color: var(--ink-mid); border: var(--glass-border); }
   .btn-ghost:hover { background: rgba(255,255,255,.65); }
   .btn-danger { background: none; color: var(--red); border: 1px solid #E4C4BE; }
   .btn-danger:hover { background: var(--red-pale); }
