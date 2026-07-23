@@ -10,6 +10,12 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    /* Height reserved by the fixed chrome at the top of the screen — just
+       the business name bar (38px) normally, or that plus the impersonation
+       banner (74px total) during a support session. checkImpersonation()
+       keeps this in sync; fixed-position overlays (slideout, modals, the
+       note editor) read it so they never render underneath that chrome. */
+    --chrome-offset: 38px;
     --sage:       #2A2A2E;
     --sage-mid:   #55555C;
     --sage-light: #E9E6E5;
@@ -593,7 +599,7 @@
 
   /* text-label variant (e.g. Week / Month) — sized to match the Today button's height,
      with room so the longer word ("Month") stays fully readable in both states */
-  .view-toggle-btn.wide { width: 58px; height: 28px; padding: 0 9px; }
+  .view-toggle-btn.wide { width: 74px; height: 28px; padding: 0 9px; }
 
   /* ── ADMIN CALENDAR ── */
   .cal-admin-outer-header {
@@ -899,7 +905,7 @@
      underneath it — the banner is always visible while signed in (toggled on
      in showApp()), same 38px #app-root already reserves via margin-top. */
   .note-editor-overlay {
-    position: fixed; top: 38px; left: 0; right: 0; bottom: 0; z-index: 300;
+    position: fixed; top: var(--chrome-offset, 38px); left: 0; right: 0; bottom: 0; z-index: 300;
     display: none; pointer-events: none;
   }
   .note-editor-overlay.open { display: block; }
@@ -1368,7 +1374,7 @@
   }
   .slideout-backdrop.open { opacity: 1; pointer-events: all; }
   .slideout {
-    position: fixed; top: 0; right: 0; bottom: 0;
+    position: fixed; top: var(--chrome-offset, 38px); right: 0; bottom: 0;
     width: var(--slideout-w);
     background: var(--glass-bg-strong);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -1458,7 +1464,7 @@
 
   /* ── MODAL ── */
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(30,40,44,.32);
+    position: fixed; top: var(--chrome-offset, 38px); left: 0; right: 0; bottom: 0; background: rgba(30,40,44,.32);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 200; display: flex; align-items: center; justify-content: center;
@@ -1471,7 +1477,7 @@
     -webkit-backdrop-filter: var(--glass-blur);
     backdrop-filter: var(--glass-blur);
     border-radius: var(--radius-xl);
-    width: 520px; max-width: 95vw; max-height: 90vh;
+    width: 520px; max-width: 95vw; max-height: min(90vh, calc(100vh - var(--chrome-offset, 38px) - 24px));
     display: flex; flex-direction: column; overflow: hidden;
     box-shadow: var(--glass-shadow);
     transform: translateY(8px); transition: transform .2s;
@@ -4527,9 +4533,11 @@ function checkImpersonation() {
       'Support mode — viewing as ' + (payload.organization_name || 'this account');
     banner.classList.add('show');
     root.classList.add('impersonating');
+    document.documentElement.style.setProperty('--chrome-offset', '74px');
   } else {
     banner.classList.remove('show');
     root.classList.remove('impersonating');
+    document.documentElement.style.setProperty('--chrome-offset', '38px');
   }
 }
 
@@ -4626,7 +4634,14 @@ function flushBookingsSync() {
     clearTimeout(_bookingSyncTimer);
     _bookingSyncTimer = null;
     const b = _cache.bookings || [];
-    _bookingSyncPromise = apiFetch('/bookings', { method: 'PUT', body: JSON.stringify(b) })
+    // Bookings reference service_id/client_id via foreign keys. Both services
+    // and clients sync on their own longer debounce (400ms / 1200ms) — if a
+    // booking for a client created moments ago reaches the server before
+    // that client's own sync has landed, the insert fails its foreign key
+    // check. Flushing both first guarantees the rows this booking points to
+    // already exist by the time the booking write happens.
+    _bookingSyncPromise = Promise.all([flushServicesSync(), flushClientsSync()])
+      .then(() => apiFetch('/bookings', { method: 'PUT', body: JSON.stringify(b) }))
       .catch(err => {
         console.warn('Bookings sync failed:', err.message);
         toast('Could not save booking changes: ' + err.message, 'error');
@@ -4969,6 +4984,9 @@ function buildEmailHtml(body, settings) {
   </div>
   <div style="padding:20px 32px;background:#f8faf9;margin-top:24px;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${bizName} &mdash; ${address}</p>
+  </div>
+  <div style="padding:12px 32px 20px;text-align:center">
+    <p style="margin:0;font-size:11px;color:#B8B8B8">Powered by <a href="https://h-ld.com" style="color:#B8B8B8;text-decoration:underline">h_ld.</a></p>
   </div>
 </div>
 </body></html>`;
@@ -5998,6 +6016,9 @@ async function sendSessionNotesEmail() {
   </div>
   <div style="padding:18px 32px;background:#f8faf9;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${settings.bizName || 'Your Business'}</p>
+  </div>
+  <div style="padding:12px 32px 20px;text-align:center">
+    <p style="margin:0;font-size:11px;color:#B8B8B8">Powered by <a href="https://h-ld.com" style="color:#B8B8B8;text-decoration:underline">h_ld.</a></p>
   </div>
 </div>
 </body></html>`;

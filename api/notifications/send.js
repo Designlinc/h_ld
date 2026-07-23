@@ -112,7 +112,16 @@ async function sendEmail(req, res, org, auth) {
 
   const [settingsRow] = await sql`SELECT value FROM settings WHERE organization_id = ${org.id} AND key = 'app_settings'`;
   const orgSettings = settingsRow?.value || {};
-  const from = orgSettings.emailFrom || process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
+  // Shows the practitioner's business name rather than "h_ld." — sent via
+  // h_ld's verified domain for deliverability (an arbitrary practitioner
+  // email domain isn't SPF/DKIM verified with Resend, so using it directly
+  // as the From address would get flagged as spam or rejected outright),
+  // with Reply-To set to the practitioner's real inbox so hitting "reply"
+  // still reaches them directly. `emailFrom` remains a manual override for
+  // anyone who's set up their own verified sending domain.
+  const senderName = orgSettings.bizName || orgSettings.pracName || org.name;
+  const from = orgSettings.emailFrom || `${senderName} <bookings@h-ld.com>`;
+  const replyTo = orgSettings.email || undefined;
 
   const recipients = Array.isArray(to) ? to : [to];
 
@@ -126,6 +135,7 @@ async function sendEmail(req, res, org, auth) {
         subject,
         html: html || `<p>${text}</p>`,
         text: text || html?.replace(/<[^>]+>/g, ''),
+        reply_to: replyTo,
       }),
     });
 

@@ -67,11 +67,21 @@ async function sendSms(phone, message, org, settings) {
   });
 }
 
-// Send email via Resend — same per-org sender pattern as SMS above.
+// Send email via Resend. Client-facing sender shows the practitioner's own
+// business name rather than "h_ld." — sent via h_ld's verified domain for
+// deliverability (an arbitrary practitioner email domain isn't SPF/DKIM
+// verified with Resend, so using it directly as the From address would get
+// flagged as spam or rejected outright), with Reply-To set to the
+// practitioner's real inbox so hitting "reply" still reaches them directly.
+// `settings.emailFrom` remains a manual override for anyone who's set up
+// their own verified sending domain.
 async function sendEmail(to, subject, text, org, settings) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from   = settings?.emailFrom || process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
   if (!apiKey || !to) return;
+
+  const senderName = settings?.bizName || settings?.pracName || org.name;
+  const from = settings?.emailFrom || `${senderName} <bookings@h-ld.com>`;
+  const replyTo = settings?.email || undefined;
 
   const bodyHtml = `
     <hr style="border:none;border-top:1px solid #DED9D7;margin:0 0 20px">
@@ -93,7 +103,7 @@ async function sendEmail(to, subject, text, org, settings) {
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, to, subject, text, html }),
+    body: JSON.stringify({ from, to, subject, text, html, reply_to: replyTo }),
   });
 }
 
