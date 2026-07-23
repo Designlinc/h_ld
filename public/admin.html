@@ -555,8 +555,11 @@
   /* ── VIEW TOGGLE ──
      A single indicator element slides and resizes behind whichever button is active,
      positioned in JS (positionViewToggleIndicator) from the active button's actual
-     offsetLeft/offsetWidth — simpler and more accurate than each button independently
-     animating its own width, and it's what a real sliding chip actually looks like. */
+     offsetLeft/offsetWidth. It's deliberately taller than the track and overlaps top/bottom
+     of it — that overlap is what makes the active option read as clearly bigger than the
+     inactive one, matching the reference (the calendar icon's black circle overflows its
+     pill the same way). Both the icon toggle and the Week/Month toggle share this exact
+     track — neither has its own solid-colour container; only the indicator is ever black. */
   .view-toggle {
     display: inline-flex;
     position: relative;
@@ -565,11 +568,11 @@
     padding: 0 3px; gap: 2px;
   }
   .view-toggle-indicator {
-    position: absolute; top: 0; bottom: 0; left: 3px;
+    position: absolute; top: -6px; bottom: -6px; left: 3px;
     width: 46px;
     border-radius: 999px;
     background: var(--ink);
-    box-shadow: 0 1px 4px rgba(30,38,42,.25);
+    box-shadow: 0 3px 10px rgba(30,38,42,.3);
     transition: transform .4s cubic-bezier(.34,1.56,.64,1), width .4s cubic-bezier(.34,1.56,.64,1);
     z-index: 1;
     pointer-events: none;
@@ -582,24 +585,15 @@
     color: var(--ink-mid); font-family: inherit; font-weight: 500;
     white-space: nowrap;
     position: relative; z-index: 2;
-    transition: background-color .2s ease, color .3s ease, font-weight .3s ease;
+    transition: color .3s ease, font-weight .3s ease;
   }
   .view-toggle-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
   .view-toggle-btn.active { color: #fff; font-weight: 700; }
-  .view-toggle-btn:hover:not(.active) { background: rgba(255,255,255,.5); color: var(--sage); }
+  .view-toggle-btn:hover:not(.active) { color: var(--sage); }
 
   /* text-label variant (e.g. Week / Month) — sized to match the Today button's height,
      with room so the longer word ("Month") stays fully readable in both states */
   .view-toggle-btn.wide { width: 58px; height: 28px; padding: 0 9px; }
-
-  /* Dark variant — solid pill instead of glass, used for Week/Month next to the Today
-     button. Inactive labels sit muted directly on the black background; the indicator
-     itself becomes a soft light chip rather than a black-on-black shape you couldn't see. */
-  .view-toggle.dark { background: var(--ink); border-color: rgba(255,255,255,.1); }
-  .view-toggle.dark .view-toggle-indicator { background: rgba(255,255,255,.14); box-shadow: none; }
-  .view-toggle.dark .view-toggle-btn { color: rgba(255,255,255,.45); }
-  .view-toggle.dark .view-toggle-btn.active { color: #fff; }
-  .view-toggle.dark .view-toggle-btn:hover:not(.active) { background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); }
 
   /* ── ADMIN CALENDAR ── */
   .cal-admin-outer-header {
@@ -2186,7 +2180,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             <button class="btn btn-today" onclick="adminCalGoToday()">Today</button>
-            <div class="view-toggle dark" id="cal-view-toggle" style="margin-left:8px">
+            <div class="view-toggle" id="cal-view-toggle" style="margin-left:8px">
               <div class="view-toggle-indicator" id="cal-view-toggle-indicator"></div>
               <button class="view-toggle-btn wide active" id="cal-view-week" onclick="setCalView('week')" title="Week view" style="font-size:13px">Week</button>
               <button class="view-toggle-btn wide" id="cal-view-month" onclick="setCalView('month')" title="Month view" style="font-size:13px">Month</button>
