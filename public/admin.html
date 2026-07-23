@@ -862,9 +862,12 @@
   .notif-ch-icon.email { background: #EAF0FB; color: #3B6CB7; }
   .notif-ch-icon.sms   { background: var(--sage-light); color: var(--sage); }
 
-  /* ── FULL-SCREEN NOTE EDITOR ── */
+  /* ── FULL-SCREEN NOTE EDITOR ──
+     top: 38px (not inset: 0) so this sits below #business-name-bar instead of
+     underneath it — the banner is always visible while signed in (toggled on
+     in showApp()), same 38px #app-root already reserves via margin-top. */
   .note-editor-overlay {
-    position: fixed; inset: 0; z-index: 300;
+    position: fixed; top: 38px; left: 0; right: 0; bottom: 0; z-index: 300;
     display: none; pointer-events: none;
   }
   .note-editor-overlay.open { display: block; }
