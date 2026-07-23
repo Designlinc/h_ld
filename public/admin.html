@@ -60,24 +60,28 @@
 
     /* Gradient edge — bright at the top, fading to near-nothing at the bottom, like light
        catching the top rim of glass. A faint brand-colour undertone keeps it feeling like
-       it's reflecting what's behind it, without the edge itself looking busy. */
+       it's reflecting what's behind it, without the edge itself looking busy. Kept short of
+       fully opaque even at its brightest point — solid white here reads as a hard painted
+       line rather than a highlight catching the light. */
     --glass-edge-gradient: linear-gradient(180deg,
-      rgba(255,255,255,1) 0%,
-      rgba(240,232,222,.5) 35%,
-      rgba(255,255,255,.15) 70%,
+      rgba(255,255,255,.8) 0%,
+      rgba(240,232,222,.4) 35%,
+      rgba(255,255,255,.12) 70%,
       rgba(255,255,255,.03) 100%);
 
-    /* outer depth shadow (soft, for lift off the page) + a strong inset top highlight
-       to make the bright edge pop + a faint inset bottom shadow for shape */
+    /* outer depth shadow (soft, for lift off the page) + an inset top highlight
+       to make the bright edge pop + a faint inset bottom shadow for shape. The
+       highlight stays semi-transparent for the same reason as the edge gradient
+       above — full white here would look like a hard line, not glass. */
     --glass-shadow:    0 20px 50px rgba(40,50,56,.11), 0 4px 14px rgba(40,50,56,.04),
-                        inset 0 1.5px 2px rgba(255,255,255,1),
+                        inset 0 1.5px 2px rgba(255,255,255,.7),
                         inset 0 -8px 14px -12px rgba(20,30,34,.05);
   }
 
   /* ── LIQUID GLASS EDGE ──
      A real gradient border (not a flat colour), built with the mask/padding trick so it
      works with border-radius. Applied as generated content so no markup changes are needed. */
-  .sidebar::before, .stat-card::before, .panel::before, .settings-section::before,
+  .stat-card::before, .panel::before, .settings-section::before,
   .modal::before, .login-card::before, .service-card::before {
     content: '';
     position: absolute; inset: 0;
@@ -88,6 +92,19 @@
     -webkit-mask-composite: xor;
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+  /* The sidebar is a plain rectangular strip, not a card — it only borders the
+     rest of the app on its right side, so it gets a single edge line rather
+     than the full-perimeter ring the mask trick above produces. Same gradient,
+     just laid out vertically down that one edge instead of framing all four. */
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 1.5px;
+    background: var(--glass-edge-gradient);
     pointer-events: none;
     z-index: 2;
   }
@@ -2008,7 +2025,8 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
   <button class="nav-btn" onclick="showPage('account')" title="Account" id="nav-account">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5a6.5 6.5 0 0 1 11 0"/></svg>
+    <img id="nav-account-avatar" src="" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;display:none">
+    <svg id="nav-account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5a6.5 6.5 0 0 1 11 0"/></svg>
   </button>
 </nav>
 
@@ -2870,6 +2888,32 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeCancelSubModal()">Never mind</button>
       <button class="btn btn-danger" onclick="confirmCancelSubscription()" id="cancel-sub-confirm-btn" disabled>Cancel subscription</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AVATAR CROP MODAL ═══ -->
+<div class="modal-backdrop" id="avatar-crop-modal-backdrop" onclick="closeAvatarCropModalIfBg(event)">
+  <div class="modal" style="width:420px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Adjust photo</span>
+      <button class="modal-close" onclick="closeAvatarCropModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="avatar-crop-viewport" style="width:280px;height:280px;border-radius:50%;overflow:hidden;margin:0 auto 20px;background:var(--sage-pale);position:relative;cursor:grab;touch-action:none">
+        <img id="avatar-crop-img" src="" alt="" draggable="false" style="position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;pointer-events:none">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px;color:var(--ink-soft);flex-shrink:0"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="range" id="avatar-crop-zoom" min="1" max="3" step="0.01" value="1" oninput="updateAvatarCropTransform()" style="flex:1">
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:10px;text-align:center">Drag to reposition, use the slider to zoom</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAvatarCropModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAvatarCrop()" id="avatar-crop-save-btn">Save photo</button>
     </div>
   </div>
 </div>
@@ -4972,26 +5016,164 @@ function setAvatarPreview(url) {
     placeholder.style.display = 'block';
     removeBtn.style.display = 'none';
   }
+  setSidebarAvatar(url);
 }
 
-async function handleAvatarUpload(input) {
+// Mirrors the Account page's avatar onto the sidebar's Account button —
+// called whenever the avatar changes, and once on boot so it's already
+// showing before the person ever opens the Account page.
+function setSidebarAvatar(url) {
+  const img = document.getElementById('nav-account-avatar');
+  const icon = document.getElementById('nav-account-icon');
+  if (!img || !icon) return;
+  if (url) {
+    img.src = url;
+    img.style.display = 'block';
+    icon.style.display = 'none';
+  } else {
+    img.src = '';
+    img.style.display = 'none';
+    icon.style.display = 'block';
+  }
+}
+
+async function loadSidebarAvatar() {
+  try {
+    const data = await apiFetch('/account');
+    setSidebarAvatar(data.avatarUrl || null);
+  } catch {
+    // non-critical — sidebar just keeps the default icon
+  }
+}
+
+// ── Avatar cropper — drag to reposition, slider to zoom, crops to a
+// circle before uploading. State lives in _avatarCrop for the duration
+// of one crop session; reset each time the modal opens.
+const AVATAR_CROP_VP = 280;   // viewport size shown in the modal, in px
+const AVATAR_CROP_OUT = 320;  // exported image size, in px
+let _avatarCrop = null;
+
+function handleAvatarUpload(input) {
   const file = input.files?.[0];
   if (!file) return;
-  const btn = input.closest('div').querySelector('button');
+  if (file.size > 5 * 1024 * 1024) {
+    toast('File too large — 5MB max', 'error');
+    input.value = '';
+    return;
+  }
+  fileToDataUrl(file).then(dataUrl => openAvatarCropModal(dataUrl)).catch(err => {
+    toast(err.message || 'Could not read file', 'error');
+  });
+  input.value = '';
+}
+
+function openAvatarCropModal(dataUrl) {
+  const img = document.getElementById('avatar-crop-img');
+  const vp = document.getElementById('avatar-crop-viewport');
+  document.getElementById('avatar-crop-zoom').value = 1;
+  _avatarCrop = { scale: 1, minScale: 1, offsetX: 0, offsetY: 0, dragging: false, startX: 0, startY: 0, startOffsetX: 0, startOffsetY: 0 };
+
+  img.onload = () => {
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    _avatarCrop.minScale = Math.max(AVATAR_CROP_VP / nw, AVATAR_CROP_VP / nh);
+    _avatarCrop.naturalW = nw;
+    _avatarCrop.naturalH = nh;
+    updateAvatarCropTransform();
+  };
+  img.src = dataUrl;
+
+  vp.onpointerdown = avatarCropDragStart;
+  document.addEventListener('pointermove', avatarCropDragMove);
+  document.addEventListener('pointerup', avatarCropDragEnd);
+
+  document.getElementById('avatar-crop-modal-backdrop').classList.add('open');
+}
+
+function closeAvatarCropModal() {
+  document.getElementById('avatar-crop-modal-backdrop').classList.remove('open');
+  document.removeEventListener('pointermove', avatarCropDragMove);
+  document.removeEventListener('pointerup', avatarCropDragEnd);
+  _avatarCrop = null;
+}
+function closeAvatarCropModalIfBg(e) { if (e.target === e.currentTarget) closeAvatarCropModal(); }
+
+function avatarCropDragStart(e) {
+  if (!_avatarCrop) return;
+  _avatarCrop.dragging = true;
+  _avatarCrop.startX = e.clientX;
+  _avatarCrop.startY = e.clientY;
+  _avatarCrop.startOffsetX = _avatarCrop.offsetX;
+  _avatarCrop.startOffsetY = _avatarCrop.offsetY;
+  document.getElementById('avatar-crop-viewport').style.cursor = 'grabbing';
+}
+function avatarCropDragMove(e) {
+  if (!_avatarCrop || !_avatarCrop.dragging) return;
+  const dx = e.clientX - _avatarCrop.startX;
+  const dy = e.clientY - _avatarCrop.startY;
+  setAvatarCropOffset(_avatarCrop.startOffsetX + dx, _avatarCrop.startOffsetY + dy);
+}
+function avatarCropDragEnd() {
+  if (!_avatarCrop) return;
+  _avatarCrop.dragging = false;
+  const vp = document.getElementById('avatar-crop-viewport');
+  if (vp) vp.style.cursor = 'grab';
+}
+
+function setAvatarCropOffset(x, y) {
+  const c = _avatarCrop;
+  const dispW = c.naturalW * c.scale;
+  const dispH = c.naturalH * c.scale;
+  c.offsetX = Math.min(0, Math.max(AVATAR_CROP_VP - dispW, x));
+  c.offsetY = Math.min(0, Math.max(AVATAR_CROP_VP - dispH, y));
+  applyAvatarCropTransform();
+}
+
+function updateAvatarCropTransform() {
+  if (!_avatarCrop || !_avatarCrop.naturalW) return;
+  const sliderVal = parseFloat(document.getElementById('avatar-crop-zoom').value);
+  _avatarCrop.scale = _avatarCrop.minScale * sliderVal;
+  // Re-center-ish: keep the same focal point by clamping the existing offset
+  // against the new size rather than recentering, so zooming feels stable.
+  setAvatarCropOffset(_avatarCrop.offsetX, _avatarCrop.offsetY);
+}
+
+function applyAvatarCropTransform() {
+  const c = _avatarCrop;
+  const img = document.getElementById('avatar-crop-img');
+  img.style.width = (c.naturalW * c.scale) + 'px';
+  img.style.height = (c.naturalH * c.scale) + 'px';
+  img.style.transform = `translate(${c.offsetX}px, ${c.offsetY}px)`;
+}
+
+async function confirmAvatarCrop() {
+  if (!_avatarCrop) return;
+  const btn = document.getElementById('avatar-crop-save-btn');
   const prevLabel = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Uploading…';
+  btn.textContent = 'Saving…';
   try {
-    const url = await uploadImage(file);
-    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ avatarUrl: url }) });
-    setAvatarPreview(url);
+    const img = document.getElementById('avatar-crop-img');
+    const k = AVATAR_CROP_OUT / AVATAR_CROP_VP;
+    const canvas = document.createElement('canvas');
+    canvas.width = AVATAR_CROP_OUT;
+    canvas.height = AVATAR_CROP_OUT;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      img,
+      _avatarCrop.offsetX * k, _avatarCrop.offsetY * k,
+      _avatarCrop.naturalW * _avatarCrop.scale * k, _avatarCrop.naturalH * _avatarCrop.scale * k
+    );
+    const dataUrl = canvas.toDataURL('image/png');
+    const data = await apiFetch('/upload', { method: 'POST', body: JSON.stringify({ dataUrl, filename: 'avatar.png', scope: 'org' }) });
+    await apiFetch('/account', { method: 'PUT', body: JSON.stringify({ avatarUrl: data.url }) });
+    setAvatarPreview(data.url);
     toast('Photo updated', 'success');
+    closeAvatarCropModal();
   } catch (err) {
     toast(err.message || 'Upload failed', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = prevLabel;
-    input.value = '';
   }
 }
 
@@ -12488,6 +12670,7 @@ async function bootApp() {
   renderDashboard();
   updateAiLearnedCount();
   startBookingsPolling();
+  loadSidebarAvatar();
   if (aiSpeakEnabled) {
     document.getElementById('ai-speak-label').textContent = 'Voice on';
     document.getElementById('ai-speak-btn').style.color = 'var(--sage)';
