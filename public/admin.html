@@ -2056,7 +2056,7 @@
           <div class="panel" style="margin-bottom:20px" id="attention-panel">
             <div class="panel-header">
               <div class="attention-header">
-                <span style="font-size: 14px">⚠️</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <span class="panel-title">Needs Attention</span>
                 <span class="attention-badge" id="attention-count">0</span>
               </div>
@@ -6820,7 +6820,7 @@ function renderBookingVisibility() {
     const isOn = s.active !== false;
     return '<div style="display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)">'
       + '<div style="width:36px;height:36px;border-radius:8px;background:var(--sage-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">'
-      + (s.image ? '<img src="' + s.image + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : (s.icon || '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'))
+      + (s.image ? '<img src="' + s.image + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : ((s.icon && s.icon !== '✨') ? s.icon : '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'))
       + '</div>'
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + s.name + '</div>'
@@ -6961,10 +6961,10 @@ function renderServices() {
     const cat = catMap[s.category] || { label: s.category, cls: 'tag-initial' };
     return `<div class="service-card${s.active === false ? ' service-card-hidden' : ''}" data-service-id="${s.id}">
       <div class="service-card-actions">
-        <button class="icon-btn edit" onclick="openServiceModal('${s.id}')">✎</button>
-        <button class="icon-btn del" onclick="deleteService('${s.id}')">✕</button>
+        <button class="icon-btn edit" onclick="openServiceModal('${s.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+        <button class="icon-btn del" onclick="deleteService('${s.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
       </div>
-      <div class="service-icon-wrap">${s.image ? `<img src="${s.image}" style="width:100%;height:100%;object-fit:cover" alt="">` : s.icon}</div>
+      <div class="service-icon-wrap">${s.image ? `<img src="${s.image}" style="width:100%;height:100%;object-fit:cover" alt="">` : ((s.icon && s.icon !== '✨') ? s.icon : '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>')}</div>
       <span class="service-category-tag ${cat.cls}">${cat.label}</span>
       <div class="service-name">${s.name}${s.active === false ? ' <span style="font-size:10px;color:var(--ink-soft);font-weight:400">(hidden from booking)</span>' : ''}</div>
       <div class="service-desc">${s.desc}</div>
@@ -7204,7 +7204,7 @@ function saveService() {
   const name = document.getElementById('sm-name').value.trim();
   if (!name) { toast('Service name is required', 'error'); return; }
   const services = getServices();
-  const data = { name, image: currentServiceImage || null, icon: '✨', desc: document.getElementById('sm-desc').value, duration: parseInt(document.getElementById('sm-duration').value) || 60, price: parseFloat(document.getElementById('sm-price').value) || 0, deposit: parseFloat(document.getElementById('sm-deposit').value) || 0, category: document.getElementById('sm-category').value, location: document.getElementById('sm-location').value, active: true };
+  const data = { name, image: currentServiceImage || null, icon: null, desc: document.getElementById('sm-desc').value, duration: parseInt(document.getElementById('sm-duration').value) || 60, price: parseFloat(document.getElementById('sm-price').value) || 0, deposit: parseFloat(document.getElementById('sm-deposit').value) || 0, category: document.getElementById('sm-category').value, location: document.getElementById('sm-location').value, active: true };
   if (editingServiceId) {
     const idx = services.findIndex(s => s.id === editingServiceId);
     if (idx >= 0) services[idx] = { ...services[idx], ...data };
@@ -7235,7 +7235,7 @@ function renderComms() {
   document.getElementById('comms-total').textContent = comms.length;
   const el = document.getElementById('comms-list');
   if (!comms.length) {
-    el.innerHTML = '<div class="empty-state panel"><div class="empty-state-icon">💬</div><div class="empty-state-title">No communications yet</div><div class="empty-state-sub">Send a reminder or follow-up from any booking to see it here</div></div>';
+    el.innerHTML = '<div class="empty-state panel"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="empty-state-title">No communications yet</div><div class="empty-state-sub">Send a reminder or follow-up from any booking to see it here</div></div>';
     return;
   }
   const typeMap = {
@@ -7257,7 +7257,7 @@ function renderComms() {
         <div style="font-size: 11px;font-weight:500;color:var(--ink)">${c.client_name || c.to_address || ''}</div>
         <div class="comms-meta">${c.to_address || ''} · ${when}</div>
       </div>
-      <span style="font-size: 9px;color:${failed ? 'var(--red)' : 'var(--sage)'};font-weight:500">${failed ? '✕ Failed' : '✓ Sent'}</span>
+      <span style="font-size: 9px;color:${failed ? 'var(--red)' : 'var(--sage)'};font-weight:500;display:inline-flex;align-items:center;gap:3px">${failed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" width="9" height="9"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Failed' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="9" height="9"><polyline points="20 6 9 17 4 12"/></svg>Sent'}</span>
     </div>`;
   }).join('');
 }
@@ -7452,7 +7452,7 @@ function renderForms() {
   const services = getServices();
   const el = document.getElementById('forms-list');
   if (!forms.length) {
-    el.innerHTML = '<div class="empty-state panel" style="padding:48px 24px;text-align:center;background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg)"><div class="empty-state-icon">📋</div><div class="empty-state-title">No intake forms yet</div><div class="empty-state-sub">Create a form to collect client information before appointments</div></div>';
+    el.innerHTML = '<div class="empty-state panel" style="padding:48px 24px;text-align:center;background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg)"><div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><div class="empty-state-title">No intake forms yet</div><div class="empty-state-sub">Create a form to collect client information before appointments</div></div>';
     return;
   }
   el.innerHTML = forms.map(f => {
@@ -7469,8 +7469,8 @@ function renderForms() {
         </div>
       </div>
       <div class="form-card-actions">
-        <button class="icon-btn edit" onclick="openFormModal('${f.id}')">✎</button>
-        <button class="icon-btn del" onclick="deleteForm('${f.id}')">✕</button>
+        <button class="icon-btn edit" onclick="openFormModal('${f.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+        <button class="icon-btn del" onclick="deleteForm('${f.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
       </div>
     </div>`;
   }).join('');
@@ -9018,9 +9018,9 @@ async function sendPaymentLinkFromModal() {
     const statusEl = document.getElementById('payment-link-status');
     statusEl.classList.remove('hidden');
     if (result.smsSent) {
-      statusEl.innerHTML = '✅ Payment link sent to <strong>' + b.phone + '</strong>.<br>This booking updates automatically once the client pays.';
+      statusEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Payment link sent to <strong>' + b.phone + '</strong>.<br>This booking updates automatically once the client pays.';
     } else {
-      statusEl.innerHTML = '⚠️ Link created but SMS failed to send — copy and share manually:<br><a href="' + result.url + '" target="_blank" style="color:var(--sage)">' + result.url + '</a>';
+      statusEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Link created but SMS failed to send — copy and share manually:<br><a href="' + result.url + '" target="_blank" style="color:var(--sage)">' + result.url + '</a>';
     }
     label.textContent = 'Link Sent';
     toast(result.smsSent ? 'Payment link sent' : 'Link created — SMS failed, copy manually', result.smsSent ? 'success' : 'error');
@@ -9533,7 +9533,8 @@ function updateTmplPreview() {
 
   if (smsOn) {
     const sms = applyVars(document.getElementById('tmpl-sms-body').value || '');
-    smsDiv.textContent = '💬 SMS preview\n\n' + sms;
+    smsDiv.innerHTML = '<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;font-weight:600;color:var(--ink);font-size:11px;text-transform:uppercase;letter-spacing:.4px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>SMS preview</div>';
+    smsDiv.appendChild(document.createTextNode(sms));
   }
 }
 
