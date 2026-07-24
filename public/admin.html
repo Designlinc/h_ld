@@ -2246,6 +2246,16 @@
         </div>
         <div class="panel-body" style="padding:20px 24px">
           <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Choose which services appear in the client booking flow. Toggle off to hide a service without deleting it.</p>
+
+          <div style="margin-bottom:20px;padding:16px 18px;background:var(--sage-pale);border:1px solid var(--sage-light);border-radius:var(--radius)">
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">Your public booking page</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;line-height:1.5">A standalone link for clients to book directly — share it anywhere, no website needed.</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" class="form-input" id="public-booking-url" readonly style="font-size:13px;color:var(--ink-mid);background:var(--white)">
+              <button class="btn btn-primary" style="font-size:12px;padding:8px 14px;white-space:nowrap;flex-shrink:0" onclick="copyPublicBookingUrl()">Copy link</button>
+            </div>
+          </div>
+
           <div id="booking-visibility-list"></div>
           <div style="margin-top:16px;padding:12px 14px;background:var(--sage-pale);border-radius:var(--radius);font-size:12px;color:var(--ink-soft);line-height:1.6">
             <strong style="color:var(--ink-mid)">Styled embed</strong> — full h_ld. branding in a centred card with shadow. Best for standalone booking pages.<br>
@@ -2487,6 +2497,10 @@
           <div class="form-row">
             <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="s-email" value=""></div>
             <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="s-phone" value=""></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Website</label><input class="form-input" id="s-website" placeholder="https://yourwebsite.com.au" value=""></div>
+            <div class="form-group"><label class="form-label">Practitioner Title</label><input class="form-input" id="s-prac-title" placeholder="Kinesiologist" value=""></div>
           </div>
           <div class="form-row full">
             <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="s-address" value=""></div>
@@ -6935,6 +6949,9 @@ async function saveBooking() {
 const catMap = { initial: { label: 'Initial Consultation', cls: 'tag-initial' }, followup: { label: 'Follow-Up', cls: 'tag-followup' }, specialised: { label: 'Specialised', cls: 'tag-specialised' }, package: { label: 'Package', cls: 'tag-package' } };
 
 function renderBookingVisibility() {
+  const urlEl = document.getElementById('public-booking-url');
+  if (urlEl) urlEl.value = `https://${location.hostname}/book`;
+
   const el = document.getElementById('booking-visibility-list');
   if (!el) return;
   const services = getServices();
@@ -6978,6 +6995,18 @@ function previewBookingPage() {
 function closeBookingPreview() {
   document.getElementById('booking-preview-backdrop').classList.remove('open');
   setTimeout(() => { document.getElementById('booking-preview-frame').src = ''; }, 300);
+}
+
+function copyPublicBookingUrl() {
+  const url = `https://${location.hostname}/book`;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Booking page link copied', 'success');
+  }).catch(() => {
+    const input = document.getElementById('public-booking-url');
+    input.select();
+    document.execCommand('copy');
+    toast('Booking page link copied', 'success');
+  });
 }
 
 function copyEmbedCode(type) {
@@ -7475,6 +7504,8 @@ function saveSettings() {
     pracName: document.getElementById('s-prac-name').value,
     email: document.getElementById('s-email').value,
     phone: document.getElementById('s-phone').value,
+    website: document.getElementById('s-website').value,
+    pracTitle: document.getElementById('s-prac-title').value,
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
@@ -8170,6 +8201,8 @@ function loadSettingsUI() {
   if (s.pracName) document.getElementById('s-prac-name').value = s.pracName;
   if (s.email) document.getElementById('s-email').value = s.email;
   if (s.phone) document.getElementById('s-phone').value = s.phone;
+  if (s.website) document.getElementById('s-website').value = s.website;
+  if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
   setLogoPreview(s.logoUrl || null);
   if (s.buffer) document.getElementById('s-buffer').value = s.buffer;

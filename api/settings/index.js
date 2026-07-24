@@ -15,6 +15,23 @@ export default async function handler(req, res) {
     const obj = {};
     rows.forEach(r => { obj[r.key] = r.value; });
 
+    // Public practitioner info for the standalone booking page (name, title,
+    // avatar) — deliberately separate from the _connected block below, which
+    // stays gated behind auth. A photo and job title aren't sensitive; this
+    // is the same information already visible to anyone using the booking
+    // flow or reading a confirmation email.
+    const [practitioner] = await sql`
+      SELECT name, avatar_url FROM practitioners
+      WHERE organization_id = ${org.id} ORDER BY created_at ASC LIMIT 1
+    `;
+    if (practitioner) {
+      obj._practitioner = {
+        name: practitioner.name,
+        title: obj.app_settings?.pracTitle || '',
+        avatarUrl: practitioner.avatar_url,
+      };
+    }
+
     // Connection status is only meaningful to an authenticated practitioner
     // looking at their own settings — the public booking page doesn't get
     // this at all. Shaped as an object keyed by provider (e.g.

@@ -3,6 +3,10 @@
     {
       "source": "/",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/book",
+      "destination": "/booking.html"
     }
   ],
   "headers": [
