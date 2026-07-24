@@ -36,7 +36,8 @@ function fillTemplate(tmpl, booking, settings, org) {
     .replace(/\{practitioner\}/g, settings?.pracName || '')
     .replace(/\{business_name\}/g, settings?.bizName || org.name)
     .replace(/\{cancel_policy\}/g, settings?.cancelPolicy || '')
-    .replace(/\{intake_form_button\}/g, `https://${org.subdomain}.h-ld.com/intake.html?booking=${booking.id}`);
+    .replace(/\{intake_form_button\}/g, `https://${org.subdomain}.h-ld.com/intake.html?booking=${booking.id}`)
+    .replace(/\{add_to_calendar_button\}/g, `https://${org.subdomain}.h-ld.com/api/calendar/ics?booking=${booking.id}`);
 }
 
 // Load this organization's settings and message templates
@@ -90,6 +91,9 @@ async function sendEmail(to, subject, text, org, settings) {
       if (!t) return '';
       if (t.startsWith('https://') && t.includes('/intake.html')) {
         return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#D84148;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Complete Intake Form</a></div>`;
+      }
+      if (t.startsWith('https://') && t.includes('/api/calendar/ics')) {
+        return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#fff;color:#D84148;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:14px;border:1.5px solid #D84148">Add to Calendar</a></div>`;
       }
       const locationMatch = t.match(/^Location:\s*(https?:\/\/\S+)\s*$/i);
       if (locationMatch) {

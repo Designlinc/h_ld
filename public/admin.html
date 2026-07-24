@@ -4951,11 +4951,14 @@ function buildEmailHtml(body, settings) {
   const bizName = settings?.bizName || 'Your Business';
   const address = settings?.address || '';
 
-  // Split body into sections by newline and build HTML
+  // Split body into sections by newline and build HTML. Button-type lines
+  // (intake form, add-to-calendar) render inline, in whatever position the
+  // practitioner actually placed the token in their message template —
+  // previously these were captured and always appended at the very end of
+  // the email regardless of where {intake_form_button} sat in the text.
   const lines = text.split('\n');
   let html = '';
   let inDetails = false;
-  let intakeUrl = '';
 
   lines.forEach(line => {
     const t = line.trim();
@@ -4963,9 +4966,15 @@ function buildEmailHtml(body, settings) {
       if (inDetails) { html += '<hr style="border:none;border-top:1px solid #E0E8E4;margin:16px 0">'; inDetails = false; }
       return;
     }
-    // Capture intake form URL for button rendering later
+    // Intake form link — primary (solid) button, rendered right where the token was
     if (t.startsWith('https://') && t.includes('/intake.html')) {
-      intakeUrl = t;
+      html += `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#3D6B5C;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px">Complete Intake Form</a></div>`;
+      return;
+    }
+    // Add-to-calendar link — secondary (outline) button, so it doesn't compete
+    // with the intake form button as the primary call to action
+    if (t.startsWith('https://') && t.includes('/api/calendar/ics')) {
+      html += `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#fff;color:#3D6B5C;text-decoration:none;padding:12px 26px;border-radius:8px;font-weight:600;font-size:15px;border:1.5px solid #3D6B5C">Add to Calendar</a></div>`;
       return;
     }
     // Detect detail lines like "Service: xxx", "Date: xxx" etc
@@ -4987,33 +4996,27 @@ function buildEmailHtml(body, settings) {
   // Close details section if still open
   if (inDetails) html += '<hr style="border:none;border-top:1px solid #E0E8E4;margin:16px 0">';
 
-  // Build intake button HTML if URL was found
-  const intakeBtnHtml = intakeUrl
-    ? `<div style="margin:24px 0 8px;text-align:center"><a href="${intakeUrl}" style="display:inline-block;background:#3D6B5C;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px">Complete Intake Form</a></div>`
-    : '';
-
+  // The white card holds only the practitioner's own content and their own
+  // footer strip. The h_ld "powered by" branding sits as its own separate
+  // block below and outside that card, directly on the page background —
+  // not nested inside the card's rounded/clipped box.
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;margin:0;padding:20px">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#EEF3F1;margin:0;padding:20px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
   <div style="padding:28px 32px 0">
     <img src="${getEmailLogoSrc(settings)}" style="width:100px;display:block;margin-bottom:24px" alt="${bizName}">
     <hr style="border:none;border-top:1px solid #E0E8E4;margin:0 0 20px">
     ${html}
-    ${intakeBtnHtml}
   </div>
   <div style="padding:20px 32px;background:#f8faf9;margin-top:24px;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${bizName} &mdash; ${address}</p>
   </div>
-  <div style="padding:28px 32px 0;background:#E1F1F1;text-align:center">
-    <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
-  </div>
-  <div style="padding:0 32px;background:#E1F1F1">
-    <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 0 0">
-  </div>
-  <div style="padding:16px 32px 24px;background:#E1F1F1;text-align:center">
-    <p style="margin:0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
-  </div>
+</div>
+<div style="max-width:560px;margin:32px auto 0;text-align:center">
+  <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
+  <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 32px 0">
+  <p style="margin:16px 32px 0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
 </div>
 </body></html>`;
 }
@@ -6031,7 +6034,7 @@ async function sendSessionNotesEmail() {
   const subject = `Your session notes \u2014 ${b.service}`;
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f2;margin:0;padding:20px">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#EEF3F1;margin:0;padding:20px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
   <div style="padding:28px 32px">
     <img src="${getEmailLogoSrc(settings)}" style="width:100px;display:block;margin-bottom:20px" alt="${settings.bizName || 'Your Business'}">
@@ -6043,15 +6046,11 @@ async function sendSessionNotesEmail() {
   <div style="padding:18px 32px;background:#f8faf9;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${settings.bizName || 'Your Business'}</p>
   </div>
-  <div style="padding:28px 32px 0;background:#E1F1F1;text-align:center">
-    <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
-  </div>
-  <div style="padding:0 32px;background:#E1F1F1">
-    <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 0 0">
-  </div>
-  <div style="padding:16px 32px 24px;background:#E1F1F1;text-align:center">
-    <p style="margin:0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
-  </div>
+</div>
+<div style="max-width:560px;margin:32px auto 0;text-align:center">
+  <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
+  <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 32px 0">
+  <p style="margin:16px 32px 0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
 </div>
 </body></html>`;
 
@@ -6451,6 +6450,7 @@ function fillMessageTemplate(text, ctx, settings) {
     '{business_name}':      settings.bizName || 'Your Business',
     '{cancel_policy}':      settings.cancelPolicy || '',
     '{intake_form_button}': ctx.bookingId ? (`https://${location.hostname}/intake.html?booking=${ctx.bookingId}`) : '',
+    '{add_to_calendar_button}': ctx.bookingId ? (`https://${location.hostname}/api/calendar/ics?booking=${ctx.bookingId}`) : '',
     '{homework}':           ctx.homework || '',
     '{goal}':               ctx.goal || '',
   };
@@ -9477,6 +9477,7 @@ const TMPL_VARS = [
   { key: '{business_name}', label: 'Business name',  sample: 'Your Business' },
   { key: '{cancel_policy}', label: 'Cancel policy',  sample: '24 hours notice required' },
   { key: '{intake_form_button}', label: 'Intake form button', sample: '[Complete Intake Form]' },
+  { key: '{add_to_calendar_button}', label: 'Add to calendar button', sample: '[Add to Calendar]' },
 ];
 
 const TMPL_TYPES = {
@@ -9503,7 +9504,7 @@ function defaultTemplates() {
     confirmation: {
       email: {
         subject: 'Your booking is confirmed — {service}',
-        body: 'Hi {client_name},\n\nYour appointment has been confirmed. Here are your details:\n\nService: {service}\nDate: {date}\nTime: {time}\nDuration: {duration}\nLocation: {location}\nPrice: {price}\n\nTo help us prepare for your session, please complete your intake form before your appointment:\n\n{intake_form_button}\n\nPlease note our cancellation policy: {cancel_policy}\n\nIf you have any questions, feel free to reply to this email.\n\nSee you soon,\n{practitioner}\n{business_name}',
+        body: 'Hi {client_name},\n\nYour appointment has been confirmed. Here are your details:\n\nService: {service}\nDate: {date}\nTime: {time}\nDuration: {duration}\nLocation: {location}\nPrice: {price}\n\n{add_to_calendar_button}\n\nTo help us prepare for your session, please complete your intake form before your appointment:\n\n{intake_form_button}\n\nPlease note our cancellation policy: {cancel_policy}\n\nIf you have any questions, feel free to reply to this email.\n\nSee you soon,\n{practitioner}\n{business_name}',
       },
       sms: 'Hi {client_name}, your {service} with {business_name} is confirmed for {date} at {time}. See you then!',
     },
@@ -9635,6 +9636,7 @@ function updateTmplPreview() {
     '{business_name}': settings.bizName   || 'Your Business',
     '{cancel_policy}': settings.cancelPolicy || '24 hours notice required',
     '{intake_form_button}': '{intake_form_button}',
+    '{add_to_calendar_button}': '{add_to_calendar_button}',
   };
   const applyVars = function(text) {
     Object.entries(sample).forEach(function(pair) { text = text.split(pair[0]).join(pair[1]); });
