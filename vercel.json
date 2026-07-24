@@ -2,6 +2,16 @@
   "rewrites": [
     {
       "source": "/",
+      "has": [{ "type": "host", "value": "h-ld.com" }],
+      "destination": "/signup.html"
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "www.h-ld.com" }],
+      "destination": "/signup.html"
+    },
+    {
+      "source": "/",
       "destination": "/admin.html"
     },
     {
