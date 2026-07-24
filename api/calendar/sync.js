@@ -11,6 +11,35 @@ export default async function handler(req, res) {
   if (!org) return;
   const auth = requireAuth(req, res, org);
   if (!auth) return;
+
+  if (req.method === 'DELETE') {
+    // Removes a Google Calendar event directly by ID — used when a booking
+    // is cancelled. Takes eventId/practitionerId directly rather than a
+    // bookingId lookup because by the time this runs the booking row may
+    // already be gone (cancelling removes the booking from the bookings
+    // table entirely, not just marks it cancelled).
+    const { eventId, practitionerId } = req.body || {};
+    if (!eventId) return res.status(400).json({ error: 'Missing eventId' });
+    try {
+      const accessToken = await getValidGoogleToken(practitionerId || auth.practitioner_id);
+      const gcRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      // 410 Gone means it was already deleted (e.g. removed manually in
+      // Google Calendar) — treat that the same as a successful delete
+      // rather than surfacing it as an error.
+      if (!gcRes.ok && gcRes.status !== 404 && gcRes.status !== 410) {
+        const errText = await gcRes.text().catch(() => '');
+        throw new Error(`Google Calendar delete failed (${gcRes.status}): ${errText}`);
+      }
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('Calendar delete error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).end();
 
   const { bookingId } = req.body;

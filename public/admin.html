@@ -4754,6 +4754,7 @@ function normalizeTimeStr(t) {
 function normalizeBooking(row) {
   return {
     id: row.id,
+    practitionerId: row.practitioner_id,
     client: row.client_name,
     email: row.client_email,
     phone: row.client_phone,
@@ -5843,6 +5844,18 @@ function updateStatus(id, status) {
     if (status === 'cancelled') {
       // Send cancellation notification before removing
       sendCancellationNotification(b);
+      // Remove the Google Calendar event too, if this booking was ever
+      // synced — capture the event/practitioner IDs now, since the booking
+      // row itself (and its google_event_id) is about to be deleted below,
+      // not just marked cancelled.
+      if (b.googleEventId && getConnected().google) {
+        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId }) })
+          .then(() => toast('Removed from Google Calendar', 'success'))
+          .catch(err => {
+            console.warn('Calendar delete failed:', err.message);
+            toast('Booking cancelled, but could not remove it from Google Calendar: ' + err.message, 'error');
+          });
+      }
       // Remove from bookings entirely rather than just marking cancelled
       const idx = bookings.indexOf(b);
       bookings.splice(idx, 1);
@@ -5854,7 +5867,7 @@ function updateStatus(id, status) {
   closeSlideout();
   if (currentPage === 'dashboard') renderDashboard();
   if (currentPage === 'bookings') refreshBookingsView();
-  toast(status === 'cancelled' ? 'Booking cancelled and removed from calendar' : `Booking marked as ${status}`, 'success');
+  toast(status === 'cancelled' ? 'Booking cancelled' : `Booking marked as ${status}`, 'success');
 }
 
 async function sendCancellationNotification(b) {
@@ -12502,6 +12515,11 @@ async function executeAiAction() {
           .filter(b => b.client.toLowerCase().includes(name) && b.date >= today && b.status === 'awaiting')
           .sort((a,b) => a.date.localeCompare(b.date))[0];
         if (!match) { resultMsg = 'No upcoming booking found for "' + params.client_name + '".'; break; }
+        sendCancellationNotification(match);
+        if (match.googleEventId && getConnected().google) {
+          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.googleEventId, practitionerId: match.practitionerId }) })
+            .catch(err => console.warn('Calendar delete failed:', err.message));
+        }
         const idx = bookings.indexOf(match);
         bookings.splice(idx, 1);
         setBookings(bookings);
