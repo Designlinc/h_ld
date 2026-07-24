@@ -4653,6 +4653,14 @@ function flushBookingsSync() {
     // already exist by the time the booking write happens.
     _bookingSyncPromise = Promise.all([flushServicesSync(), flushClientsSync()])
       .then(() => apiFetch('/bookings', { method: 'PUT', body: JSON.stringify(b) }))
+      .then(result => {
+        if (result?.failures?.length) {
+          const names = result.failures.map(f => f.client || f.id).join(', ');
+          const detail = result.failures[0]?.error || '';
+          throw new Error(`${result.failures.length} booking(s) failed to save (${names})${detail ? ': ' + detail : ''}`);
+        }
+        return result;
+      })
       .catch(err => {
         console.warn('Bookings sync failed:', err.message);
         toast('Could not save booking changes: ' + err.message, 'error');
@@ -6442,7 +6450,7 @@ function fillMessageTemplate(text, ctx, settings) {
     '{practitioner}':       settings.pracName || '',
     '{business_name}':      settings.bizName || 'Your Business',
     '{cancel_policy}':      settings.cancelPolicy || '',
-    '{intake_form_button}': ctx.bookingId ? ('/intake.html?booking=' + ctx.bookingId) : '',
+    '{intake_form_button}': ctx.bookingId ? (`https://${location.hostname}/intake.html?booking=${ctx.bookingId}`) : '',
     '{homework}':           ctx.homework || '',
     '{goal}':               ctx.goal || '',
   };

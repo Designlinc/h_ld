@@ -36,7 +36,7 @@ function fillTemplate(tmpl, booking, settings, org) {
     .replace(/\{practitioner\}/g, settings?.pracName || '')
     .replace(/\{business_name\}/g, settings?.bizName || org.name)
     .replace(/\{cancel_policy\}/g, settings?.cancelPolicy || '')
-    .replace(/\{intake_form_button\}/g, `https://${org.subdomain}.h-ld.com/solful-intake.html?booking=${booking.id}`);
+    .replace(/\{intake_form_button\}/g, `https://${org.subdomain}.h-ld.com/intake.html?booking=${booking.id}`);
 }
 
 // Load this organization's settings and message templates
@@ -88,7 +88,7 @@ async function sendEmail(to, subject, text, org, settings) {
     ${text.split('\n').map(line => {
       const t = line.trim();
       if (!t) return '';
-      if (t.startsWith('https://') && t.includes('/solful-intake')) {
+      if (t.startsWith('https://') && t.includes('/intake.html')) {
         return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#D84148;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Complete Intake Form</a></div>`;
       }
       const locationMatch = t.match(/^Location:\s*(https?:\/\/\S+)\s*$/i);
@@ -129,138 +129,165 @@ async function sendConfirmations(booking, org) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  try {
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Every method here needs to know which organization this request is
-  // for, resolved from the subdomain — including the public GET/POST used
-  // by the client-facing booking page, since availability and new bookings
-  // are just as tenant-specific as anything in the admin app.
-  const org = await requireOrg(req, res);
-  if (!org) return;
+    // Every method here needs to know which organization this request is
+    // for, resolved from the subdomain — including the public GET/POST used
+    // by the client-facing booking page, since availability and new bookings
+    // are just as tenant-specific as anything in the admin app.
+    const org = await requireOrg(req, res);
+    if (!org) return;
 
-  if (req.method === 'GET') {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    // Not using requireAuth here on purpose — an invalid/missing token
-    // just falls through to the public availability view below rather
-    // than rejecting the request, since this GET serves two audiences.
-    const payload = token ? verifyToken(token) : null;
+    if (req.method === 'GET') {
+      const auth = req.headers.authorization || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+      // Not using requireAuth here on purpose — an invalid/missing token
+      // just falls through to the public availability view below rather
+      // than rejecting the request, since this GET serves two audiences.
+      const payload = token ? verifyToken(token) : null;
 
-    if (payload && payload.organization_id === org.id) {
-      const rows = await sql`
-        SELECT * FROM bookings WHERE organization_id = ${org.id} ORDER BY date DESC, time DESC
-      `;
-      return res.json(rows);
-    } else {
-      const { date } = req.query;
-      if (!date) return res.json([]);
-      const rows = await sql`
-        SELECT date, time, duration, status FROM bookings
-        WHERE organization_id = ${org.id} AND date = ${date}
-        AND status NOT IN ('cancelled', 'noshow')
-      `;
-      return res.json(rows);
-    }
-  }
-
-  if (req.method === 'POST') {
-    const b = req.body;
-
-    // Solo practitioner today, but this looks ahead to multi-practitioner
-    // organizations: if the client specified who they're booking with,
-    // verify that practitioner actually belongs to this org; otherwise
-    // default to the org's practitioner (works as-is while every org has
-    // exactly one).
-    let practitionerId = null;
-    if (b.practitionerId) {
-      const [p] = await sql`SELECT id FROM practitioners WHERE id = ${b.practitionerId} AND organization_id = ${org.id}`;
-      practitionerId = p ? p.id : null;
-    }
-    if (!practitionerId) {
-      const [p] = await sql`SELECT id FROM practitioners WHERE organization_id = ${org.id} ORDER BY created_at ASC LIMIT 1`;
-      practitionerId = p ? p.id : null;
+      if (payload && payload.organization_id === org.id) {
+        const rows = await sql`
+          SELECT * FROM bookings WHERE organization_id = ${org.id} ORDER BY date DESC, time DESC
+        `;
+        return res.json(rows);
+      } else {
+        const { date } = req.query;
+        if (!date) return res.json([]);
+        const rows = await sql`
+          SELECT date, time, duration, status FROM bookings
+          WHERE organization_id = ${org.id} AND date = ${date}
+          AND status NOT IN ('cancelled', 'noshow')
+        `;
+        return res.json(rows);
+      }
     }
 
-    const [row] = await sql`
-      INSERT INTO bookings (
-        id, organization_id, practitioner_id, client_name, client_email, client_phone, client_id,
-        service_id, service_name, date, time, duration, price,
-        location, status, practitioner_notes
-      ) VALUES (
-        ${b.id}, ${org.id}, ${practitionerId}, ${b.client}, ${b.email || null}, ${b.phone || null}, ${b.clientId || null},
-        ${b.serviceId || null}, ${b.service}, ${b.date}, ${b.time}, ${b.duration || 60}, ${b.price || 0},
-        ${b.location || null}, ${b.status || 'awaiting'}, ${b.practitionerNotes || null}
-      )
-      RETURNING *
-    `;
+    if (req.method === 'POST') {
+      const b = req.body;
 
-    sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message));
+      // Solo practitioner today, but this looks ahead to multi-practitioner
+      // organizations: if the client specified who they're booking with,
+      // verify that practitioner actually belongs to this org; otherwise
+      // default to the org's practitioner (works as-is while every org has
+      // exactly one).
+      let practitionerId = null;
+      if (b.practitionerId) {
+        const [p] = await sql`SELECT id FROM practitioners WHERE id = ${b.practitionerId} AND organization_id = ${org.id}`;
+        practitionerId = p ? p.id : null;
+      }
+      if (!practitionerId) {
+        const [p] = await sql`SELECT id FROM practitioners WHERE organization_id = ${org.id} ORDER BY created_at ASC LIMIT 1`;
+        practitionerId = p ? p.id : null;
+      }
 
-    return res.status(201).json(row);
-  }
-
-  const auth = requireAuth(req, res, org);
-  if (!auth) return;
-
-  if (req.method === 'PUT') {
-    const bookings = Array.isArray(req.body) ? req.body : [];
-    const incomingIds = bookings.map(b => b.id);
-
-    // Bulk sync only ever touches THIS org's bookings — the NOT-IN-list
-    // delete is scoped by organization_id so it can never wipe another
-    // tenant's data, even if the incoming ID list were somehow empty.
-    if (incomingIds.length > 0) {
-      await sql`
-        DELETE FROM bookings
-        WHERE organization_id = ${org.id}
-        AND NOT (id = ANY(SELECT jsonb_array_elements_text(${JSON.stringify(incomingIds)}::jsonb)))
-      `;
-    } else {
-      await sql`DELETE FROM bookings WHERE organization_id = ${org.id}`;
-    }
-
-    for (const b of bookings) {
-      await sql`
+      const [row] = await sql`
         INSERT INTO bookings (
           id, organization_id, practitioner_id, client_name, client_email, client_phone, client_id,
           service_id, service_name, date, time, duration, price,
-          location, status, payment_method, payment_amount, paid_at,
-          practitioner_notes, intake_submitted, google_event_id, homework_reminder
+          location, status, practitioner_notes
         ) VALUES (
-          ${b.id}, ${org.id}, ${auth.practitioner_id}, ${b.client}, ${b.email || null}, ${b.phone || null}, ${b.clientId || null},
+          ${b.id}, ${org.id}, ${practitionerId}, ${b.client}, ${b.email || null}, ${b.phone || null}, ${b.clientId || null},
           ${b.serviceId || null}, ${b.service}, ${b.date}, ${b.time}, ${b.duration || 60}, ${b.price || 0},
-          ${b.location || null}, ${b.status || 'awaiting'}, ${b.paymentMethod || null},
-          ${b.paymentAmount || null}, ${b.paidAt || null}, ${b.practitionerNotes || null},
-          ${b.intakeSubmitted || false}, ${b.googleEventId || null},
-          ${b.homeworkReminder ? JSON.stringify(b.homeworkReminder) : null}
+          ${b.location || null}, ${b.status || 'awaiting'}, ${b.practitionerNotes || null}
         )
-        ON CONFLICT (id) DO UPDATE SET
-          client_name         = EXCLUDED.client_name,
-          client_email        = EXCLUDED.client_email,
-          client_phone        = EXCLUDED.client_phone,
-          client_id           = EXCLUDED.client_id,
-          service_id          = EXCLUDED.service_id,
-          service_name        = EXCLUDED.service_name,
-          date                = EXCLUDED.date,
-          time                = EXCLUDED.time,
-          duration            = EXCLUDED.duration,
-          price               = EXCLUDED.price,
-          location            = EXCLUDED.location,
-          status              = EXCLUDED.status,
-          payment_method      = EXCLUDED.payment_method,
-          payment_amount      = EXCLUDED.payment_amount,
-          paid_at             = EXCLUDED.paid_at,
-          practitioner_notes  = EXCLUDED.practitioner_notes,
-          intake_submitted    = EXCLUDED.intake_submitted,
-          google_event_id     = EXCLUDED.google_event_id,
-          homework_reminder   = EXCLUDED.homework_reminder,
-          updated_at          = NOW()
-        WHERE bookings.organization_id = ${org.id}
+        RETURNING *
       `;
+
+      sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message));
+
+      return res.status(201).json(row);
     }
 
-    return res.json({ ok: true, count: bookings.length });
-  }
+    const auth = requireAuth(req, res, org);
+    if (!auth) return;
 
-  res.status(405).json({ error: 'Method not allowed' });
+    if (req.method === 'PUT') {
+      const bookings = Array.isArray(req.body) ? req.body : [];
+      const incomingIds = bookings.map(b => b.id);
+
+      // Bulk sync only ever touches THIS org's bookings — the NOT-IN-list
+      // delete is scoped by organization_id so it can never wipe another
+      // tenant's data, even if the incoming ID list were somehow empty.
+      if (incomingIds.length > 0) {
+        await sql`
+          DELETE FROM bookings
+          WHERE organization_id = ${org.id}
+          AND NOT (id = ANY(SELECT jsonb_array_elements_text(${JSON.stringify(incomingIds)}::jsonb)))
+        `;
+      } else {
+        await sql`DELETE FROM bookings WHERE organization_id = ${org.id}`;
+      }
+
+      // Each booking is written independently — a bad row (stale
+      // service_id/client_id reference, malformed date, etc) shouldn't
+      // block every other booking in the same sync from saving. Failures
+      // are collected and reported back instead of aborting the whole
+      // batch on the first error.
+      const failures = [];
+      for (const b of bookings) {
+        try {
+          await sql`
+            INSERT INTO bookings (
+              id, organization_id, practitioner_id, client_name, client_email, client_phone, client_id,
+              service_id, service_name, date, time, duration, price,
+              location, status, payment_method, payment_amount, paid_at,
+              practitioner_notes, intake_submitted, google_event_id, homework_reminder
+            ) VALUES (
+              ${b.id}, ${org.id}, ${auth.practitioner_id}, ${b.client}, ${b.email || null}, ${b.phone || null}, ${b.clientId || null},
+              ${b.serviceId || null}, ${b.service}, ${b.date}, ${b.time}, ${b.duration || 60}, ${b.price || 0},
+              ${b.location || null}, ${b.status || 'awaiting'}, ${b.paymentMethod || null},
+              ${b.paymentAmount || null}, ${b.paidAt || null}, ${b.practitionerNotes || null},
+              ${b.intakeSubmitted || false}, ${b.googleEventId || null},
+              ${b.homeworkReminder ? JSON.stringify(b.homeworkReminder) : null}
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              client_name         = EXCLUDED.client_name,
+              client_email        = EXCLUDED.client_email,
+              client_phone        = EXCLUDED.client_phone,
+              client_id           = EXCLUDED.client_id,
+              service_id          = EXCLUDED.service_id,
+              service_name        = EXCLUDED.service_name,
+              date                = EXCLUDED.date,
+              time                = EXCLUDED.time,
+              duration            = EXCLUDED.duration,
+              price               = EXCLUDED.price,
+              location            = EXCLUDED.location,
+              status              = EXCLUDED.status,
+              payment_method      = EXCLUDED.payment_method,
+              payment_amount      = EXCLUDED.payment_amount,
+              paid_at             = EXCLUDED.paid_at,
+              practitioner_notes  = EXCLUDED.practitioner_notes,
+              intake_submitted    = EXCLUDED.intake_submitted,
+              google_event_id     = EXCLUDED.google_event_id,
+              homework_reminder   = EXCLUDED.homework_reminder,
+              updated_at          = NOW()
+            WHERE bookings.organization_id = ${org.id}
+          `;
+        } catch (err) {
+          console.error(`Booking ${b.id} failed to save:`, err.message);
+          failures.push({ id: b.id, client: b.client, error: err.message });
+        }
+      }
+
+      if (failures.length > 0) {
+        // 207-style partial-failure response — some bookings saved, some
+        // didn't. Still 200 so the client can see exactly which ones failed
+        // and why, rather than only knowing "something in this batch broke".
+        return res.status(200).json({ ok: failures.length < bookings.length, count: bookings.length - failures.length, failures });
+      }
+
+      return res.json({ ok: true, count: bookings.length });
+    }
+
+    res.status(405).json({ error: 'Method not allowed' });
+  } catch (err) {
+    // Anything that reaches here would otherwise crash the function and
+    // return Vercel's own generic (non-JSON) error page — which is why
+    // failures were showing as an unhelpful "Request failed" client-side
+    // instead of the actual database/validation error.
+    console.error('Bookings API error:', err);
+    return res.status(500).json({ error: err.message || 'Internal server error' });
+  }
 }
