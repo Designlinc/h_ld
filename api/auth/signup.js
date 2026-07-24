@@ -1,20 +1,31 @@
 // api/auth/signup.js — creates a new organization and its first (owner)
-// practitioner. Unlike every other route, this one deliberately does NOT
-// call requireOrg() — there's no organization yet, that's the whole point.
-// It's meant to run on the marketing/root domain (h-ld.com), not a tenant
-// subdomain, and hands back a token plus the new subdomain so the frontend
-// can redirect straight to sarah.h-ld.com.
+// practitioner, then immediately starts a Stripe Checkout session — no free
+// accounts. The org is created with billing_status 'pending', which
+// requireOrg() blocks from actually using the app; the Stripe webhook
+// (checkout.session.completed) flips it to 'active' once payment succeeds,
+// which is the only way in.
+//
+// Unlike every other route, this one deliberately does NOT call
+// requireOrg() — there's no organization yet, that's the whole point. It's
+// meant to run on the marketing/root domain (h-ld.com), not a tenant
+// subdomain.
 import sql from '../../lib/db.js';
 import { signToken } from '../../lib/auth.js';
+import { requireStripe } from '../../lib/stripe.js';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
-const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin']);
+const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin', 'api', 'book', 'mail', 'support']);
 const SUBDOMAIN_PATTERN = /^[a-z0-9-]{3,63}$/;
+const PRICE_ID = process.env.STRIPE_PRICE_ID;
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const stripe = requireStripe(res);
+  if (!stripe) return;
+  if (!PRICE_ID) return res.status(500).json({ error: 'STRIPE_PRICE_ID not configured' });
 
   const { subdomain, orgName, name, email, password } = req.body || {};
 
@@ -48,13 +59,16 @@ export default async function handler(req, res) {
   const organizationId = randomUUID();
   const practitionerId = randomUUID();
   const passwordHash = await bcrypt.hash(password, 12);
+  const trimmedOrgName = orgName.trim();
 
   try {
     // ...and the table's UNIQUE constraints as the real guarantee, in case
     // two signups for the same subdomain/email land in the same instant.
+    // billing_status starts 'pending' — deliberately NOT usable yet (see
+    // requireOrg in lib/tenant.js) until the checkout below actually completes.
     await sql`
       INSERT INTO organizations (id, subdomain, name, plan_tier, billing_status)
-      VALUES (${organizationId}, ${normalizedSubdomain}, ${orgName.trim()}, 'trial', 'trial')
+      VALUES (${organizationId}, ${normalizedSubdomain}, ${trimmedOrgName}, 'standard', 'pending')
     `;
     await sql`
       INSERT INTO practitioners (id, organization_id, email, password, name, role)
@@ -68,8 +82,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Something went wrong creating your account' });
   }
 
-  // Signed in immediately on signup — no separate login step right after.
-  // Their very first *return* login will go through the normal MFA flow.
+  // Handed back now so the post-checkout redirect can carry it straight into
+  // the app — it identifies who they are, but is useless for actually doing
+  // anything until billing_status flips to 'active', since every API route
+  // goes through requireOrg() first.
   const token = signToken({
     practitioner_id: practitionerId,
     organization_id: organizationId,
@@ -77,8 +93,34 @@ export default async function handler(req, res) {
     email: normalizedEmail,
   });
 
+  let session;
+  try {
+    const customer = await stripe.customers.create({
+      name: trimmedOrgName,
+      email: normalizedEmail,
+      metadata: { organization_id: organizationId },
+    });
+    await sql`UPDATE organizations SET stripe_customer_id = ${customer.id} WHERE id = ${organizationId}`;
+
+    session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      mode: 'subscription',
+      line_items: [{ price: PRICE_ID, quantity: 1 }],
+      success_url: `https://${normalizedSubdomain}.h-ld.com/admin.html?signup_token=${token}&billing=success`,
+      cancel_url: `https://h-ld.com/signup.html?billing=cancelled`,
+      metadata: { organization_id: organizationId, subdomain: normalizedSubdomain },
+    });
+  } catch (err) {
+    // The account row already exists at this point (billing_status
+    // 'pending', so it can't be used) — safe to leave it and let them retry
+    // rather than unwinding the insert, which risks a partial-failure state
+    // that's harder to reason about than an inert unpaid row.
+    console.error('Stripe checkout creation failed during signup:', err.message);
+    return res.status(500).json({ error: 'Could not start checkout — please try again' });
+  }
+
   return res.status(201).json({
-    token,
-    organization: { id: organizationId, name: orgName.trim(), subdomain: normalizedSubdomain },
+    checkoutUrl: session.url,
+    organization: { id: organizationId, name: trimmedOrgName, subdomain: normalizedSubdomain },
   });
 }

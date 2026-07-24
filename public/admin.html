@@ -4161,6 +4161,38 @@ function getAuthToken() { return localStorage.getItem('hld_token'); }
 function setAuthToken(t) { localStorage.setItem('hld_token', t); }
 function clearAuthToken() { localStorage.removeItem('hld_token'); }
 
+// Shown when a freshly-paid signup hasn't had its webhook processed yet —
+// see the 402 payment_pending handling in apiFetch above.
+let _activationPollAttempts = 0;
+function showActivationPendingScreen() {
+  if (!document.getElementById('activation-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'activation-spin-style';
+    style.textContent = '@keyframes activationSpin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+  let el = document.getElementById('activation-pending-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'activation-pending-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#FEEEE1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    el.innerHTML = `
+      <div style="width:36px;height:36px;border:3px solid rgba(35,31,32,.15);border-top-color:#231F20;border-radius:50%;animation:activationSpin .8s linear infinite"></div>
+      <div id="activation-pending-title" style="font-size:16px;font-weight:600;color:#231F20">Activating your account…</div>
+      <div id="activation-pending-sub" style="font-size:13px;color:#8A868A;max-width:320px">This usually takes just a few seconds. Hang tight — no need to refresh.</div>
+    `;
+    document.body.appendChild(el);
+  }
+
+  _activationPollAttempts++;
+  if (_activationPollAttempts > 15) {
+    document.getElementById('activation-pending-title').textContent = 'Still working on it…';
+    document.getElementById('activation-pending-sub').textContent = 'This is taking longer than expected. Try refreshing in a moment — if it keeps happening, get in touch with support.';
+    return;
+  }
+  setTimeout(() => { window.location.reload(); }, 2000);
+}
+
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -4173,6 +4205,20 @@ async function apiFetch(path, options = {}) {
     clearAuthToken();
     showLogin();
     throw new Error('Session expired');
+  }
+
+  if (res.status === 402) {
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (data.error === 'payment_pending') {
+      // Most likely: Stripe just redirected back after a successful signup
+      // payment, but the webhook that flips billing_status to 'active'
+      // hasn't landed yet — usually a couple of seconds behind the redirect.
+      // Reload-and-retry rather than showing an error for what's actually
+      // still a successful payment in progress.
+      showActivationPendingScreen();
+      throw new Error('payment_pending');
+    }
   }
 
   if (!res.ok) {
@@ -12875,12 +12921,17 @@ const _bootParams = new URLSearchParams(window.location.search);
 const _bootResetToken = _bootParams.get('reset_token');
 const _bootImpersonateToken = _bootParams.get('impersonate_token');
 const _bootConsentToken = _bootParams.get('consent_token');
+const _bootSignupToken = _bootParams.get('signup_token');
 if (_bootResetToken) {
   showResetStep(_bootResetToken);
 } else if (_bootConsentToken) {
   showConsentStep(_bootConsentToken);
 } else if (_bootImpersonateToken) {
   setAuthToken(_bootImpersonateToken);
+  window.history.replaceState({}, '', window.location.pathname);
+  bootApp();
+} else if (_bootSignupToken) {
+  setAuthToken(_bootSignupToken);
   window.history.replaceState({}, '', window.location.pathname);
   bootApp();
 } else if (getAuthToken()) {

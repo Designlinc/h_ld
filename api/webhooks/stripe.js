@@ -1,6 +1,7 @@
 // api/webhooks/stripe.js — syncs Stripe subscription events to organizations
 import sql from '../../lib/db.js';
 import stripe from '../../lib/stripe.js';
+import { invalidateOrgCache } from '../../lib/tenant.js';
 
 // Stripe signs the exact raw bytes it sent, same reasoning as the Square
 // webhook — body parsing must be disabled so we verify against untouched
@@ -44,6 +45,12 @@ export default async function handler(req, res) {
                 billing_status = 'active'
             WHERE id = ${organizationId}
           `;
+          // Without this, a signup that just paid could still get blocked as
+          // "pending" by requireOrg's cached org lookup for up to 30 seconds
+          // — the exact moment someone is most likely to hit refresh.
+          if (session.metadata?.subdomain) {
+            invalidateOrgCache(session.metadata.subdomain);
+          }
         }
         break;
       }
