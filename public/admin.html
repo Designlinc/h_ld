@@ -569,9 +569,20 @@
   .view-toggle {
     display: inline-flex;
     position: relative;
-    border-radius: 999px; background: rgba(255,255,255,.55);
-    border: var(--glass-border);
+    border-radius: 999px;
     padding: 0 3px; gap: 2px;
+  }
+  /* The visible "pill" background — deliberately inset 5px from each edge of the
+     button row (10px narrower overall) so the active indicator, which is already
+     taller than this track, overlaps its horizontal edges too when active rather
+     than always sitting neatly inside it. */
+  .view-toggle::before {
+    content: '';
+    position: absolute; top: 0; bottom: 0; left: 5px; right: 5px;
+    background: rgba(255,255,255,.55);
+    border: var(--glass-border);
+    border-radius: 999px;
+    z-index: 0;
   }
   .view-toggle-indicator {
     position: absolute; top: -6px; bottom: -6px; left: 3px;
@@ -4645,6 +4656,7 @@ function flushBookingsSync() {
       .catch(err => {
         console.warn('Bookings sync failed:', err.message);
         toast('Could not save booking changes: ' + err.message, 'error');
+        throw err; // let direct callers (e.g. saveBooking) know it failed and react
       });
   }
   return _bookingSyncPromise;
@@ -4985,8 +4997,14 @@ function buildEmailHtml(body, settings) {
   <div style="padding:20px 32px;background:#f8faf9;margin-top:24px;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${bizName} &mdash; ${address}</p>
   </div>
-  <div style="padding:12px 32px 20px;text-align:center">
-    <p style="margin:0;font-size:11px;color:#B8B8B8">Powered by <a href="https://h-ld.com" style="color:#B8B8B8;text-decoration:underline">h_ld.</a></p>
+  <div style="padding:28px 32px 0;background:#E1F1F1;text-align:center">
+    <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
+  </div>
+  <div style="padding:0 32px;background:#E1F1F1">
+    <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 0 0">
+  </div>
+  <div style="padding:16px 32px 24px;background:#E1F1F1;text-align:center">
+    <p style="margin:0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
   </div>
 </div>
 </body></html>`;
@@ -6017,8 +6035,14 @@ async function sendSessionNotesEmail() {
   <div style="padding:18px 32px;background:#f8faf9;text-align:center">
     <p style="margin:0;font-size:12px;color:#888">${settings.bizName || 'Your Business'}</p>
   </div>
-  <div style="padding:12px 32px 20px;text-align:center">
-    <p style="margin:0;font-size:11px;color:#B8B8B8">Powered by <a href="https://h-ld.com" style="color:#B8B8B8;text-decoration:underline">h_ld.</a></p>
+  <div style="padding:28px 32px 0;background:#E1F1F1;text-align:center">
+    <img src="https://h-ld.com/email-logo-poweredby.png" alt="Powered by h_ld. — scheduling system" width="220" style="display:inline-block;width:220px;height:auto;border:0">
+  </div>
+  <div style="padding:0 32px;background:#E1F1F1">
+    <hr style="border:none;border-top:1px solid #DEE3E6;margin:24px 0 0">
+  </div>
+  <div style="padding:16px 32px 24px;background:#E1F1F1;text-align:center">
+    <p style="margin:0;font-size:12px;color:#686F72;line-height:1.6">h_ld is a Designlinc product. Copyright &copy; ${new Date().getFullYear()} Designlinc.<br>All rights reserved. Mountain Creek QLD Australia.</p>
   </div>
 </div>
 </body></html>`;
@@ -6732,7 +6756,7 @@ function populateServiceDropdown(id, selectedId) {
 function closeBookingModal() { document.getElementById('booking-modal-backdrop').classList.remove('open'); }
 function closeBookingModalIfBg(e) { if (e.target === e.currentTarget) closeBookingModal(); }
 
-function saveBooking() {
+async function saveBooking() {
   const name = document.getElementById('bm-name').value.trim();
   const email = document.getElementById('bm-email').value.trim();
   const serviceId = document.getElementById('bm-service').value;
@@ -6771,6 +6795,7 @@ function saveBooking() {
     return;
   }
 
+  const isNew = !editingBookingId;
   let savedBookingId;
   if (editingBookingId) {
     const b = bookings.find(x => x.id === editingBookingId);
@@ -6782,33 +6807,54 @@ function saveBooking() {
       b.notes = document.getElementById('bm-notes').value;
       savedBookingId = b.id;
     }
-    toast('Booking updated', 'success');
   } else {
     const clientId = findOrCreateClient({ client: name, email, phone: document.getElementById('bm-phone').value });
     const newBooking = { id: 'b' + Date.now(), clientId, client: name, email, phone: document.getElementById('bm-phone').value, serviceId, service: svc?.name || '', duration, price: svc?.price || 0, date, time, location: document.getElementById('bm-location').value || svc?.location || getSettings().address || '', notes: document.getElementById('bm-notes').value, status: 'awaiting', practitionerNotes: '' };
     bookings.push(newBooking);
     savedBookingId = newBooking.id;
-    toast('Booking created', 'success');
   }
   setBookings(bookings);
   closeBookingModal();
+
+  // Wait for the save to actually land on the server before doing anything
+  // that assumes it exists there — sending confirmations for a booking that
+  // failed to save, or leaving it showing locally until the next poll quietly
+  // wipes it, is worse than a brief wait here.
+  try {
+    await flushBookingsSync();
+  } catch (err) {
+    if (isNew) {
+      // Roll back the optimistic add — it never actually saved.
+      setBookings(getBookings().filter(x => x.id !== savedBookingId));
+    } else {
+      // No pre-edit snapshot handy here; re-pull from the server instead.
+      loadBookings().then(() => {
+        if (currentPage === 'dashboard') renderDashboard();
+        if (currentPage === 'bookings') refreshBookingsView();
+      });
+    }
+    if (currentPage === 'dashboard') renderDashboard();
+    if (currentPage === 'bookings') refreshBookingsView();
+    return; // don't send confirmations for a booking that isn't actually saved
+  }
+
+  toast(isNew ? 'Booking created' : 'Booking updated', 'success');
   if (currentPage === 'dashboard') renderDashboard();
   if (currentPage === 'bookings') refreshBookingsView();
 
-  // Sync to Google Calendar if connected — wait for booking to be written to DB first
+  // Sync to Google Calendar if connected — the booking is already confirmed
+  // saved at this point, so no need to flush again first.
   if (savedBookingId && getConnected().google) {
-    flushBookingsSync().then(() => {
-      apiFetch('/calendar/sync', { method: 'POST', body: JSON.stringify({ bookingId: savedBookingId }) })
-        .then(() => toast('Synced to Google Calendar', 'success'))
-        .catch(err => console.warn('Calendar sync failed:', err.message));
-    });
+    apiFetch('/calendar/sync', { method: 'POST', body: JSON.stringify({ bookingId: savedBookingId }) })
+      .then(() => toast('Synced to Google Calendar', 'success'))
+      .catch(err => console.warn('Calendar sync failed:', err.message));
   }
 
   // Send SMS confirmation if ClickSend is connected and client has a phone number
   const savedBooking = getBookings().find(x => x.id === savedBookingId);
   const smsAccounts = getSmsAccounts();
   const clicksend = smsAccounts.find(a => a.provider === 'clicksend');
-  if (!editingBookingId && savedBooking?.phone && clicksend) {
+  if (isNew && savedBooking?.phone && clicksend) {
     const settings = getSettings();
     const d = new Date(savedBooking.date + 'T00:00:00');
     const dateStr = d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long' });
@@ -6827,7 +6873,7 @@ function saveBooking() {
   }
 
   // Send email confirmation if Resend is configured and client has email
-  if (!editingBookingId && savedBooking?.email) {
+  if (isNew && savedBooking?.email) {
     const emailTmpl = getTemplates()?.confirmation?.email?.body || '';
     const emailSubject = getTemplates()?.confirmation?.email?.subject || 'Booking Confirmed - Your Business';
     if (emailTmpl) {
