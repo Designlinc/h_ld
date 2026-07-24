@@ -74,6 +74,13 @@ export default async function handler(req, res) {
       INSERT INTO practitioners (id, organization_id, email, password, name, role)
       VALUES (${practitionerId}, ${organizationId}, ${normalizedEmail}, ${passwordHash}, ${name ? name.trim() : null}, 'owner')
     `;
+    // Seed Settings with what was already collected here, so the practitioner
+    // lands on their real business name instead of the generic "Your
+    // Business" placeholder the first time they open Settings.
+    await sql`
+      INSERT INTO settings (organization_id, key, value, updated_at)
+      VALUES (${organizationId}, 'app_settings', ${JSON.stringify({ bizName: trimmedOrgName, pracName: name ? name.trim() : '', email: normalizedEmail })}, NOW())
+    `;
   } catch (err) {
     if (err.code === '23505') { // unique_violation
       return res.status(409).json({ error: 'That subdomain or email was just taken — please try again' });
