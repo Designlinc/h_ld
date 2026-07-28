@@ -2697,6 +2697,7 @@
         </div>
         <div class="settings-body" id="cal-accounts-body">
           <div id="cal-connected-list"></div>
+          <div id="payment-gateway-connected"></div>
           <div id="cal-provider-picker">
             <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">Calendar</div>
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
@@ -2721,61 +2722,19 @@
                 <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
-            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">SMS</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="cal-provider-btn" onclick="startSmsConnect('clicksend')">
-                <div class="cal-provider-icon" style="background:#E8F4FF">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#0077CC" opacity=".15"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#0077CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="8" y1="9" x2="16" y2="9" stroke="#0077CC" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="13" x2="13" y2="13" stroke="#0077CC" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px">Payment</div>
+            <div id="payment-gateway-picker" style="display:flex;flex-direction:column;gap:8px">
+              <button class="cal-provider-btn" onclick="startCalConnect('square')">
+                <div class="cal-provider-icon" style="background:#F5F9F5">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="5" fill="#25CA6B"/><rect x="6" y="6" width="12" height="12" rx="2" fill="#fff"/></svg>
                 </div>
                 <div class="cal-provider-info">
-                  <div class="cal-provider-name">ClickSend</div>
-                  <div class="cal-provider-desc">SMS confirmations, reminders &amp; replies</div>
-                </div>
-                <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-              <button class="cal-provider-btn" onclick="startSmsConnect('twilio')">
-                <div class="cal-provider-icon" style="background:#FFF0F0">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="12" r="10" fill="#F22F46" opacity=".15"/><circle cx="12" cy="12" r="10" stroke="#F22F46" stroke-width="2"/><circle cx="8.5" cy="9" r="1.5" fill="#F22F46"/><circle cx="15.5" cy="9" r="1.5" fill="#F22F46"/><circle cx="8.5" cy="15" r="1.5" fill="#F22F46"/><circle cx="15.5" cy="15" r="1.5" fill="#F22F46"/></svg>
-                </div>
-                <div class="cal-provider-info">
-                  <div class="cal-provider-name">Twilio</div>
-                  <div class="cal-provider-desc">SMS &amp; voice messaging platform</div>
-                </div>
-                <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-              <button class="cal-provider-btn" onclick="startSmsConnect('other')">
-                <div class="cal-provider-icon" style="background:#F5F5F5">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="cal-provider-info">
-                  <div class="cal-provider-name">Other SMS Provider</div>
-                  <div class="cal-provider-desc">Vonage, Plivo, AWS SNS &amp; others</div>
+                  <div class="cal-provider-name">Square</div>
+                  <div class="cal-provider-desc">Take card payments &amp; send payment links to clients</div>
                 </div>
                 <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-header">
-          <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-          <span class="settings-section-title">Payment Gateway</span>
-        </div>
-        <div class="settings-body" id="payment-gateway-body">
-          <div id="payment-gateway-connected"></div>
-          <div id="payment-gateway-picker">
-            <button class="cal-provider-btn" onclick="connectSquare()">
-              <div class="cal-provider-icon" style="background:#F5F9F5">
-                <svg viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="5" fill="#25CA6B"/><rect x="6" y="6" width="12" height="12" rx="2" fill="#fff"/></svg>
-              </div>
-              <div class="cal-provider-info">
-                <div class="cal-provider-name">Square</div>
-                <div class="cal-provider-desc">Take card payments &amp; send payment links to clients</div>
-              </div>
-              <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
           </div>
         </div>
       </div>
@@ -2979,21 +2938,6 @@
   </div>
 </div>
 
-<!-- ═══ SMS CONNECT MODAL ═══ -->
-<div class="modal-backdrop" id="sms-modal-backdrop" onclick="closeSmsModalIfBg(event)">
-  <div class="modal" style="width:480px">
-    <div class="modal-header">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div class="cal-modal-icon" id="sms-modal-icon"></div>
-        <span class="modal-title" id="sms-modal-title">Connect SMS</span>
-      </div>
-      <button class="modal-close" onclick="closeSmsModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body" id="sms-modal-body"></div>
-  </div>
-</div>
 <div class="slideout-backdrop" id="slideout-backdrop" onclick="closeSlideout()"></div>
 <div class="slideout" id="slideout">
   <div class="slideout-resize-handle" onmousedown="startSlideoutResize(event)" title="Drag to resize"></div>
@@ -4929,10 +4873,6 @@ async function loadSettings() {
     if (data && data._connected) {
       _cache.settings._connected = data._connected;
     }
-    // Preserve sms_accounts and msg_templates from DB
-    if (data && data.sms_accounts) {
-      _cache.settings.sms_accounts = data.sms_accounts;
-    }
     if (data && data.msg_templates) {
       // Sync DB templates to localStorage so getTemplates() finds them
       DB.set('msg_templates', data.msg_templates);
@@ -6563,9 +6503,7 @@ async function sendComm(type) {
   // whether it worked.
 
   // Send SMS if enabled and phone number exists
-  const smsAccounts = getSmsAccounts();
-  const clicksend = smsAccounts.find(a => a.provider === 'clicksend');
-  if (smsEnabled && b.phone && clicksend && message) {
+  if (smsEnabled && b.phone && message) {
     try {
       await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify({ to: b.phone, message, clientName: b.client, commType: type }) });
       console.log('[SMS sendComm] Sent to', b.phone);
@@ -6575,8 +6513,6 @@ async function sendComm(type) {
     }
   } else if (!b.phone) {
     toast(`${b.client} has no phone number on file`, 'error');
-  } else if (!clicksend) {
-    toast('Connect ClickSend in Settings to send SMS', 'error');
   } else {
     toast(`${type === 'reminder' ? 'Reminder' : 'Follow-up'} logged`, 'success');
   }
@@ -6931,11 +6867,9 @@ async function saveBooking() {
       .catch(err => console.warn('Calendar sync failed:', err.message));
   }
 
-  // Send SMS confirmation if ClickSend is connected and client has a phone number
+  // Send SMS confirmation if client has a phone number
   const savedBooking = getBookings().find(x => x.id === savedBookingId);
-  const smsAccounts = getSmsAccounts();
-  const clicksend = smsAccounts.find(a => a.provider === 'clicksend');
-  if (isNew && savedBooking?.phone && clicksend) {
+  if (isNew && savedBooking?.phone) {
     const settings = getSettings();
     const d = new Date(savedBooking.date + 'T00:00:00');
     const dateStr = d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long' });
@@ -8307,148 +8241,6 @@ function getCalAccounts() {
 
 function setCalAccounts(a) { DB.set('cal_accounts', a); }
 
-function getSmsAccounts() {
-  // Check database cache first (via settings), fall back to localStorage
-  const fromDb = _cache.settings?.sms_accounts;
-  if (fromDb && fromDb.length) return fromDb;
-  const fromLocal = DB.get('sms_accounts') || [];
-  // If found in localStorage but not in DB cache, push to DB silently
-  if (fromLocal.length && !fromDb) {
-    apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'sms_accounts', value: fromLocal }) }).catch(() => {});
-    if (_cache.settings) _cache.settings.sms_accounts = fromLocal;
-  }
-  return fromLocal;
-}
-function setSmsAccounts(a) { DB.set('sms_accounts', a); }
-
-let smsConnectProvider = null;
-
-const SMS_PROVIDERS = {
-  clicksend: {
-    name: 'ClickSend',
-    desc: 'SMS via ClickSend',
-    iconBg: '#E8F4FF',
-    iconColor: '#0077CC',
-    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#0077CC" opacity=".2"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#0077CC" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="9" x2="16" y2="9" stroke="#0077CC" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="13" x2="13" y2="13" stroke="#0077CC" stroke-width="1.5" stroke-linecap="round"/></svg>',
-    fields: [
-      { id: 'sms-username',   label: 'Username',          placeholder: 'Your ClickSend username (email)', hint: 'Your ClickSend account email address' },
-      { id: 'sms-api-key',    label: 'API Key',           placeholder: 'Your ClickSend API key',          hint: 'Found in ClickSend Dashboard under Developers > API Credentials' },
-      { id: 'sms-from',       label: 'Sender Name',       placeholder: 'Your Business',                          hint: "Up to 11 characters — shown as sender on client's phone" },
-    ],
-    docsUrl: 'https://dashboard.clicksend.com/account/subaccount/api-credentials',
-    docsLabel: 'Get your API credentials from ClickSend',
-  },
-  twilio: {
-    name: 'Twilio',
-    desc: 'SMS via Twilio',
-    iconBg: '#FFF0F0',
-    iconColor: '#F22F46',
-    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="12" r="10" fill="#F22F46" opacity=".15"/><circle cx="12" cy="12" r="10" stroke="#F22F46" stroke-width="2"/><circle cx="8.5" cy="9" r="1.5" fill="#F22F46"/><circle cx="15.5" cy="9" r="1.5" fill="#F22F46"/><circle cx="8.5" cy="15" r="1.5" fill="#F22F46"/><circle cx="15.5" cy="15" r="1.5" fill="#F22F46"/></svg>',
-    fields: [
-      { id: 'sms-account-sid', label: 'Account SID',      placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',  hint: 'Found on your Twilio Console dashboard' },
-      { id: 'sms-auth-token',  label: 'Auth Token',        placeholder: 'Your Twilio auth token',           hint: 'Found on your Twilio Console dashboard' },
-      { id: 'sms-from',        label: 'From Number',       placeholder: '+61412345678',                     hint: 'Your Twilio phone number in E.164 format' },
-    ],
-    docsUrl: 'https://console.twilio.com',
-    docsLabel: 'Get your credentials from Twilio Console',
-  },
-  other: {
-    name: 'Other SMS Provider',
-    desc: 'Custom SMS provider',
-    iconBg: '#F5F5F5',
-    iconColor: '#888',
-    icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#888" stroke-width="2" stroke-linecap="round"/></svg>',
-    fields: [
-      { id: 'sms-provider-name', label: 'Provider name',  placeholder: 'e.g. Vonage, Plivo, AWS SNS',      hint: '' },
-      { id: 'sms-api-key',       label: 'API Key',         placeholder: 'Your API key',                    hint: '' },
-      { id: 'sms-from',          label: 'Sender',          placeholder: 'Name or number',                  hint: '' },
-    ],
-    docsUrl: null,
-    docsLabel: null,
-  },
-};
-
-function startSmsConnect(provider) {
-  smsConnectProvider = provider;
-  const p = SMS_PROVIDERS[provider];
-  const iconEl = document.getElementById('sms-modal-icon');
-  iconEl.style.background = p.iconBg;
-  iconEl.innerHTML = p.icon;
-  document.getElementById('sms-modal-title').textContent = 'Connect ' + p.name;
-  renderSmsModal();
-  document.getElementById('sms-modal-backdrop').classList.add('open');
-}
-
-function renderSmsModal() {
-  const p = SMS_PROVIDERS[smsConnectProvider];
-  const existing = getSmsAccounts().find(a => a.provider === smsConnectProvider);
-  const body = document.getElementById('sms-modal-body');
-
-  let fieldsHtml = p.fields.map(f =>
-    '<div class="form-group" style="margin-bottom:14px">' +
-      '<label class="form-label">' + f.label + '</label>' +
-      '<input class="form-input" id="' + f.id + '" placeholder="' + f.placeholder + '" value="' + (existing && existing[f.id] ? existing[f.id] : '') + '">' +
-      (f.hint ? '<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">' + f.hint + '</div>' : '') +
-    '</div>'
-  ).join('');
-
-  const docsHtml = p.docsUrl
-    ? '<a href="' + p.docsUrl + '" target="_blank" style="font-size:12px;color:var(--sage);display:inline-flex;align-items:center;gap:5px;margin-bottom:16px;text-decoration:none;font-weight:500">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
-        p.docsLabel + '</a>' : '';
-
-  const automationsHtml = '<div style="background:var(--sage-pale);border:1px solid var(--sage-light);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">' +
-    '<div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:10px">Automated messages (sent once connected)</div>' +
-    ['Booking confirmation SMS to client', '24h appointment reminder', 'Follow-up message after session', 'Keyword responses: YES / NO / RESCHEDULE'].map(item =>
-      '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-mid);margin-bottom:6px">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.5" stroke-linecap="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>' + item + '</div>'
-    ).join('') +
-  '</div>';
-
-  body.innerHTML = docsHtml + fieldsHtml + automationsHtml +
-    '<div style="display:flex;gap:10px">' +
-      '<button class="btn btn-ghost" style="flex:1" onclick="closeSmsModal()">Cancel</button>' +
-      '<button class="btn btn-primary" style="flex:2" onclick="saveSmsConnect()">Save &amp; Connect</button>' +
-    '</div>';
-}
-
-async function saveSmsConnect() {
-  const p = SMS_PROVIDERS[smsConnectProvider];
-  const accounts = getSmsAccounts().filter(a => a.provider !== smsConnectProvider);
-  const entry = { provider: smsConnectProvider, connectedAt: new Date().toISOString() };
-  p.fields.forEach(f => {
-    const val = document.getElementById(f.id);
-    if (val) entry[f.id] = val.value.trim();
-  });
-  // Require at least the first field
-  if (!entry[p.fields[0].id]) { toast('Please enter your ' + p.fields[0].label, 'error'); return; }
-  accounts.push(entry);
-  setSmsAccounts(accounts);
-
-  // Also persist to database settings so it survives across devices
-  try {
-    await apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'sms_accounts', value: accounts }) });
-  } catch { /* non-fatal */ }
-
-  closeSmsModal();
-  renderCalConnectedList();
-  toast(p.name + ' connected', 'success');
-
-  // Remind about Vercel env vars for ClickSend
-  if (smsConnectProvider === 'clicksend') {
-    setTimeout(() => toast('Remember to add CLICKSEND_USERNAME and CLICKSEND_API_KEY to Vercel environment variables', ''), 2000);
-  }
-}
-
-function disconnectSms(provider) {
-  if (!confirm('Disconnect this SMS provider? Automated messages will stop sending.')) return;
-  setSmsAccounts(getSmsAccounts().filter(a => a.provider !== provider));
-  renderCalConnectedList();
-  toast('SMS provider disconnected');
-}
-
-function closeSmsModal() { document.getElementById('sms-modal-backdrop').classList.remove('open'); }
-function closeSmsModalIfBg(e) { if (e.target === e.currentTarget) closeSmsModal(); }
 
 
 // ═══════════════════════════════════════════════════════════
@@ -8504,14 +8296,26 @@ const CAL_PROVIDERS = {
       },
     ],
   },
+  square: {
+    name: 'Square',
+    desc: 'Take card payments & send payment links to clients',
+    iconBg: '#F5F9F5',
+    icon: `<svg viewBox="0 0 24 24" width="20" height="20"><rect width="24" height="24" rx="5" fill="#25CA6B"/><rect x="6" y="6" width="12" height="12" rx="2" fill="#fff"/></svg>`,
+    steps: [
+      {
+        title: 'Sign in with Square',
+        desc: 'Click the button below to open Square\'s secure sign-in page. Choose the Square account you use to take client payments.',
+        action: 'square_signin',
+      },
+    ],
+  },
 };
 
 function renderCalConnectedList() {
   const calAccounts = getCalAccounts();
-  const smsAccounts = getSmsAccounts();
   const el = document.getElementById('cal-connected-list');
   if (!el) return;
-  if (!calAccounts.length && !smsAccounts.length) { el.innerHTML = ''; return; }
+  if (!calAccounts.length) { el.innerHTML = ''; return; }
 
   let html = '';
   calAccounts.forEach(a => {
@@ -8524,21 +8328,6 @@ function renderCalConnectedList() {
         '<div class="cal-connected-status">Connected &middot; ' + (a.calendar || 'Primary calendar') + '</div>' +
       '</div>' +
       '<button class="cal-disconnect-btn" onclick="disconnectCal(\'' + a.provider + '\')">Disconnect</button>' +
-    '</div>';
-  });
-
-  smsAccounts.forEach(a => {
-    const p = SMS_PROVIDERS[a.provider];
-    if (!p) return;
-    const fromVal = a['sms-from'] || '';
-    html += '<div class="cal-connected-card">' +
-      '<div class="cal-connected-icon" style="background:' + p.iconBg + '">' + p.icon + '</div>' +
-      '<div class="cal-connected-info">' +
-        '<div class="cal-connected-name">' + p.name + '</div>' +
-        '<div class="cal-connected-email">' + (fromVal ? 'From: ' + fromVal : 'SMS provider') + '</div>' +
-        '<div class="cal-connected-status">Connected &middot; SMS active</div>' +
-      '</div>' +
-      '<button class="cal-disconnect-btn" onclick="disconnectSms(\'' + a.provider + '\')">Disconnect</button>' +
     '</div>';
   });
 
@@ -8567,15 +8356,6 @@ async function disconnectCal(provider) {
 // ═══════════════════════════════════════════════════════════
 // PAYMENT GATEWAY (Square)
 // ═══════════════════════════════════════════════════════════
-async function connectSquare() {
-  try {
-    const data = await apiFetch('/auth/square');
-    window.location.href = data.url;
-  } catch (err) {
-    toast('Could not start Square connection: ' + err.message, 'error');
-  }
-}
-
 async function disconnectSquare() {
   if (!confirm('Disconnect Square? You will not be able to send payment links to clients until you reconnect.')) return;
   try {
@@ -8641,10 +8421,10 @@ function renderCalStep() {
   if (step.action.endsWith('_signin')) {
     actionHtml = `<div class="cal-step-action">
       <button class="btn btn-primary" onclick="calSignIn()" style="width:100%">
-        <span>Sign in with ${calConnectProvider === 'google' ? 'Google' : 'Microsoft'}</span>
+        <span>Sign in with ${p.name}</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;text-align:center">You'll be redirected to ${calConnectProvider === 'google' ? 'Google' : 'Microsoft'}'s secure sign-in page</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;text-align:center">You'll be redirected to ${p.name}'s secure sign-in page</div>
     </div>`;
   } else if (step.action.endsWith('_grant')) {
     const perms = (step.permissions || []).map(p =>
@@ -8691,6 +8471,13 @@ async function calSignIn() {
       window.location.href = data.url;
     } catch (err) {
       toast('Could not start Google connection: ' + err.message, 'error');
+    }
+  } else if (calConnectProvider === 'square') {
+    try {
+      const data = await apiFetch('/auth/square');
+      window.location.href = data.url;
+    } catch (err) {
+      toast('Could not start Square connection: ' + err.message, 'error');
     }
   } else if (calConnectProvider === 'microsoft') {
     // Microsoft OAuth — not yet configured, show placeholder
@@ -11242,6 +11029,17 @@ function aiHasConcept(text, concept) {
 }
 
 function aiDetectVerb(text) {
+  // Natural commands almost always lead with the actual verb ("send...",
+  // "cancel...", "reschedule..."). A trigger word appearing later in the
+  // sentence is far more likely to be describing WHAT the action concerns
+  // ("...to complete an intake form") than the action itself — checking a
+  // leading window first is what stops "send an SMS to remind them to
+  // complete their form" from being read as a COMPLETE command just
+  // because "complete" happens to show up later in the sentence.
+  const leadingWindow = text.trim().split(/\s+/).slice(0, 6).join(' ');
+  for (let i = 0; i < AI_VERB_ORDER.length; i++) {
+    if (aiHasConcept(leadingWindow, AI_VERB_ORDER[i])) return AI_VERB_ORDER[i];
+  }
   for (let i = 0; i < AI_VERB_ORDER.length; i++) {
     if (aiHasConcept(text, AI_VERB_ORDER[i])) return AI_VERB_ORDER[i];
   }
@@ -12881,13 +12679,6 @@ async function bootApp() {
   const localTemplates = DB.get('msg_templates');
   if (localTemplates) {
     apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'msg_templates', value: localTemplates }) })
-      .catch(() => {});
-  }
-
-  // Ensure SMS accounts are synced to DB on boot
-  const localSmsAccounts = DB.get('sms_accounts');
-  if (localSmsAccounts && localSmsAccounts.length) {
-    apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'sms_accounts', value: localSmsAccounts }) })
       .catch(() => {});
   }
 
