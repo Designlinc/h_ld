@@ -2505,6 +2505,20 @@
           <div class="form-row full">
             <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="s-address" value=""></div>
           </div>
+          <div class="form-row full">
+            <div class="form-group" style="position:relative">
+              <label class="form-label">ABN</label>
+              <input class="form-input" id="s-abn" placeholder="Search by business name to find your ABN" oninput="onAbnSearchInput()" autocomplete="off">
+              <div id="abn-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
+              <div class="field-hint" id="abn-search-hint" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div>
+            </div>
+          </div>
+          <div class="form-row full">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-mid);cursor:pointer">
+              <input type="checkbox" id="s-gst-registered">
+              Registered for GST
+            </label>
+          </div>
         </div>
       </div>
 
@@ -6977,6 +6991,73 @@ function closeBookingPreview() {
   setTimeout(() => { document.getElementById('booking-preview-frame').src = ''; }, 300);
 }
 
+// ── ABN lookup — search by business name, pick from candidates, then
+// auto-fill both the ABN and GST-registered status from the ABR's own
+// authoritative detail record for that one entity. ──
+let _abnSearchTimer = null;
+
+function onAbnSearchInput() {
+  clearTimeout(_abnSearchTimer);
+  const query = document.getElementById('s-abn').value.trim();
+  const resultsEl = document.getElementById('abn-search-results');
+  const hintEl = document.getElementById('abn-search-hint');
+  hintEl.textContent = '';
+
+  // An 11-digit number typed directly is treated as the ABN itself, not a
+  // name search — no need to look anything up.
+  if (/^\d[\d\s]{9,}\d$/.test(query)) {
+    resultsEl.style.display = 'none';
+    return;
+  }
+  if (query.length < 3) {
+    resultsEl.style.display = 'none';
+    return;
+  }
+
+  _abnSearchTimer = setTimeout(async () => {
+    try {
+      const data = await apiFetch('/settings/abn-search?name=' + encodeURIComponent(query));
+      if (!data.results || !data.results.length) {
+        resultsEl.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--ink-soft)">No matches found</div>';
+        resultsEl.style.display = 'block';
+        return;
+      }
+      resultsEl.innerHTML = data.results.map(r =>
+        `<div style="padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--sage-pale)'" onmouseout="this.style.background=''" onclick="selectAbnCandidate('${r.abn}')">
+          <div style="font-weight:600;color:var(--ink)">${r.name}</div>
+          <div style="color:var(--ink-soft);font-size:12px">ABN ${r.abn}${r.state ? ' &middot; ' + r.state : ''}${r.postcode ? ' ' + r.postcode : ''}</div>
+        </div>`
+      ).join('');
+      resultsEl.style.display = 'block';
+    } catch (err) {
+      hintEl.textContent = 'Could not search — ' + err.message;
+      hintEl.style.color = 'var(--red)';
+    }
+  }, 400);
+}
+
+async function selectAbnCandidate(abn) {
+  const resultsEl = document.getElementById('abn-search-results');
+  const hintEl = document.getElementById('abn-search-hint');
+  resultsEl.style.display = 'none';
+  hintEl.style.color = 'var(--ink-soft)';
+  hintEl.textContent = 'Confirming details…';
+
+  try {
+    const data = await apiFetch('/settings/abn-search?abn=' + abn);
+    // ABNs are conventionally displayed as "XX XXX XXX XXX"
+    const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
+    document.getElementById('s-abn').value = formatted;
+    document.getElementById('s-gst-registered').checked = data.gstRegistered;
+    hintEl.style.color = '#3D7A5C';
+    hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
+    saveSettings();
+  } catch (err) {
+    hintEl.style.color = 'var(--red)';
+    hintEl.textContent = 'Could not confirm details — ' + err.message;
+  }
+}
+
 function copyPublicBookingUrl() {
   const url = `https://${location.hostname}/book`;
   navigator.clipboard.writeText(url).then(() => {
@@ -7486,6 +7567,8 @@ function saveSettings() {
     phone: document.getElementById('s-phone').value,
     website: document.getElementById('s-website').value,
     pracTitle: document.getElementById('s-prac-title').value,
+    abn: document.getElementById('s-abn').value,
+    gstRegistered: document.getElementById('s-gst-registered').checked,
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
@@ -8182,6 +8265,8 @@ function loadSettingsUI() {
   if (s.email) document.getElementById('s-email').value = s.email;
   if (s.phone) document.getElementById('s-phone').value = s.phone;
   if (s.website) document.getElementById('s-website').value = s.website;
+  if (s.abn) document.getElementById('s-abn').value = s.abn;
+  document.getElementById('s-gst-registered').checked = !!s.gstRegistered;
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
   setLogoPreview(s.logoUrl || null);
