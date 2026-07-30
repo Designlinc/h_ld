@@ -1,6 +1,7 @@
 // api/webhooks/square.js — Square payment.updated webhook
 import sql from '../../lib/db.js';
 import crypto from 'crypto';
+import { generateInvoiceForBooking } from '../../lib/invoices.js';
 
 // Square signs the exact raw bytes it sent. Body parsing is disabled below
 // so we can verify against the untouched raw body — see api/webhooks/stripe.js
@@ -79,6 +80,9 @@ export default async function handler(req, res) {
           updated_at     = NOW()
         WHERE id = ${bookingId} AND organization_id = ${booking.organization_id}
       `;
+
+      generateInvoiceForBooking(bookingId, booking.organization_id)
+        .catch(err => console.error('Invoice generation failed for booking', bookingId, err));
     }
   }
 

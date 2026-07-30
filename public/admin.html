@@ -2030,6 +2030,9 @@
   <button class="nav-btn" onclick="showPage('clients')" title="Clients" id="nav-clients">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
   </button>
+  <button class="nav-btn" onclick="showPage('invoices')" title="Invoices" id="nav-invoices">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg>
+  </button>
   <div class="sidebar-spacer"></div>
   <button class="nav-btn" onclick="toggleAiPanel()" title="Assistant" id="nav-ai">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/><path d="M19 16l.75 2.25L22 19l-2.25.75L19 22l-.75-2.25L16 19l2.25-.75z"/><path d="M5 18l.5 1.5L7 20l-1.5.5L5 22l-.5-1.5L3 20l1.5-.5z"/></svg>
@@ -2406,6 +2409,38 @@
     </div>
 
     <!-- ── CLIENTS ── -->
+    <div class="page" id="page-invoices">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Invoices</div>
+          <div class="page-subtitle" id="invoices-subtitle">Automatically generated when a booking is paid</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body" style="padding:0">
+          <table style="width:100%;border-collapse:collapse" id="invoices-table">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="text-align:left;padding:12px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft)">Invoice</th>
+                <th style="text-align:left;padding:12px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft)">Client</th>
+                <th style="text-align:left;padding:12px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft)">Date</th>
+                <th style="text-align:right;padding:12px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft)">Total</th>
+                <th style="text-align:left;padding:12px 20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft)">Status</th>
+                <th style="padding:12px 20px"></th>
+              </tr>
+            </thead>
+            <tbody id="invoices-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="invoices-empty" style="display:none">
+            <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg></div>
+            <div class="empty-state-title">No invoices yet</div>
+            <div class="empty-state-sub">One is generated automatically the first time a booking is marked as paid</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-clients">
       <div class="page-header">
         <div>
@@ -5050,6 +5085,7 @@ function showPage(name) {
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
   if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); loadNotifIcons(); renderCustomNotifs(); }
+  if (name === 'invoices') { renderInvoicesPage(); }
   if (name === 'account') { loadAccountPage(); }
 }
 
@@ -7055,6 +7091,36 @@ async function selectAbnCandidate(abn) {
   } catch (err) {
     hintEl.style.color = 'var(--red)';
     hintEl.textContent = 'Could not confirm details — ' + err.message;
+  }
+}
+
+async function renderInvoicesPage() {
+  const tbody = document.getElementById('invoices-tbody');
+  const table = document.getElementById('invoices-table');
+  const empty = document.getElementById('invoices-empty');
+  try {
+    const invoices = await apiFetch('/invoices');
+    if (!invoices.length) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    table.style.display = 'table';
+    empty.style.display = 'none';
+    tbody.innerHTML = invoices.map(inv => {
+      const dateStr = new Date(inv.issued_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+      const statusColor = inv.status === 'paid' ? 'var(--sage)' : 'var(--ink-soft)';
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:12px 20px;font-size:13px;font-weight:600">${inv.invoice_number}</td>
+        <td style="padding:12px 20px;font-size:13px">${inv.client_name}${inv.client_email ? `<div style="font-size:12px;color:var(--ink-soft)">${inv.client_email}</div>` : ''}</td>
+        <td style="padding:12px 20px;font-size:13px;color:var(--ink-mid)">${dateStr}</td>
+        <td style="padding:12px 20px;font-size:13px;text-align:right;font-weight:600">$${Number(inv.total).toFixed(2)}</td>
+        <td style="padding:12px 20px;font-size:12px;color:${statusColor};text-transform:capitalize">${inv.status}</td>
+        <td style="padding:12px 20px;text-align:right"><a href="/api/invoices/${inv.id}" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">View</a></td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    toast('Could not load invoices: ' + err.message, 'error');
   }
 }
 

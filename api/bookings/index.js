@@ -3,6 +3,7 @@ import sql from '../../lib/db.js';
 import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 import { renderEmail } from '../../lib/emailTemplate.js';
+import { generateInvoiceForBooking } from '../../lib/invoices.js';
 
 // Helper - format time to 12hr
 function fmtTime(t) {
@@ -232,6 +233,13 @@ export default async function handler(req, res) {
       const failures = [];
       for (const b of bookings) {
         try {
+          // Checked before the write so this reflects the state the booking
+          // was in immediately prior to this sync, not after — needed to
+          // detect a genuine unpaid-to-paid transition rather than firing
+          // again on every subsequent sync of an already-paid booking.
+          const [before] = await sql`SELECT paid_at FROM bookings WHERE id = ${b.id} AND organization_id = ${org.id}`;
+          const wasUnpaid = !before?.paid_at;
+
           await sql`
             INSERT INTO bookings (
               id, organization_id, practitioner_id, client_name, client_email, client_phone, client_id,
@@ -269,6 +277,11 @@ export default async function handler(req, res) {
               updated_at          = NOW()
             WHERE bookings.organization_id = ${org.id}
           `;
+
+          if (wasUnpaid && b.paidAt) {
+            generateInvoiceForBooking(b.id, org.id)
+              .catch(err => console.error('Invoice generation failed for booking', b.id, err));
+          }
         } catch (err) {
           console.error(`Booking ${b.id} failed to save:`, err.message);
           failures.push({ id: b.id, client: b.client, error: err.message });
