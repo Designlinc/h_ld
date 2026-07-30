@@ -2540,19 +2540,20 @@
           <div class="form-row full">
             <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="s-address" value=""></div>
           </div>
-          <div class="form-row full">
+          <div class="form-row">
             <div class="form-group" style="position:relative">
               <label class="form-label">ABN</label>
               <input class="form-input" id="s-abn" placeholder="Search by business name to find your ABN" oninput="onAbnSearchInput()" autocomplete="off">
-              <div id="abn-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
+              <div id="abn-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
               <div class="field-hint" id="abn-search-hint" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div>
             </div>
-          </div>
-          <div class="form-row full">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-mid);cursor:pointer">
-              <input type="checkbox" id="s-gst-registered">
-              Registered for GST
-            </label>
+            <div class="form-group">
+              <label class="form-label">GST</label>
+              <div style="display:flex;align-items:center;gap:10px;height:38px">
+                <button type="button" class="toggle" id="s-gst-registered" onclick="this.classList.toggle('on')"></button>
+                <span style="font-size:13px;color:var(--ink-mid)">Registered for GST</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -7084,7 +7085,7 @@ async function selectAbnCandidate(abn) {
     // ABNs are conventionally displayed as "XX XXX XXX XXX"
     const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
     document.getElementById('s-abn').value = formatted;
-    document.getElementById('s-gst-registered').checked = data.gstRegistered;
+    document.getElementById('s-gst-registered').classList.toggle('on', data.gstRegistered);
     hintEl.style.color = '#3D7A5C';
     hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
     saveSettings();
@@ -7634,7 +7635,7 @@ function saveSettings() {
     website: document.getElementById('s-website').value,
     pracTitle: document.getElementById('s-prac-title').value,
     abn: document.getElementById('s-abn').value,
-    gstRegistered: document.getElementById('s-gst-registered').checked,
+    gstRegistered: document.getElementById('s-gst-registered').classList.contains('on'),
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
@@ -8332,7 +8333,7 @@ function loadSettingsUI() {
   if (s.phone) document.getElementById('s-phone').value = s.phone;
   if (s.website) document.getElementById('s-website').value = s.website;
   if (s.abn) document.getElementById('s-abn').value = s.abn;
-  document.getElementById('s-gst-registered').checked = !!s.gstRegistered;
+  document.getElementById('s-gst-registered').classList.toggle('on', !!s.gstRegistered);
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
   setLogoPreview(s.logoUrl || null);
