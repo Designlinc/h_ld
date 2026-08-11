@@ -2785,6 +2785,20 @@
                 <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
             </div>
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px;margin-top:20px">Accounting</div>
+            <div id="accounting-gateway-connected"></div>
+            <div id="accounting-gateway-picker" style="display:flex;flex-direction:column;gap:8px">
+              <button class="cal-provider-btn" onclick="startCalConnect('xero')">
+                <div class="cal-provider-icon" style="background:#E8F1FF">
+                  <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div class="cal-provider-info">
+                  <div class="cal-provider-name">Xero</div>
+                  <div class="cal-provider-desc">Automatically send paid invoices to your Xero account</div>
+                </div>
+                <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -5085,7 +5099,7 @@ function showPage(name) {
   if (name === 'communications') { loadComms().then(renderComms).catch(err => toast('Could not load communications: ' + err.message, 'error')); }
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
-  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); loadNotifIcons(); renderCustomNotifs(); }
+  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); renderAccountingStatus(); loadNotifIcons(); renderCustomNotifs(); }
   if (name === 'invoices') { renderInvoicesPage(); }
   if (name === 'account') { loadAccountPage(); }
 }
@@ -8461,6 +8475,19 @@ const CAL_PROVIDERS = {
       },
     ],
   },
+  xero: {
+    name: 'Xero',
+    desc: 'Automatically send paid invoices to your Xero account',
+    iconBg: '#E8F1FF',
+    icon: `<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    steps: [
+      {
+        title: 'Sign in with Xero',
+        desc: 'Click the button below to open Xero\'s secure sign-in page. Choose the Xero organisation you want your paid invoices sent to.',
+        action: 'xero_signin',
+      },
+    ],
+  },
 };
 
 function renderCalConnectedList() {
@@ -8537,6 +8564,43 @@ function renderPaymentGatewayStatus() {
           '<div class="cal-connected-status">Connected &middot; Ready to take payments</div>' +
         '</div>' +
         '<button class="cal-disconnect-btn" onclick="disconnectSquare()">Disconnect</button>' +
+      '</div>';
+    pickerEl.style.display = 'none';
+  } else {
+    connectedEl.innerHTML = '';
+    pickerEl.style.display = 'block';
+  }
+}
+
+async function disconnectXero() {
+  if (!confirm('Disconnect Xero? Paid invoices will stop being sent there automatically until you reconnect.')) return;
+  try {
+    await apiFetch('/settings', { method: 'DELETE', body: JSON.stringify({ provider: 'xero' }) });
+    await loadSettings();
+  } catch (err) {
+    toast('Could not disconnect: ' + err.message, 'error');
+    return;
+  }
+  renderAccountingStatus();
+  toast('Xero disconnected');
+}
+
+function renderAccountingStatus() {
+  const connected = getConnected();
+  const connectedEl = document.getElementById('accounting-gateway-connected');
+  const pickerEl = document.getElementById('accounting-gateway-picker');
+  if (!connectedEl || !pickerEl) return;
+
+  if (connected.xero) {
+    connectedEl.innerHTML =
+      '<div class="cal-connected-card">' +
+        '<div class="cal-connected-icon" style="background:#E8F1FF"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+        '<div class="cal-connected-info">' +
+          '<div class="cal-connected-name">Xero</div>' +
+          '<div class="cal-connected-email">' + (connected.xero.email || 'Connected') + '</div>' +
+          '<div class="cal-connected-status">Connected &middot; Paid invoices sync automatically</div>' +
+        '</div>' +
+        '<button class="cal-disconnect-btn" onclick="disconnectXero()">Disconnect</button>' +
       '</div>';
     pickerEl.style.display = 'none';
   } else {
@@ -8630,6 +8694,13 @@ async function calSignIn() {
       window.location.href = data.url;
     } catch (err) {
       toast('Could not start Square connection: ' + err.message, 'error');
+    }
+  } else if (calConnectProvider === 'xero') {
+    try {
+      const data = await apiFetch('/auth/xero');
+      window.location.href = data.url;
+    } catch (err) {
+      toast('Could not start Xero connection: ' + err.message, 'error');
     }
   } else if (calConnectProvider === 'microsoft') {
     // Microsoft OAuth — not yet configured, show placeholder
@@ -12874,6 +12945,15 @@ async function bootApp() {
   } else if (params.get('square_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Square connection failed — please try again', 'error');
+    setTimeout(() => showPage('settings'), 400);
+  } else if (params.get('xero_connected')) {
+    window.history.replaceState({}, '', window.location.pathname);
+    renderAccountingStatus();
+    toast('Xero connected successfully', 'success');
+    setTimeout(() => showPage('settings'), 400);
+  } else if (params.get('xero_error')) {
+    window.history.replaceState({}, '', window.location.pathname);
+    toast('Xero connection failed — please try again', 'error');
     setTimeout(() => showPage('settings'), 400);
   }
 }
