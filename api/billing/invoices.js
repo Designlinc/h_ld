@@ -21,7 +21,19 @@ export default async function handler(req, res) {
   const stripe = requireStripe(res);
   if (!stripe) return;
 
-  const [orgRow] = await sql`SELECT stripe_customer_id FROM organizations WHERE id = ${org.id}`;
-  const result = await getBillingHistory(stripe, orgRow.stripe_customer_id);
-  return res.json(result);
+  try {
+    const [orgRow] = await sql`SELECT stripe_customer_id FROM organizations WHERE id = ${org.id}`;
+    const result = await getBillingHistory(stripe, orgRow.stripe_customer_id);
+    return res.json(result);
+  } catch (err) {
+    // Covers both a database hiccup on the query above (the same transient
+    // Neon connection issue already found elsewhere in this app) and a
+    // Stripe-side failure (most likely stripe_customer_id no longer being
+    // valid — a deleted test customer, a placeholder from manual testing,
+    // etc). Either way, this guarantees a real error message comes back
+    // instead of the function crashing with no response at all, which is
+    // what was producing the generic "Request failed".
+    console.error('Billing history lookup failed for org', org.id, err);
+    return res.status(500).json({ error: err.message || 'Could not load billing history' });
+  }
 }

@@ -20,9 +20,14 @@ export default async function handler(req, res) {
   const { organizationId } = req.query;
   if (!organizationId) return res.status(400).json({ error: 'organizationId required' });
 
-  const [orgRow] = await sql`SELECT stripe_customer_id FROM organizations WHERE id = ${organizationId}`;
-  if (!orgRow) return res.status(404).json({ error: 'Organization not found' });
+  try {
+    const [orgRow] = await sql`SELECT stripe_customer_id FROM organizations WHERE id = ${organizationId}`;
+    if (!orgRow) return res.status(404).json({ error: 'Organization not found' });
 
-  const result = await getBillingHistory(stripe, orgRow.stripe_customer_id);
-  return res.json(result);
+    const result = await getBillingHistory(stripe, orgRow.stripe_customer_id);
+    return res.json(result);
+  } catch (err) {
+    console.error('Billing history lookup failed for org', organizationId, err);
+    return res.status(500).json({ error: err.message || 'Could not load billing history' });
+  }
 }
