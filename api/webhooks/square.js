@@ -81,8 +81,11 @@ export default async function handler(req, res) {
         WHERE id = ${bookingId} AND organization_id = ${booking.organization_id}
       `;
 
-      generateInvoiceForBooking(bookingId, booking.organization_id)
-        .catch(err => console.error('Invoice generation failed for booking', bookingId, err));
+      try {
+        await generateInvoiceForBooking(bookingId, booking.organization_id);
+      } catch (err) {
+        console.error('Invoice generation failed for booking', bookingId, err);
+      }
     }
   }
 

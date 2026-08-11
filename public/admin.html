@@ -9143,24 +9143,45 @@ function updateSquareLink(amount) {
   document.getElementById('square-charge-amount').textContent = '$' + amount.toFixed(2);
 }
 
-function recordPayment() {
+async function recordPayment() {
   if (selectedPaymentMethod === 'link') { sendPaymentLinkFromModal(); return; }
   const amount = parseFloat(document.getElementById('payment-amount').value);
   if (!amount || amount <= 0) { toast('Please enter a valid amount', 'error'); return; }
   const bookings = getBookings();
   const b = bookings.find(x => x.id === paymentBookingId);
-  if (b) {
-    b.status = 'completed';
-    b.paymentMethod = selectedPaymentMethod;
-    b.paymentAmount = amount;
-    b.paymentNotes = document.getElementById('payment-notes').value;
-    b.paidAt = new Date().toISOString();
-    setBookings(bookings);
+  if (!b) return;
+
+  b.status = 'completed';
+  b.paymentMethod = selectedPaymentMethod;
+  b.paymentAmount = amount;
+  b.paymentNotes = document.getElementById('payment-notes').value;
+  b.paidAt = new Date().toISOString();
+  setBookings(bookings);
+
+  // Recording a payment now also generates and emails an invoice
+  // server-side before responding, so this genuinely takes a couple of
+  // seconds rather than being near-instant — worth a visible loading state
+  // so it doesn't look like the click did nothing, and worth actually
+  // waiting for confirmation before claiming success, since a save that
+  // silently failed shouldn't be reported as "recorded".
+  const btn = document.getElementById('record-payment-btn');
+  const label = document.getElementById('record-payment-label');
+  btn.disabled = true;
+  label.textContent = 'Recording payment…';
+
+  try {
+    await flushBookingsSync();
+    closePaymentModal();
+    if (currentPage === 'dashboard') renderDashboard();
+    if (currentPage === 'bookings') refreshBookingsView();
+    toast('Payment recorded — booking marked as completed', 'success');
+  } catch (err) {
+    // flushBookingsSync already surfaces its own error toast — leaving the
+    // modal open here (rather than closing it as if this succeeded) so the
+    // practitioner can see the failure and try again.
+    btn.disabled = false;
+    label.textContent = 'Mark as Paid';
   }
-  closePaymentModal();
-  if (currentPage === 'dashboard') renderDashboard();
-  if (currentPage === 'bookings') refreshBookingsView();
-  toast('Payment recorded — booking marked as completed', 'success');
 }
 
 async function sendPaymentLinkFromModal() {

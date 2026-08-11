@@ -279,8 +279,18 @@ export default async function handler(req, res) {
           `;
 
           if (wasUnpaid && b.paidAt) {
-            generateInvoiceForBooking(b.id, org.id)
-              .catch(err => console.error('Invoice generation failed for booking', b.id, err));
+            // Must be awaited, not fired in the background — Vercel can
+            // freeze/tear down the function's execution environment the
+            // moment the response is sent, which silently cuts off any
+            // still-running database work that wasn't waited on. That's
+            // exactly what was happening here (NeonDbError: fetch failed).
+            // Wrapped in its own try/catch so a failure here still can't
+            // fail the booking save itself.
+            try {
+              await generateInvoiceForBooking(b.id, org.id);
+            } catch (err) {
+              console.error('Invoice generation failed for booking', b.id, err);
+            }
           }
         } catch (err) {
           console.error(`Booking ${b.id} failed to save:`, err.message);
