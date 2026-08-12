@@ -7131,11 +7131,29 @@ async function renderInvoicesPage() {
         <td style="padding:12px 20px;font-size:13px;color:var(--ink-mid)">${dateStr}</td>
         <td style="padding:12px 20px;font-size:13px;text-align:right;font-weight:600">$${Number(inv.total).toFixed(2)}</td>
         <td style="padding:12px 20px;font-size:12px;color:${statusColor};text-transform:capitalize">${inv.status}</td>
-        <td style="padding:12px 20px;text-align:right"><a href="/api/invoices/${inv.id}" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">View</a></td>
+        <td style="padding:12px 20px;text-align:right;white-space:nowrap">
+          <a href="/api/invoices/${inv.id}" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">View</a>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;margin-left:6px" onclick="syncInvoiceToXeroManual('${inv.id}', this)">Sync to Xero</button>
+        </td>
       </tr>`;
     }).join('');
   } catch (err) {
     toast('Could not load invoices: ' + err.message, 'error');
+  }
+}
+
+async function syncInvoiceToXeroManual(invoiceId, btn) {
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  try {
+    await apiFetch(`/invoices/${invoiceId}/sync-xero`, { method: 'POST' });
+    toast('Synced to Xero', 'success');
+  } catch (err) {
+    toast('Xero sync failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
   }
 }
 
