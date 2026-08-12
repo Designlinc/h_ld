@@ -1363,33 +1363,46 @@
      by blurring/dimming everything except a cutout around it, computed from
      that element's real position on screen — rather than a separate wizard
      UI, this teaches the practitioner where things actually live, and
-     anything they fill in here is the real field, already saved in place. */
-  #ob-overlay {
-    position: fixed; inset: 0; z-index: 500;
-    background: rgba(20,26,28,.28);
+     anything they fill in here is the real field, already saved in place.
+     Two rings: a subtle one around the whole section for context, and a
+     bright one that walks field-by-field within it for actual guidance. */
+  #ob-dim-top, #ob-dim-bottom, #ob-dim-left, #ob-dim-right {
+    position: fixed; z-index: 500;
+    background: rgba(20,26,28,.32);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
-    opacity: 0; pointer-events: none; transition: opacity .25s, clip-path .35s ease;
+    opacity: 0; pointer-events: none; transition: opacity .25s, top .3s ease, left .3s ease, width .3s ease, height .3s ease;
   }
-  #ob-overlay.open { opacity: 1; pointer-events: all; }
+  #ob-dim-top.open, #ob-dim-bottom.open, #ob-dim-left.open, #ob-dim-right.open { opacity: 1; pointer-events: all; }
   #ob-spotlight-ring {
     position: fixed; z-index: 501; border-radius: 16px;
-    box-shadow: 0 0 0 4px rgba(196,120,60,.35), 0 8px 32px rgba(0,0,0,.18);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.5);
     pointer-events: none; opacity: 0; transition: opacity .25s, top .35s ease, left .35s ease, width .35s ease, height .35s ease;
   }
   #ob-spotlight-ring.open { opacity: 1; }
+  #ob-field-ring {
+    position: fixed; z-index: 505; border-radius: 10px;
+    box-shadow: 0 0 0 3px #2563EB, 0 0 0 7px rgba(37,99,235,.25), 0 4px 16px rgba(37,99,235,.3);
+    pointer-events: none; opacity: 0;
+    transition: opacity .2s, top .25s cubic-bezier(.4,0,.2,1), left .25s cubic-bezier(.4,0,.2,1), width .25s cubic-bezier(.4,0,.2,1), height .25s cubic-bezier(.4,0,.2,1);
+    animation: obFieldPulse 1.8s ease-in-out infinite;
+  }
+  #ob-field-ring.open { opacity: 1; }
+  @keyframes obFieldPulse {
+    0%, 100% { box-shadow: 0 0 0 3px #2563EB, 0 0 0 7px rgba(37,99,235,.25), 0 4px 16px rgba(37,99,235,.3); }
+    50%      { box-shadow: 0 0 0 3px #2563EB, 0 0 0 10px rgba(37,99,235,.15), 0 4px 20px rgba(37,99,235,.4); }
+  }
   #ob-bar {
-    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-    z-index: 502; display: flex; align-items: center; gap: 16px;
-    background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-    border: var(--glass-border); border-radius: 999px; box-shadow: var(--glass-shadow);
-    padding: 10px 10px 10px 20px;
-    opacity: 0; pointer-events: none; transition: opacity .25s;
+    position: fixed; z-index: 502;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    opacity: 0; pointer-events: none; transition: opacity .2s, top .3s ease, left .3s ease, width .3s ease;
   }
   #ob-bar.open { opacity: 1; pointer-events: all; }
-  .ob-bar-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
-  .ob-bar-title { font-size: 14px; font-weight: 600; color: var(--ink); margin-top: 1px; }
-  .ob-bar-dots { display: flex; gap: 5px; margin: 0 4px; }
+  .ob-bar-left { display: flex; align-items: center; gap: 12px; }
+  .ob-bar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
+  .ob-bar-title { font-family: "quincy-cf", serif; font-size: 30px; font-weight: 700; color: var(--ink); letter-spacing: -.3px; line-height: 1; margin-top: 4px; }
+  .ob-bar-dots { display: flex; gap: 5px; }
+  .ob-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-top: 4px; }
   .ob-bar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
   .ob-bar-dot.done { background: var(--sage); }
   .ob-bar-dot.current { background: var(--cal-orange); }
@@ -4212,20 +4225,28 @@
 </div>
 
 <!-- ═══ ONBOARDING SPOTLIGHT ═══ -->
-<div id="ob-overlay"></div>
+<div id="ob-dim-top"></div>
+<div id="ob-dim-bottom"></div>
+<div id="ob-dim-left"></div>
+<div id="ob-dim-right"></div>
 <div id="ob-spotlight-ring"></div>
+<div id="ob-field-ring"></div>
 <div id="ob-tip"></div>
 <div id="ob-bar">
-  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-  </button>
-  <div>
-    <div class="ob-bar-label">Getting set up</div>
-    <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
+  <div class="ob-bar-left">
+    <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div>
+      <div class="ob-bar-label">Getting set up</div>
+      <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
+    </div>
   </div>
-  <div class="ob-bar-dots" id="ob-bar-dots"></div>
-  <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:12px;padding:8px 14px">Skip</button>
-  <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:12px;padding:8px 16px">Next</button>
+  <div class="ob-bar-actions">
+    <div class="ob-bar-dots" id="ob-bar-dots"></div>
+    <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:12px;padding:8px 14px">Skip</button>
+    <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:12px;padding:8px 16px">Next</button>
+  </div>
 </div>
 
 <!-- ═══ TOAST ═══ -->
@@ -7826,7 +7847,8 @@ function saveSettings() {
 // ═══════════════════════════════════════════════════════════
 const OB_STEPS = [
   { key: 'business',      page: 'settings', target: 'ob-target-business',      title: 'Business info',     skippable: false,
-    tip: 'Fill in your business details — clients will see these on your booking page and in emails.' },
+    tip: 'Fill in your business details — clients will see these on your booking page and in emails.',
+    fields: ['s-biz-name', 's-prac-name', 's-email', 's-phone'] },
   { key: 'connections',   page: 'settings', target: 'ob-target-connections',   title: 'Connections',       skippable: true,
     tip: 'Connecting your calendar and payment provider gives you a smoother booking and payment process — optional, and you can always come back to this later.' },
   { key: 'hours',         page: 'settings', target: 'ob-target-hours',         title: 'Working hours',     skippable: false,
@@ -7844,7 +7866,7 @@ let _obResizeTimer = null;
 
 function obOpen(startStep) {
   obCurrentStep = Math.min(Math.max(startStep || 1, 1), OB_STEPS.length);
-  document.getElementById('ob-overlay').classList.add('open');
+  ['ob-dim-top', 'ob-dim-bottom', 'ob-dim-left', 'ob-dim-right'].forEach(id => document.getElementById(id).classList.add('open'));
   document.getElementById('ob-spotlight-ring').classList.add('open');
   document.getElementById('ob-bar').classList.add('open');
   window.addEventListener('resize', obRepositionDebounced);
@@ -7853,7 +7875,7 @@ function obOpen(startStep) {
 
 function obRepositionDebounced() {
   clearTimeout(_obResizeTimer);
-  _obResizeTimer = setTimeout(obPositionSpotlight, 120);
+  _obResizeTimer = setTimeout(() => { obPositionSpotlight(); obPositionHeaderBar(); }, 120);
 }
 
 function obRenderDots() {
@@ -7869,6 +7891,7 @@ function obGoToStep(n) {
   if (n < 1) n = 1;
   obCurrentStep = n;
   DB.set('ob_resume_step', n); // survives a full page reload/redirect (e.g. connecting Google/Square/Xero)
+  obClearFieldWalk();
 
   const step = OB_STEPS[n - 1];
   document.getElementById('ob-bar-title').textContent = step.title;
@@ -7882,18 +7905,43 @@ function obGoToStep(n) {
 
   // Two rAFs: one for the page-switch DOM to settle, one for layout to
   // actually reflow before measuring the target's real position.
-  requestAnimationFrame(() => requestAnimationFrame(obPositionSpotlight));
+  requestAnimationFrame(() => requestAnimationFrame(() => { obPositionSpotlight(); obPositionHeaderBar(); }));
+}
+
+// Positions the step bar exactly where the current page's own header sits —
+// same title position, same action-button position — rather than a
+// separately invented floating element. The real header is still there
+// underneath (and gets blurred like the rest of the non-spotlighted page),
+// this sits on top of it at full clarity.
+function obPositionHeaderBar(attempt = 0) {
+  const header = document.querySelector('.page.active .page-header');
+  const bar = document.getElementById('ob-bar');
+  if (!header) {
+    if (attempt < 12) setTimeout(() => obPositionHeaderBar(attempt + 1), 150);
+    return;
+  }
+  const rect = header.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) {
+    if (attempt < 12) setTimeout(() => obPositionHeaderBar(attempt + 1), 150);
+    return;
+  }
+  bar.style.top = rect.top + 'px';
+  bar.style.left = rect.left + 'px';
+  bar.style.width = rect.width + 'px';
 }
 
 function obPositionSpotlight(attempt = 0) {
   const step = OB_STEPS[obCurrentStep - 1];
   if (!step) return;
   const target = document.getElementById(step.target);
-  if (!target) {
-    // Page may still be rendering (e.g. just switched via showPage) — a
-    // target that never appears (broken step) gives up after ~1.5s rather
-    // than retrying forever.
-    if (attempt < 10) setTimeout(() => obPositionSpotlight(attempt + 1), 150);
+  const rectNow = target ? target.getBoundingClientRect() : null;
+
+  // Retries if the target doesn't exist yet OR exists but hasn't actually
+  // been laid out yet (zero size — the most likely cause of the ring
+  // silently landing in the wrong place, since a 0×0 rect still "measures"
+  // successfully, it's just meaningless).
+  if (!target || (rectNow.width === 0 && rectNow.height === 0)) {
+    if (attempt < 12) setTimeout(() => obPositionSpotlight(attempt + 1), 150);
     return;
   }
 
@@ -7908,12 +7956,22 @@ function obPositionSpotlight(attempt = 0) {
     const h = rect.height + pad * 2;
     const vw = window.innerWidth, vh = window.innerHeight;
 
-    // "Keyhole" clip-path — a single polygon tracing the full viewport,
-    // cutting inward to trace the target rect, then retracing back out.
-    // clip-path polygon() has no native multi-shape "hole" support, this
-    // degenerate-bridge trick is the standard way around that.
-    document.getElementById('ob-overlay').style.clipPath =
-      `polygon(0 0, 0 ${vh}px, ${x}px ${vh}px, ${x}px ${y + h}px, ${x + w}px ${y + h}px, ${x + w}px ${y}px, ${x}px ${y}px, ${x}px ${vh}px, ${vw}px ${vh}px, ${vw}px 0)`;
+    // Four rectangles surrounding the target rect exactly — simpler and
+    // more robust than a single clip-path polygon "keyhole", which is easy
+    // to get subtly wrong in a way that silently fails to show any cutout
+    // at all. Top and bottom span the full width; left and right fill in
+    // the sides at exactly the target's height.
+    const top = document.getElementById('ob-dim-top');
+    top.style.top = '0'; top.style.left = '0'; top.style.width = vw + 'px'; top.style.height = Math.max(y, 0) + 'px';
+
+    const bottom = document.getElementById('ob-dim-bottom');
+    bottom.style.top = (y + h) + 'px'; bottom.style.left = '0'; bottom.style.width = vw + 'px'; bottom.style.height = Math.max(vh - (y + h), 0) + 'px';
+
+    const left = document.getElementById('ob-dim-left');
+    left.style.top = y + 'px'; left.style.left = '0'; left.style.width = Math.max(x, 0) + 'px'; left.style.height = h + 'px';
+
+    const right = document.getElementById('ob-dim-right');
+    right.style.top = y + 'px'; right.style.left = (x + w) + 'px'; right.style.width = Math.max(vw - (x + w), 0) + 'px'; right.style.height = h + 'px';
 
     const ring = document.getElementById('ob-spotlight-ring');
     ring.style.left = x + 'px';
@@ -7922,14 +7980,77 @@ function obPositionSpotlight(attempt = 0) {
     ring.style.height = h + 'px';
 
     // Tip bubble sits just below the spotlight, or above it if there's not
-    // enough room underneath.
+    // enough room underneath. Suppressed for steps with a field walk —
+    // the bright blue ring on the actual field is the guidance there,
+    // a tip bubble at the same time is redundant.
     const tip = document.getElementById('ob-tip');
-    tip.textContent = step.tip || '';
-    const showBelow = y + h + 90 < vh;
-    tip.style.left = Math.min(x, vw - 300) + 'px';
-    tip.style.top = showBelow ? (y + h + 16) + 'px' : Math.max(y - 90, 70) + 'px';
-    if (step.tip) tip.classList.add('open'); else tip.classList.remove('open');
-  }, attempt === 0 ? 50 : 380);
+    if (step.tip && !step.fields) {
+      tip.textContent = step.tip;
+      const showBelow = y + h + 90 < vh;
+      tip.style.left = Math.min(x, vw - 300) + 'px';
+      tip.style.top = showBelow ? (y + h + 16) + 'px' : Math.max(y - 90, 70) + 'px';
+      tip.classList.add('open');
+    } else {
+      tip.classList.remove('open');
+    }
+
+    if (step.fields) obWalkFields(step);
+  }, attempt === 0 ? 80 : 380);
+}
+
+// ── Field-by-field walk within a step ──
+// Highlights the first incomplete field in the step's list with the bright
+// blue ring, listens for it to actually be filled in, then automatically
+// advances to the next one — repeats until every field in the list is done.
+let _obFieldListener = null;
+let _obFieldListenerEl = null;
+
+function obClearFieldWalk() {
+  document.getElementById('ob-field-ring').classList.remove('open');
+  if (_obFieldListenerEl && _obFieldListener) {
+    _obFieldListenerEl.removeEventListener('input', _obFieldListener);
+    _obFieldListenerEl.removeEventListener('blur', _obFieldListener);
+  }
+  _obFieldListener = null;
+  _obFieldListenerEl = null;
+}
+
+function obIsFieldFilled(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (!el) return true; // missing field can't block progress
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+    return el.value.trim().length > 0;
+  }
+  if (el.classList.contains('toggle')) return true; // toggles always have a valid state
+  return true;
+}
+
+function obWalkFields(step) {
+  obClearFieldWalk();
+  const nextField = (step.fields || []).find(id => !obIsFieldFilled(id));
+  if (!nextField) return; // everything in this step is already filled — no field ring needed
+
+  const el = document.getElementById(nextField);
+  if (!el) return;
+
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(() => {
+    const rect = el.getBoundingClientRect();
+    const pad = 6;
+    const ring = document.getElementById('ob-field-ring');
+    ring.style.left = (rect.left - pad) + 'px';
+    ring.style.top = (rect.top - pad) + 'px';
+    ring.style.width = (rect.width + pad * 2) + 'px';
+    ring.style.height = (rect.height + pad * 2) + 'px';
+    ring.classList.add('open');
+  }, 200);
+
+  _obFieldListener = () => {
+    if (obIsFieldFilled(nextField)) obWalkFields(step); // move to the next incomplete field, or clear the ring if that was the last one
+  };
+  _obFieldListenerEl = el;
+  el.addEventListener('input', _obFieldListener);
+  el.addEventListener('blur', _obFieldListener);
 }
 
 function obSaveCurrentStepIfNeeded() {
@@ -7982,7 +8103,8 @@ function obSkip() {
 
 async function obFinish() {
   obSaveCurrentStepIfNeeded();
-  document.getElementById('ob-overlay').classList.remove('open');
+  obClearFieldWalk();
+  ['ob-dim-top', 'ob-dim-bottom', 'ob-dim-left', 'ob-dim-right'].forEach(id => document.getElementById(id).classList.remove('open'));
   document.getElementById('ob-spotlight-ring').classList.remove('open');
   document.getElementById('ob-bar').classList.remove('open');
   document.getElementById('ob-tip').classList.remove('open');
