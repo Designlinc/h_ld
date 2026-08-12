@@ -21,7 +21,14 @@ import { requireAuth, signToken, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 
 const REDIRECT_URI = process.env.XERO_REDIRECT_URI;
-const XERO_SCOPES = 'openid profile email accounting.transactions accounting.contacts accounting.settings.read offline_access';
+// Xero replaced the old broad `accounting.transactions` scope with
+// granular ones on 2 March 2026 — any app created after that date (which
+// this one is) has no access to the broad scope at all and gets rejected
+// with invalid_scope if it's requested. accounting.transactions covered
+// both invoices and payments; split here into the two granular
+// replacements since this integration needs to create both. Contacts and
+// settings scopes weren't part of that change, so those stayed as-is.
+const XERO_SCOPES = 'openid profile email accounting.invoices accounting.payments accounting.contacts accounting.settings.read offline_access';
 
 export default async function handler(req, res) {
   const { code, error, state } = req.query;
