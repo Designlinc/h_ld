@@ -52,6 +52,9 @@ export default async function handler(req, res) {
       tokens.forEach(t => {
         obj._connected[t.provider] = { email: t.email, connectedAt: t.updated_at };
       });
+
+      const [prac] = await sql`SELECT onboarding_completed FROM practitioners WHERE id = ${payload.practitioner_id}`;
+      obj._onboardingCompleted = prac ? prac.onboarding_completed : true; // default true if somehow missing, never re-trap an existing user
     }
 
     return res.json(obj);

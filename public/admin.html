@@ -1357,6 +1357,50 @@
   .day-time-input { text-align: center; padding: 7px 8px !important; font-size: 13px !important; }
   .day-time-input.disabled { background: var(--bg) !important; color: var(--border) !important; cursor: not-allowed; }
   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+
+  /* ── ONBOARDING SPOTLIGHT ──
+     Highlights a real section of the actual app (Settings, Services, etc.)
+     by blurring/dimming everything except a cutout around it, computed from
+     that element's real position on screen — rather than a separate wizard
+     UI, this teaches the practitioner where things actually live, and
+     anything they fill in here is the real field, already saved in place. */
+  #ob-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(20,26,28,.28);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none; transition: opacity .25s, clip-path .35s ease;
+  }
+  #ob-overlay.open { opacity: 1; pointer-events: all; }
+  #ob-spotlight-ring {
+    position: fixed; z-index: 501; border-radius: 16px;
+    box-shadow: 0 0 0 4px rgba(196,120,60,.35), 0 8px 32px rgba(0,0,0,.18);
+    pointer-events: none; opacity: 0; transition: opacity .25s, top .35s ease, left .35s ease, width .35s ease, height .35s ease;
+  }
+  #ob-spotlight-ring.open { opacity: 1; }
+  #ob-bar {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 502; display: flex; align-items: center; gap: 16px;
+    background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: var(--glass-border); border-radius: 999px; box-shadow: var(--glass-shadow);
+    padding: 10px 10px 10px 20px;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  #ob-bar.open { opacity: 1; pointer-events: all; }
+  .ob-bar-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
+  .ob-bar-title { font-size: 14px; font-weight: 600; color: var(--ink); margin-top: 1px; }
+  .ob-bar-dots { display: flex; gap: 5px; margin: 0 4px; }
+  .ob-bar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+  .ob-bar-dot.done { background: var(--sage); }
+  .ob-bar-dot.current { background: var(--cal-orange); }
+  #ob-tip {
+    position: fixed; z-index: 503; max-width: 280px;
+    background: var(--ink); color: #fff; font-size: 13px; line-height: 1.5;
+    padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-md);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  #ob-tip.open { opacity: 1; }
+  #ob-tip::after { content: ''; position: absolute; top: -6px; left: 24px; width: 12px; height: 12px; background: var(--ink); transform: rotate(45deg); }
   .toggle-row:last-child { border-bottom: none; }
   .toggle-label { font-size: 13px; font-weight: 500; color: var(--ink); }
   .toggle-sub { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
@@ -2239,7 +2283,7 @@
           <div class="page-title">Services</div>
           <div class="page-subtitle">Manage the services you offer</div>
         </div>
-        <button class="btn btn-primary" onclick="openServiceModal()">
+        <button class="btn btn-primary" id="ob-target-add-service" onclick="openServiceModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Service
         </button>
@@ -2404,7 +2448,7 @@
           <div class="page-subtitle">Build custom forms to collect client information before appointments</div>
         </div>
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost" onclick="openTemplatePickerModal()">
+          <button class="btn btn-ghost" id="ob-target-use-template" onclick="openTemplatePickerModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Use a template
           </button>
@@ -2522,7 +2566,7 @@
         </button>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" id="ob-target-business">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
           <span class="settings-section-title">Business Information</span>
@@ -2588,7 +2632,7 @@
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" id="ob-target-hours">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
           <span class="settings-section-title">Working Hours</span>
@@ -2663,7 +2707,7 @@
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" id="ob-target-notifications">
         <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:12px">
             <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
@@ -2770,7 +2814,7 @@
         </div>
       </div>
 
-      <div class="settings-section">
+      <div class="settings-section" id="ob-target-connections">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
           <span class="settings-section-title">Connected Accounts</span>
@@ -4167,6 +4211,23 @@
   </div>
 </div>
 
+<!-- ═══ ONBOARDING SPOTLIGHT ═══ -->
+<div id="ob-overlay"></div>
+<div id="ob-spotlight-ring"></div>
+<div id="ob-tip"></div>
+<div id="ob-bar">
+  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <div>
+    <div class="ob-bar-label">Getting set up</div>
+    <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
+  </div>
+  <div class="ob-bar-dots" id="ob-bar-dots"></div>
+  <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:12px;padding:8px 14px">Skip</button>
+  <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:12px;padding:8px 16px">Next</button>
+</div>
+
 <!-- ═══ TOAST ═══ -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -4968,6 +5029,7 @@ async function loadSettings() {
     if (data && data._connected) {
       _cache.settings._connected = data._connected;
     }
+    _cache.onboardingCompleted = data ? (data._onboardingCompleted !== false) : true; // default true — never trap someone if this field is ever missing
     if (data && data.msg_templates) {
       // Sync DB templates to localStorage so getTemplates() finds them
       DB.set('msg_templates', data.msg_templates);
@@ -7755,6 +7817,187 @@ function saveSettings() {
 // ═══════════════════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// ONBOARDING SPOTLIGHT
+// Highlights real sections of the actual app rather than a separate
+// wizard UI — the practitioner fills in the real field, in its real
+// location, already saved in place, and learns where things live for
+// when they come back to edit something later.
+// ═══════════════════════════════════════════════════════════
+const OB_STEPS = [
+  { key: 'business',      page: 'settings', target: 'ob-target-business',      title: 'Business info',     skippable: false,
+    tip: 'Fill in your business details — clients will see these on your booking page and in emails.' },
+  { key: 'connections',   page: 'settings', target: 'ob-target-connections',   title: 'Connections',       skippable: true,
+    tip: 'Connecting your calendar and payment provider gives you a smoother booking and payment process — optional, and you can always come back to this later.' },
+  { key: 'hours',         page: 'settings', target: 'ob-target-hours',         title: 'Working hours',     skippable: false,
+    tip: 'Set the hours you\u2019re available for bookings. Toggle a day off entirely if you don\u2019t work that day.' },
+  { key: 'services',      page: 'services', target: 'ob-target-add-service',   title: 'Add a service',     skippable: false,
+    tip: 'Add at least one service so clients have something to actually book.' },
+  { key: 'forms',         page: 'forms',    target: 'ob-target-use-template',  title: 'Intake forms',      skippable: true,
+    tip: 'Pick a starting template, or skip this and build your own intake form later.' },
+  { key: 'notifications', page: 'settings', target: 'ob-target-notifications', title: 'Notifications',     skippable: false,
+    tip: 'Choose which automatic messages go out to clients. You can fine-tune the wording any time from here.' },
+];
+
+let obCurrentStep = 1;
+let _obResizeTimer = null;
+
+function obOpen(startStep) {
+  obCurrentStep = Math.min(Math.max(startStep || 1, 1), OB_STEPS.length);
+  document.getElementById('ob-overlay').classList.add('open');
+  document.getElementById('ob-spotlight-ring').classList.add('open');
+  document.getElementById('ob-bar').classList.add('open');
+  window.addEventListener('resize', obRepositionDebounced);
+  obGoToStep(obCurrentStep);
+}
+
+function obRepositionDebounced() {
+  clearTimeout(_obResizeTimer);
+  _obResizeTimer = setTimeout(obPositionSpotlight, 120);
+}
+
+function obRenderDots() {
+  document.getElementById('ob-bar-dots').innerHTML = OB_STEPS.map((s, i) => {
+    const n = i + 1;
+    const cls = n < obCurrentStep ? 'done' : (n === obCurrentStep ? 'current' : '');
+    return `<div class="ob-bar-dot ${cls}"></div>`;
+  }).join('');
+}
+
+function obGoToStep(n) {
+  if (n > OB_STEPS.length) return obFinish();
+  if (n < 1) n = 1;
+  obCurrentStep = n;
+  DB.set('ob_resume_step', n); // survives a full page reload/redirect (e.g. connecting Google/Square/Xero)
+
+  const step = OB_STEPS[n - 1];
+  document.getElementById('ob-bar-title').textContent = step.title;
+  document.getElementById('ob-skip-btn').style.display = step.skippable ? 'inline-flex' : 'none';
+  document.getElementById('ob-back-btn').style.visibility = n === 1 ? 'hidden' : 'visible';
+  document.getElementById('ob-next-btn').textContent = n === OB_STEPS.length ? 'Finish' : 'Next';
+  obRenderDots();
+  document.getElementById('ob-tip').classList.remove('open');
+
+  if (currentPage !== step.page) showPage(step.page);
+
+  // Two rAFs: one for the page-switch DOM to settle, one for layout to
+  // actually reflow before measuring the target's real position.
+  requestAnimationFrame(() => requestAnimationFrame(obPositionSpotlight));
+}
+
+function obPositionSpotlight(attempt = 0) {
+  const step = OB_STEPS[obCurrentStep - 1];
+  if (!step) return;
+  const target = document.getElementById(step.target);
+  if (!target) {
+    // Page may still be rendering (e.g. just switched via showPage) — a
+    // target that never appears (broken step) gives up after ~1.5s rather
+    // than retrying forever.
+    if (attempt < 10) setTimeout(() => obPositionSpotlight(attempt + 1), 150);
+    return;
+  }
+
+  target.scrollIntoView({ block: 'center', behavior: attempt === 0 ? 'auto' : 'smooth' });
+
+  setTimeout(() => {
+    const rect = target.getBoundingClientRect();
+    const pad = 10;
+    const x = Math.max(rect.left - pad, 4);
+    const y = Math.max(rect.top - pad, 4);
+    const w = rect.width + pad * 2;
+    const h = rect.height + pad * 2;
+    const vw = window.innerWidth, vh = window.innerHeight;
+
+    // "Keyhole" clip-path — a single polygon tracing the full viewport,
+    // cutting inward to trace the target rect, then retracing back out.
+    // clip-path polygon() has no native multi-shape "hole" support, this
+    // degenerate-bridge trick is the standard way around that.
+    document.getElementById('ob-overlay').style.clipPath =
+      `polygon(0 0, 0 ${vh}px, ${x}px ${vh}px, ${x}px ${y + h}px, ${x + w}px ${y + h}px, ${x + w}px ${y}px, ${x}px ${y}px, ${x}px ${vh}px, ${vw}px ${vh}px, ${vw}px 0)`;
+
+    const ring = document.getElementById('ob-spotlight-ring');
+    ring.style.left = x + 'px';
+    ring.style.top = y + 'px';
+    ring.style.width = w + 'px';
+    ring.style.height = h + 'px';
+
+    // Tip bubble sits just below the spotlight, or above it if there's not
+    // enough room underneath.
+    const tip = document.getElementById('ob-tip');
+    tip.textContent = step.tip || '';
+    const showBelow = y + h + 90 < vh;
+    tip.style.left = Math.min(x, vw - 300) + 'px';
+    tip.style.top = showBelow ? (y + h + 16) + 'px' : Math.max(y - 90, 70) + 'px';
+    if (step.tip) tip.classList.add('open'); else tip.classList.remove('open');
+  }, attempt === 0 ? 50 : 380);
+}
+
+function obSaveCurrentStepIfNeeded() {
+  const step = OB_STEPS[obCurrentStep - 1];
+  // Settings-page steps share one real save function that reads every
+  // field on the page at once — no need for step-specific save logic,
+  // this is the exact same call the practitioner's own Save button uses.
+  if (step.page === 'settings' && typeof saveSettings === 'function') {
+    try { saveSettings(); } catch (err) { console.error('Onboarding save failed:', err); }
+  }
+}
+
+function obValidateCurrentStep() {
+  const step = OB_STEPS[obCurrentStep - 1];
+  if (step.key === 'business') {
+    const bizName = document.getElementById('s-biz-name')?.value.trim();
+    const pracName = document.getElementById('s-prac-name')?.value.trim();
+    const email = document.getElementById('s-email')?.value.trim();
+    if (!bizName || !pracName || !email) {
+      toast('Please fill in your business name, your name, and an email before continuing', 'error');
+      return false;
+    }
+  }
+  if (step.key === 'services') {
+    if (!getServices().length) {
+      toast('Add at least one service before continuing', 'error');
+      return false;
+    }
+  }
+  return true;
+}
+
+function obNext() {
+  if (!obValidateCurrentStep()) return;
+  obSaveCurrentStepIfNeeded();
+  obGoToStep(obCurrentStep + 1);
+}
+
+function obBack() {
+  if (obCurrentStep <= 1) return;
+  obSaveCurrentStepIfNeeded();
+  obGoToStep(obCurrentStep - 1);
+}
+
+function obSkip() {
+  const step = OB_STEPS[obCurrentStep - 1];
+  if (!step.skippable) return;
+  obGoToStep(obCurrentStep + 1);
+}
+
+async function obFinish() {
+  obSaveCurrentStepIfNeeded();
+  document.getElementById('ob-overlay').classList.remove('open');
+  document.getElementById('ob-spotlight-ring').classList.remove('open');
+  document.getElementById('ob-bar').classList.remove('open');
+  document.getElementById('ob-tip').classList.remove('open');
+  window.removeEventListener('resize', obRepositionDebounced);
+  DB.set('ob_resume_step', null);
+  _cache.onboardingCompleted = true;
+  try {
+    await apiFetch('/onboarding/complete', { method: 'POST' });
+  } catch (err) {
+    console.error('Could not mark onboarding complete:', err);
+  }
+  showPage('dashboard');
+  toast('You\u2019re all set up', 'success');
+}
+
 function escapeHtmlForToast(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -13030,6 +13273,10 @@ async function bootApp() {
   updateAiLearnedCount();
   startBookingsPolling();
   loadSidebarAvatar();
+  if (!_cache.onboardingCompleted) {
+    const resumeStep = DB.get('ob_resume_step');
+    obOpen(resumeStep || 1);
+  }
   if (aiSpeakEnabled) {
     document.getElementById('ai-speak-label').textContent = 'Voice on';
     document.getElementById('ai-speak-btn').style.color = 'var(--sage)';
@@ -13054,29 +13301,29 @@ async function bootApp() {
     window.history.replaceState({}, '', window.location.pathname);
     renderCalConnectedList();
     toast('Google Calendar connected successfully', 'success');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('cal_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Google Calendar connection failed — please try again', 'error');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('square_connected')) {
     window.history.replaceState({}, '', window.location.pathname);
     renderPaymentGatewayStatus();
     toast('Square connected successfully', 'success');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('square_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Square connection failed — please try again', 'error');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('xero_connected')) {
     window.history.replaceState({}, '', window.location.pathname);
     renderAccountingStatus();
     toast('Xero connected successfully', 'success');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('xero_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Xero connection failed — please try again', 'error');
-    setTimeout(() => showPage('settings'), 400);
+    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   }
 }
 
