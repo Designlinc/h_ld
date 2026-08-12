@@ -7155,16 +7155,28 @@ async function renderInvoicesPage() {
   }
 }
 
-async function syncInvoiceToXeroManual(invoiceId, btn) {
-  const prevLabel = btn.textContent;
+async function syncInvoiceToXeroManual(invoiceId, btn, force = false, originalLabel = null) {
+  const prevLabel = originalLabel !== null ? originalLabel : btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Syncing…';
+  btn.textContent = force ? 'Resyncing…' : 'Syncing…';
   try {
-    await apiFetch(`/invoices/${invoiceId}/sync-xero`, { method: 'POST' });
-    toast('Synced to Xero', 'success');
+    await apiFetch(`/invoices/${invoiceId}/sync-xero`, { method: 'POST', body: JSON.stringify({ force }) });
+    toast(force ? 'Resynced to Xero as a new invoice' : 'Synced to Xero', 'success');
+    btn.disabled = false;
+    btn.textContent = prevLabel;
   } catch (err) {
-    toast('Xero sync failed: ' + err.message, 'error');
-  } finally {
+    // Already-synced isn't really a failure — it's the safety guard doing
+    // its job. Offer the force option right here instead of leaving the
+    // practitioner stuck with an error and no way to actually act on it.
+    if (!force && /already synced to xero/i.test(err.message)) {
+      const ok = confirm(err.message + '\n\nCreate a new Xero invoice for this anyway?');
+      if (ok) {
+        await syncInvoiceToXeroManual(invoiceId, btn, true, prevLabel); // carries the true original label through
+        return;
+      }
+    } else {
+      toast('Xero sync failed: ' + err.message, 'error');
+    }
     btn.disabled = false;
     btn.textContent = prevLabel;
   }
