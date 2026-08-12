@@ -1046,7 +1046,7 @@ function renderServiceList() {
           <span>📍 ${s.location || getSettings().address || ''}</span>
         </div>
       </div>
-      <div class="service-opt-price">$${s.price}</div>
+      <div class="service-opt-price">$${s.price}${gstNote(s.price)}</div>
       <svg class="service-opt-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="9 18 15 12 9 6"/></svg>
     </div>`;
   }).join('');
@@ -1281,6 +1281,17 @@ function formatTime(t) {
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
+// Small "(incl. $X.XX GST)" note shown next to a price — only when the
+// business is actually GST-registered, and using the exact same GST-
+// inclusive math as the invoice itself (lib/invoices.js's computeGst), so
+// this can never disagree with what the invoice shows after payment.
+function gstNote(price) {
+  const settings = getSettings();
+  if (!settings.gstRegistered || !price) return '';
+  const gstAmount = Math.round((price / 11) * 100) / 100;
+  return `<span style="font-size:12px;color:var(--ink-soft);font-weight:400"> (incl. $${gstAmount.toFixed(2)} GST)</span>`;
+}
+
 function addMinutes(t, mins) {
   const [h,m] = t.split(':').map(Number);
   const total = h*60 + m + mins;
@@ -1304,7 +1315,7 @@ function populateStep3() {
 
   const d2 = new Date(state.selectedDate + 'T00:00:00');
   document.getElementById('step3-summary').innerHTML =
-    `<strong>${formatTime(state.selectedTime)}</strong> · ${d2.toLocaleDateString('en-AU', { day:'numeric', month:'short' })} · $${state.service.price}`;
+    `<strong>${formatTime(state.selectedTime)}</strong> · ${d2.toLocaleDateString('en-AU', { day:'numeric', month:'short' })} · $${state.service.price}${gstNote(state.service.price)}`;
   validateStep3();
 }
 
@@ -1332,7 +1343,7 @@ function populateStep4() {
   document.getElementById('sum-date').textContent = d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   document.getElementById('sum-time').textContent = `${formatTime(state.selectedTime)} – ${formatTime(endTime)}`;
   document.getElementById('sum-duration').textContent = `${s.duration} min`;
-  document.getElementById('sum-price').textContent = `$${s.price}`;
+  document.getElementById('sum-price').innerHTML = `$${s.price}${gstNote(s.price)}`;
   document.getElementById('sum-name').textContent = state.name;
   document.getElementById('sum-email').textContent = state.email;
 

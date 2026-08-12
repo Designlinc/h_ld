@@ -2550,9 +2550,10 @@
             <div class="form-group">
               <label class="form-label">GST</label>
               <div style="display:flex;align-items:center;gap:10px;height:38px">
-                <button type="button" class="toggle" id="s-gst-registered" onclick="this.classList.toggle('on')"></button>
+                <button type="button" class="toggle" id="s-gst-registered" onclick="toggleGstRegistered(this)"></button>
                 <span style="font-size:13px;color:var(--ink-mid)">Registered for GST</span>
               </div>
+              <div id="gst-registered-note" style="display:none;font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5">GST is automatically included in your total amount on invoices.</div>
             </div>
           </div>
         </div>
@@ -3430,6 +3431,7 @@
             oninput="onPaymentAmountChange()">
           <span id="payment-amount-diff" style="font-size:12px;font-weight:500"></span>
         </div>
+        <div id="payment-gst-breakdown" style="font-size:12px;color:var(--ink-soft);margin-top:5px"></div>
         <div style="font-size:11px;color:var(--ink-soft);margin-top:5px">Adjust if the session ran over or for any other reason</div>
       </div>
 
@@ -7047,6 +7049,16 @@ function closeBookingPreview() {
 // authoritative detail record for that one entity. ──
 let _abnSearchTimer = null;
 
+function toggleGstRegistered(btn) {
+  btn.classList.toggle('on');
+  updateGstNote();
+}
+
+function updateGstNote() {
+  const on = document.getElementById('s-gst-registered').classList.contains('on');
+  document.getElementById('gst-registered-note').style.display = on ? 'block' : 'none';
+}
+
 function onAbnSearchInput() {
   clearTimeout(_abnSearchTimer);
   const query = document.getElementById('s-abn').value.trim();
@@ -7100,6 +7112,7 @@ async function selectAbnCandidate(abn) {
     const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
     document.getElementById('s-abn').value = formatted;
     document.getElementById('s-gst-registered').classList.toggle('on', data.gstRegistered);
+    updateGstNote();
     hintEl.style.color = '#3D7A5C';
     hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
     saveSettings();
@@ -8366,6 +8379,7 @@ function loadSettingsUI() {
   if (s.website) document.getElementById('s-website').value = s.website;
   if (s.abn) document.getElementById('s-abn').value = s.abn;
   document.getElementById('s-gst-registered').classList.toggle('on', !!s.gstRegistered);
+  updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
   setLogoPreview(s.logoUrl || null);
@@ -9163,6 +9177,7 @@ function openPaymentModal(id) {
   document.getElementById('payment-amount').value = b.price || '';
   document.getElementById('payment-amount-diff').textContent = '';
   document.getElementById('payment-notes').value = '';
+  onPaymentAmountChange();
   closeSlideout();
   document.getElementById('payment-modal-backdrop').classList.add('open');
 }
@@ -9180,6 +9195,23 @@ function onPaymentAmountChange() {
     el.textContent = '-$' + Math.abs(diff).toFixed(2) + ' below standard';
     el.style.color = 'var(--ink-soft)';
   }
+
+  // Same GST-inclusive math as the invoice this payment will generate
+  // (computeGst in lib/invoices.js) — shown here so the practitioner sees
+  // the same breakdown their client's invoice will show, before recording
+  // the payment, not just after.
+  const gstEl = document.getElementById('payment-gst-breakdown');
+  if (gstEl) {
+    const settings = getSettings();
+    if (settings.gstRegistered && amount > 0) {
+      const gstAmount = Math.round((amount / 11) * 100) / 100;
+      const subtotal = Math.round((amount - gstAmount) * 100) / 100;
+      gstEl.textContent = `Subtotal $${subtotal.toFixed(2)} + GST $${gstAmount.toFixed(2)}`;
+    } else {
+      gstEl.textContent = '';
+    }
+  }
+
   // Update Square deep link if card is selected
   if (selectedPaymentMethod === 'card') updateSquareLink(amount);
 }
