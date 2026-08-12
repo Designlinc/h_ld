@@ -60,6 +60,18 @@ function normalizePhoneAU(raw) {
   return num;
 }
 
+// Alphanumeric SMS sender IDs are capped at 11 characters by the underlying
+// SMS network standard (not a ClickSend-specific limit) and generally only
+// support letters/numbers — spaces and punctuation get rejected too. The
+// business name was being sent as-is with no validation, which fails
+// outright for most real business names ("Solful Kinesiology" is 19
+// characters). This sanitizes whatever sender name is provided down to
+// something that will actually be accepted, as a safety net regardless of
+// whether a practitioner has set a shorter custom one in Settings.
+function sanitizeSenderId(name) {
+  return (name || 'h_ld').replace(/[^a-zA-Z0-9]/g, '').slice(0, 11) || 'h_ld';
+}
+
 async function sendSms(req, res, org, auth) {
   const { to, message, from, clientName, commType } = req.body;
   if (!to || !message) return res.status(400).json({ error: 'Missing to or message' });
@@ -80,7 +92,7 @@ async function sendSms(req, res, org, auth) {
       to:   normalizePhoneAU(num),
       body: message,
       source: 'h_ld',
-      from: from || orgSettings.clickSendSender || org.name,
+      from: sanitizeSenderId(from || orgSettings.clickSendSender || org.name),
     }));
 
   if (!messages.length) return res.status(400).json({ error: 'No valid recipients' });
