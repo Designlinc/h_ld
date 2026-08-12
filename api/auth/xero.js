@@ -101,12 +101,41 @@ export default async function handler(req, res) {
         console.error('Xero: could not fetch bank accounts:', err.message);
       }
 
+      // Every invoice line item needs an AccountCode — which revenue
+      // account this income is attributed to in their chart of accounts.
+      // First REVENUE-type account, same reasoning as the bank account
+      // above: a real choice here would be more correct, but auto-picking
+      // keeps this connection a single click like every other provider.
+      // Deliberately not sending a TaxType on invoice line items at all —
+      // Xero's own documented behaviour is to use whatever tax rate is
+      // already configured as the default on this account, which is more
+      // correct than this code guessing at a tax type code itself.
+      let defaultRevenueAccountCode = null;
+      let defaultRevenueAccountName = null;
+      try {
+        const revRes = await fetch('https://api.xero.com/api.xro/2.0/Accounts?where=Type%3D%3D%22REVENUE%22', {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+            'Xero-tenant-id': tenant.tenantId,
+            Accept: 'application/json',
+          },
+        });
+        const revData = await revRes.json();
+        const revAccount = revData.Accounts?.[0];
+        if (revAccount) {
+          defaultRevenueAccountCode = revAccount.Code;
+          defaultRevenueAccountName = revAccount.Name;
+        }
+      } catch (err) {
+        console.error('Xero: could not fetch revenue accounts:', err.message);
+      }
+
       await sql`
         INSERT INTO oauth_tokens (practitioner_id, provider, access_token, refresh_token, expires_at, email, metadata, updated_at)
         VALUES (${practitionerId}, 'xero', ${tokens.access_token}, ${tokens.refresh_token || null},
                 ${new Date(Date.now() + tokens.expires_in * 1000).toISOString()},
                 ${tenant.tenantName || 'Xero'},
-                ${JSON.stringify({ tenantId: tenant.tenantId, tenantName: tenant.tenantName, defaultBankAccountId, defaultBankAccountName })},
+                ${JSON.stringify({ tenantId: tenant.tenantId, tenantName: tenant.tenantName, defaultBankAccountId, defaultBankAccountName, defaultRevenueAccountCode, defaultRevenueAccountName })},
                 NOW())
         ON CONFLICT (practitioner_id, provider) DO UPDATE SET
           access_token  = EXCLUDED.access_token,
