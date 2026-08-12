@@ -46,6 +46,20 @@ async function logCommunication(org, auth, { commType, channel, toAddress, clien
   }
 }
 
+// Converts a local Australian number (04xx xxx xxx) to E.164 (+614xxxxxxxx),
+// which ClickSend expects for reliable delivery — sending a number without
+// a country code is a common, silent cause of a message reporting as
+// "sent" while never actually being deliverable at the carrier level.
+// Leaves anything already in international format (or anything that
+// doesn't look like a plain AU mobile) untouched rather than guessing.
+function normalizePhoneAU(raw) {
+  const num = raw.trim().replace(/[\s()-]/g, '');
+  if (num.startsWith('+')) return num;
+  if (num.startsWith('0')) return '+61' + num.slice(1);
+  if (num.startsWith('61')) return '+' + num;
+  return num;
+}
+
 async function sendSms(req, res, org, auth) {
   const { to, message, from, clientName, commType } = req.body;
   if (!to || !message) return res.status(400).json({ error: 'Missing to or message' });
@@ -63,7 +77,7 @@ async function sendSms(req, res, org, auth) {
   const messages = recipients
     .filter(num => num && num.trim())
     .map(num => ({
-      to:   num.trim().replace(/\s+/g, ''),
+      to:   normalizePhoneAU(num),
       body: message,
       source: 'h_ld',
       from: from || orgSettings.clickSendSender || org.name,
@@ -92,6 +106,16 @@ async function sendSms(req, res, org, auth) {
     const failed    = results.filter(m => m.status !== 'SUCCESS').length;
 
     await logCommunication(org, auth, { commType, channel: 'sms', toAddress: recipients[0], clientName, message, status: succeeded > 0 ? 'sent' : 'failed' });
+
+    if (succeeded === 0) {
+      // The overall HTTP request to ClickSend succeeded (valid credentials,
+      // valid request shape), but every individual message still failed —
+      // this used to fall through and return ok:true regardless, which is
+      // exactly what let a fully-failed send show a success toast.
+      const reason = results[0]?.status || 'Unknown error from ClickSend';
+      console.error('ClickSend accepted the request but every message failed:', JSON.stringify(results));
+      return res.status(502).json({ error: `SMS not delivered — ${reason}`, detail: data });
+    }
 
     return res.json({ ok: true, sent: succeeded, failed, total: messages.length, results });
   } catch (err) {
