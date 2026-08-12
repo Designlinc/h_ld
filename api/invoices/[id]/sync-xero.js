@@ -34,7 +34,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await syncInvoiceToXero(invoice, practitionerId);
+    const force = !!(req.body && req.body.force);
+    const result = await syncInvoiceToXero(invoice, practitionerId, { force });
     if (!result) {
       return res.status(400).json({ error: 'Xero is not connected — connect it in Settings first' });
     }

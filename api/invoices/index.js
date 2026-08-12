@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const rows = await sql`
     SELECT id, invoice_number, status, client_name, client_email, total,
-           gst_registered, payment_method, paid_at, issued_at
+           gst_registered, payment_method, paid_at, issued_at, xero_invoice_id
     FROM invoices
     WHERE organization_id = ${org.id}
     ORDER BY issued_at DESC
