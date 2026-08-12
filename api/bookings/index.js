@@ -4,6 +4,7 @@ import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 import { renderEmail } from '../../lib/emailTemplate.js';
 import { generateInvoiceForBooking } from '../../lib/invoices.js';
+import { sanitizeSenderId, normalizePhoneAU } from '../../lib/sms.js';
 
 // Helper - format time to 12hr
 function fmtTime(t) {
@@ -59,13 +60,13 @@ async function loadSettingsAndTemplates(orgId) {
 async function sendSms(phone, message, org, settings) {
   const username = process.env.CLICKSEND_USERNAME;
   const apiKey   = process.env.CLICKSEND_API_KEY;
-  const sender   = settings?.clickSendSender || org.name;
+  const sender   = sanitizeSenderId(settings?.clickSendSender || org.name);
   if (!username || !apiKey || !phone) return;
   const credentials = Buffer.from(`${username}:${apiKey}`).toString('base64');
   await fetch('https://rest.clicksend.com/v3/sms/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${credentials}` },
-    body: JSON.stringify({ messages: [{ to: phone, body: message, from: sender, source: 'h_ld' }] }),
+    body: JSON.stringify({ messages: [{ to: normalizePhoneAU(phone), body: message, from: sender, source: 'h_ld' }] }),
   });
 }
 

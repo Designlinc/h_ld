@@ -8,6 +8,7 @@ import sql from '../../lib/db.js';
 import { requireAuth } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 import { randomUUID } from 'crypto';
+import { sanitizeSenderId, normalizePhoneAU } from '../../lib/sms.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -44,32 +45,6 @@ async function logCommunication(org, auth, { commType, channel, toAddress, clien
     // message already went out (or didn't); this is just the record of it.
     console.error('Failed to log communication:', err.message);
   }
-}
-
-// Converts a local Australian number (04xx xxx xxx) to E.164 (+614xxxxxxxx),
-// which ClickSend expects for reliable delivery — sending a number without
-// a country code is a common, silent cause of a message reporting as
-// "sent" while never actually being deliverable at the carrier level.
-// Leaves anything already in international format (or anything that
-// doesn't look like a plain AU mobile) untouched rather than guessing.
-function normalizePhoneAU(raw) {
-  const num = raw.trim().replace(/[\s()-]/g, '');
-  if (num.startsWith('+')) return num;
-  if (num.startsWith('0')) return '+61' + num.slice(1);
-  if (num.startsWith('61')) return '+' + num;
-  return num;
-}
-
-// Alphanumeric SMS sender IDs are capped at 11 characters by the underlying
-// SMS network standard (not a ClickSend-specific limit) and generally only
-// support letters/numbers — spaces and punctuation get rejected too. The
-// business name was being sent as-is with no validation, which fails
-// outright for most real business names ("Solful Kinesiology" is 19
-// characters). This sanitizes whatever sender name is provided down to
-// something that will actually be accepted, as a safety net regardless of
-// whether a practitioner has set a shorter custom one in Settings.
-function sanitizeSenderId(name) {
-  return (name || 'h_ld').replace(/[^a-zA-Z0-9]/g, '').slice(0, 11) || 'h_ld';
 }
 
 async function sendSms(req, res, org, auth) {

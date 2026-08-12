@@ -2577,6 +2577,14 @@
               <div id="gst-registered-note" style="display:none;font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5">GST is automatically included in your total amount on invoices.</div>
             </div>
           </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">SMS Sender Name</label>
+              <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;line-height:1.5">This is the name your clients see as the sender on text messages — not your phone number. SMS sender names are limited to <strong>11 characters</strong>, letters and numbers only (no spaces or punctuation). If left blank, your business name will be shortened automatically to fit.</div>
+              <input class="form-input" id="s-sms-sender" maxlength="11" placeholder="e.g. Solful" oninput="onSmsSenderInput()" style="max-width:200px">
+              <div id="sms-sender-count" style="font-size:11px;color:var(--ink-soft);margin-top:4px">0 / 11</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -7080,6 +7088,24 @@ function updateGstNote() {
   document.getElementById('gst-registered-note').style.display = on ? 'block' : 'none';
 }
 
+// Strips anything that isn't a letter or number as the practitioner types —
+// matches exactly what the SMS network actually allows in a sender name,
+// so what they see here always matches what a client will actually see
+// rather than finding out later that spaces/punctuation get silently
+// stripped by ClickSend anyway.
+function onSmsSenderInput() {
+  const input = document.getElementById('s-sms-sender');
+  const cleaned = input.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 11);
+  if (cleaned !== input.value) input.value = cleaned;
+  updateSmsSenderCount();
+}
+
+function updateSmsSenderCount() {
+  const input = document.getElementById('s-sms-sender');
+  const countEl = document.getElementById('sms-sender-count');
+  if (input && countEl) countEl.textContent = input.value.length + ' / 11';
+}
+
 function onAbnSearchInput() {
   clearTimeout(_abnSearchTimer);
   const query = document.getElementById('s-abn').value.trim();
@@ -7713,6 +7739,7 @@ function saveSettings() {
     website: document.getElementById('s-website').value,
     pracTitle: document.getElementById('s-prac-title').value,
     abn: document.getElementById('s-abn').value,
+    clickSendSender: document.getElementById('s-sms-sender').value,
     gstRegistered: document.getElementById('s-gst-registered').classList.contains('on'),
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
@@ -8421,6 +8448,8 @@ function loadSettingsUI() {
   if (s.phone) document.getElementById('s-phone').value = s.phone;
   if (s.website) document.getElementById('s-website').value = s.website;
   if (s.abn) document.getElementById('s-abn').value = s.abn;
+  if (s.clickSendSender) document.getElementById('s-sms-sender').value = s.clickSendSender;
+  updateSmsSenderCount();
   document.getElementById('s-gst-registered').classList.toggle('on', !!s.gstRegistered);
   updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
