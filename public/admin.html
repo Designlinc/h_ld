@@ -7966,10 +7966,18 @@ function obPositionSpotlight(attempt = 0) {
     // (this is what produced corners rounding "the wrong way"). An SVG
     // mask sidesteps the problem entirely: the cutout is drawn as an actual
     // rounded rect via SVG's own rx, which is correct by construction.
-    // White = dim layer visible, black = cut away (real content shows through).
+    // A hole in SVG requires an actual compound path with two subpaths
+    // under fill-rule="evenodd" — drawing a "transparent" rect on top of a
+    // solid one doesn't erase what's beneath it, it just paints nothing
+    // additional there, leaving the white background fully intact and
+    // visible regardless. evenodd is what makes the overlapping region
+    // genuinely unpainted (true zero alpha), which is what a mask needs.
     const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'><rect width='${vw}' height='${vh}' fill='white'/><rect x='${x}' y='${y}' width='${w}' height='${h}' rx='${targetRadius}' fill='black'/></svg>`;
-    const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    const r = Math.max(targetRadius, 0);
+    const cutoutPath = `M${x + r},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0 1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0 1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0 1 ${x + r},${y} Z`;
+    const outerPath = `M0,0 H${vw} V${vh} H0 Z`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}"><path fill-rule="evenodd" fill="white" d="${outerPath} ${cutoutPath}"/></svg>`;
+    const maskUrl = `url("data:image/svg+xml;base64,${btoa(svg)}")`;
     const dim = document.getElementById('ob-dim');
     dim.style.webkitMaskImage = maskUrl;
     dim.style.maskImage = maskUrl;
