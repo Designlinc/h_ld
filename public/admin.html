@@ -1366,14 +1366,15 @@
      anything they fill in here is the real field, already saved in place.
      Two rings: a subtle one around the whole section for context, and a
      bright one that walks field-by-field within it for actual guidance. */
-  #ob-dim-top, #ob-dim-bottom, #ob-dim-left, #ob-dim-right {
-    position: fixed; z-index: 150;
+  #ob-dim {
+    position: fixed; inset: 0; z-index: 150;
     background: rgba(20,26,28,.32);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
-    opacity: 0; pointer-events: none; transition: opacity .25s, top .3s ease, left .3s ease, width .3s ease, height .3s ease;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   }
-  #ob-dim-top.open, #ob-dim-bottom.open, #ob-dim-left.open, #ob-dim-right.open { opacity: 1; pointer-events: all; }
+  #ob-dim.open { opacity: 1; pointer-events: all; }
   #ob-spotlight-ring {
     position: fixed; z-index: 151; border-radius: 16px;
     box-shadow: 0 0 0 2px rgba(255,255,255,.5);
@@ -1394,20 +1395,20 @@
   }
   #ob-bar {
     position: fixed; z-index: 152;
-    bottom: 24px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 14px;
+    bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 22px;
     background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
     border: var(--glass-border); border-radius: 999px; box-shadow: var(--glass-shadow);
-    padding: 8px 10px 8px 18px;
+    padding: 16px 20px 16px 32px;
     opacity: 0; pointer-events: none; transition: opacity .2s;
   }
   #ob-bar.open { opacity: 1; pointer-events: all; }
   .ob-bar-left { display: flex; flex-direction: column; }
-  .ob-bar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
-  .ob-bar-title { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -.1px; }
-  .ob-bar-dots { display: flex; gap: 5px; }
-  .ob-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  .ob-bar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+  .ob-bar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
+  .ob-bar-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -.2px; }
+  .ob-bar-dots { display: flex; gap: 7px; }
+  .ob-bar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .ob-bar-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
   .ob-bar-dot.done { background: var(--sage); }
   .ob-bar-dot.current { background: var(--cal-orange); }
   #ob-tip {
@@ -4229,16 +4230,13 @@
 </div>
 
 <!-- ═══ ONBOARDING SPOTLIGHT ═══ -->
-<div id="ob-dim-top"></div>
-<div id="ob-dim-bottom"></div>
-<div id="ob-dim-left"></div>
-<div id="ob-dim-right"></div>
+<div id="ob-dim"></div>
 <div id="ob-spotlight-ring"></div>
 <div id="ob-field-ring"></div>
 <div id="ob-tip"></div>
 <div id="ob-bar">
-  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:16px;padding:14px 16px" title="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
   <div class="ob-bar-left">
     <div class="ob-bar-label">Getting set up</div>
@@ -4246,8 +4244,8 @@
   </div>
   <div class="ob-bar-dots" id="ob-bar-dots"></div>
   <div class="ob-bar-actions">
-    <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:12px;padding:8px 14px">Skip</button>
-    <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:12px;padding:8px 16px">Next</button>
+    <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:16px;padding:14px 22px">Skip</button>
+    <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:16px;padding:14px 26px">Next</button>
   </div>
 </div>
 
@@ -7868,7 +7866,7 @@ let _obResizeTimer = null;
 
 function obOpen(startStep) {
   obCurrentStep = Math.min(Math.max(startStep || 1, 1), OB_STEPS.length);
-  ['ob-dim-top', 'ob-dim-bottom', 'ob-dim-left', 'ob-dim-right'].forEach(id => document.getElementById(id).classList.add('open'));
+  document.getElementById('ob-dim').classList.add('open');
   document.getElementById('ob-spotlight-ring').classList.add('open');
   document.getElementById('ob-bar').classList.add('open');
   window.addEventListener('resize', obRepositionDebounced);
@@ -7921,11 +7919,9 @@ function obGoToStep(n) {
 }
 
 function obDimFullScreen() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  document.getElementById('ob-dim-top').style.cssText += `top:0;left:0;width:${vw}px;height:${vh}px;`;
-  document.getElementById('ob-dim-bottom').style.cssText += `top:${vh}px;left:0;width:${vw}px;height:0px;`;
-  document.getElementById('ob-dim-left').style.cssText += `top:0;left:0;width:0px;height:${vh}px;`;
-  document.getElementById('ob-dim-right').style.cssText += `top:0;left:${vw}px;width:0px;height:${vh}px;`;
+  const dim = document.getElementById('ob-dim');
+  dim.style.webkitMaskImage = 'none';
+  dim.style.maskImage = 'none';
   document.getElementById('ob-spotlight-ring').classList.remove('open');
 }
 
@@ -7958,48 +7954,32 @@ function obPositionSpotlight(attempt = 0) {
 
   setTimeout(() => {
     const rect = target.getBoundingClientRect();
-    const pad = 0; // exact match to the real panel's own size, no extra margin
-    const x = Math.max(rect.left - pad, 0);
-    const y = Math.max(rect.top - pad, 0);
-    const w = rect.width + pad * 2;
-    const h = rect.height + pad * 2;
+    const x = Math.max(rect.left, 0);
+    const y = Math.max(rect.top, 0);
+    const w = rect.width;
+    const h = rect.height;
     const vw = window.innerWidth, vh = window.innerHeight;
 
-    // Four rectangles surrounding the target rect exactly — simpler and
-    // more robust than a single clip-path polygon "keyhole", which is easy
-    // to get subtly wrong in a way that silently fails to show any cutout
-    // at all. Top and bottom span the full width; left and right fill in
-    // the sides at exactly the target's height.
-    //
-    // Only left/right actually touch the target's corners (top/bottom span
-    // the full viewport width, so they never meet a corner) — each gets
-    // rounding on just its two inner corners, matching the real target's
-    // own border-radius, so the cutout doesn't show square notches poking
-    // in around an otherwise-rounded ring.
+    // A rounded-rect cutout can't be built correctly from separate
+    // rectangles — each one's border-radius only curves into its own body,
+    // which is the wrong direction to continue a neighboring shape's curve
+    // (this is what produced corners rounding "the wrong way"). An SVG
+    // mask sidesteps the problem entirely: the cutout is drawn as an actual
+    // rounded rect via SVG's own rx, which is correct by construction.
+    // White = dim layer visible, black = cut away (real content shows through).
     const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
-
-    const top = document.getElementById('ob-dim-top');
-    top.style.top = '0'; top.style.left = '0'; top.style.width = vw + 'px'; top.style.height = Math.max(y, 0) + 'px';
-    top.style.borderRadius = '0';
-
-    const bottom = document.getElementById('ob-dim-bottom');
-    bottom.style.top = (y + h) + 'px'; bottom.style.left = '0'; bottom.style.width = vw + 'px'; bottom.style.height = Math.max(vh - (y + h), 0) + 'px';
-    bottom.style.borderRadius = '0';
-
-    const left = document.getElementById('ob-dim-left');
-    left.style.top = y + 'px'; left.style.left = '0'; left.style.width = Math.max(x, 0) + 'px'; left.style.height = h + 'px';
-    left.style.borderRadius = `0 ${targetRadius}px ${targetRadius}px 0`; // top-right, bottom-right — the corners facing the cutout
-
-    const right = document.getElementById('ob-dim-right');
-    right.style.top = y + 'px'; right.style.left = (x + w) + 'px'; right.style.width = Math.max(vw - (x + w), 0) + 'px'; right.style.height = h + 'px';
-    right.style.borderRadius = `${targetRadius}px 0 0 ${targetRadius}px`; // top-left, bottom-left — the corners facing the cutout
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'><rect width='${vw}' height='${vh}' fill='white'/><rect x='${x}' y='${y}' width='${w}' height='${h}' rx='${targetRadius}' fill='black'/></svg>`;
+    const maskUrl = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    const dim = document.getElementById('ob-dim');
+    dim.style.webkitMaskImage = maskUrl;
+    dim.style.maskImage = maskUrl;
 
     const ring = document.getElementById('ob-spotlight-ring');
     ring.style.left = x + 'px';
     ring.style.top = y + 'px';
     ring.style.width = w + 'px';
     ring.style.height = h + 'px';
-    ring.style.borderRadius = (targetRadius + pad) + 'px';
+    ring.style.borderRadius = targetRadius + 'px';
 
     // Tip bubble sits just below the spotlight, or above it if there's not
     // enough room underneath. Suppressed for steps with a field walk —
@@ -8134,7 +8114,7 @@ function obSkip() {
 async function obFinish() {
   obSaveCurrentStepIfNeeded();
   obClearFieldWalk();
-  ['ob-dim-top', 'ob-dim-bottom', 'ob-dim-left', 'ob-dim-right'].forEach(id => document.getElementById(id).classList.remove('open'));
+  document.getElementById('ob-dim').classList.remove('open');
   document.getElementById('ob-spotlight-ring').classList.remove('open');
   document.getElementById('ob-bar').classList.remove('open');
   document.getElementById('ob-tip').classList.remove('open');
