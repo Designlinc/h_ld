@@ -7736,6 +7736,9 @@ async function saveService() {
     closeServiceModal();
     _serviceDraft = null;
     renderServices();
+
+    const count = getServices().length;
+    obRefreshTip('services', `${count} service${count === 1 ? '' : 's'} added. Add another, or click Next to continue.`);
   } catch (err) {
     // flushServicesSync already shows its own error toast — leaving the
     // modal open here (rather than closing it as if this succeeded) so
@@ -7949,6 +7952,22 @@ function obRenderDots() {
 // Back/Skip/Next instead of closing one themselves, it would otherwise be
 // left open and orphaned behind the next step's spotlight. Closes anything
 // currently open rather than tracking each specific modal individually.
+// Updates the tip bubble's text and makes sure it's showing — used right
+// after an action succeeds (a service created, a form template applied)
+// to confirm it worked and say what to do next. The real page is still
+// blurred out behind the spotlight at this point, so a toast alone isn't
+// enough — it's the only easily-missed sign, and disappears in a couple
+// of seconds. The tip bubble is the one piece of onboarding UI that
+// stays visible, so it needs to carry the confirmation itself.
+function obRefreshTip(stepKey, message) {
+  if (!document.getElementById('ob-bar')?.classList.contains('open')) return;
+  const step = OB_STEPS[obCurrentStep - 1];
+  if (!step || step.key !== stepKey) return;
+  const tip = document.getElementById('ob-tip');
+  tip.textContent = message;
+  tip.classList.add('open');
+}
+
 function obCloseAnyOpenModal() {
   document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
 }
@@ -8236,8 +8255,11 @@ async function loadForms() {
 }
 function setForms(f) {
   _cache.forms = f;
-  apiFetch('/forms', { method: 'PUT', body: JSON.stringify(f) })
-    .catch(err => console.warn('Forms sync failed:', err.message));
+  return apiFetch('/forms', { method: 'PUT', body: JSON.stringify(f) })
+    .catch(err => {
+      toast('Could not save form changes: ' + err.message, 'error');
+      throw err; // re-thrown so a caller that awaits this can detect the failure, not just silently logging it
+    });
 }
 
 function defaultForms() {
@@ -8282,7 +8304,7 @@ function openTemplatePickerModal() {
 function closeTemplatePickerModal() { document.getElementById('template-picker-modal-backdrop').classList.remove('open'); }
 function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget) closeTemplatePickerModal(); }
 
-function applyFormTemplate(templateKey) {
+async function applyFormTemplate(templateKey) {
   const template = (INTAKE_FORM_TEMPLATES || []).find(t => t.key === templateKey);
   if (!template) return;
 
@@ -8293,10 +8315,22 @@ function applyFormTemplate(templateKey) {
 
   const forms = getForms();
   forms.push({ id: 'f' + Date.now(), name: template.name + ' Intake', serviceId: null, active: true, fields });
-  setForms(forms);
+
+  try {
+    await setForms(forms);
+  } catch (err) {
+    return; // setForms already showed the error — leave the picker open so they can retry rather than closing on an unconfirmed save
+  }
+
   closeTemplatePickerModal();
   renderForms();
   toast(template.name + ' template added — customise it, then save', 'success');
+
+  // The real Forms page is still blurred out behind the onboarding
+  // spotlight at this point, so there's no way to actually see that this
+  // worked — the tip bubble is the only onboarding-visible confirmation,
+  // and it needs to say so explicitly rather than just going quiet.
+  obRefreshTip('forms', `"${template.name}" added — click Next to continue, or pick a different template.`);
 }
 let fbFields = []; // working copy of fields being edited
 
