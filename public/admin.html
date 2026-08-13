@@ -1394,15 +1394,19 @@
   }
   #ob-bar {
     position: fixed; z-index: 502;
-    display: flex; align-items: flex-start; justify-content: space-between;
-    opacity: 0; pointer-events: none; transition: opacity .2s, top .3s ease, left .3s ease, width .3s ease;
+    bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: var(--glass-border); border-radius: 999px; box-shadow: var(--glass-shadow);
+    padding: 8px 10px 8px 18px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
   }
   #ob-bar.open { opacity: 1; pointer-events: all; }
-  .ob-bar-left { display: flex; align-items: center; gap: 12px; }
-  .ob-bar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
-  .ob-bar-title { font-family: "quincy-cf", serif; font-size: 30px; font-weight: 700; color: var(--ink); letter-spacing: -.3px; line-height: 1; margin-top: 4px; }
+  .ob-bar-left { display: flex; flex-direction: column; }
+  .ob-bar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--cal-orange); }
+  .ob-bar-title { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -.1px; }
   .ob-bar-dots { display: flex; gap: 5px; }
-  .ob-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-top: 4px; }
+  .ob-bar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .ob-bar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
   .ob-bar-dot.done { background: var(--sage); }
   .ob-bar-dot.current { background: var(--cal-orange); }
@@ -4233,17 +4237,15 @@
 <div id="ob-field-ring"></div>
 <div id="ob-tip"></div>
 <div id="ob-bar">
+  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
   <div class="ob-bar-left">
-    <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:12px;padding:8px 10px" title="Back">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div>
-      <div class="ob-bar-label">Getting set up</div>
-      <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
-    </div>
+    <div class="ob-bar-label">Getting set up</div>
+    <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
   </div>
+  <div class="ob-bar-dots" id="ob-bar-dots"></div>
   <div class="ob-bar-actions">
-    <div class="ob-bar-dots" id="ob-bar-dots"></div>
     <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:12px;padding:8px 14px">Skip</button>
     <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:12px;padding:8px 16px">Next</button>
   </div>
@@ -7875,7 +7877,7 @@ function obOpen(startStep) {
 
 function obRepositionDebounced() {
   clearTimeout(_obResizeTimer);
-  _obResizeTimer = setTimeout(() => { obPositionSpotlight(); obPositionHeaderBar(); }, 120);
+  _obResizeTimer = setTimeout(() => { obPositionSpotlight(); }, 120);
 }
 
 function obRenderDots() {
@@ -7905,29 +7907,16 @@ function obGoToStep(n) {
 
   // Two rAFs: one for the page-switch DOM to settle, one for layout to
   // actually reflow before measuring the target's real position.
-  requestAnimationFrame(() => requestAnimationFrame(() => { obPositionSpotlight(); obPositionHeaderBar(); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => { obPositionSpotlight(); }));
 }
 
-// Positions the step bar exactly where the current page's own header sits —
-// same title position, same action-button position — rather than a
-// separately invented floating element. The real header is still there
-// underneath (and gets blurred like the rest of the non-spotlighted page),
-// this sits on top of it at full clarity.
-function obPositionHeaderBar(attempt = 0) {
-  const header = document.querySelector('.page.active .page-header');
-  const bar = document.getElementById('ob-bar');
-  if (!header) {
-    if (attempt < 12) setTimeout(() => obPositionHeaderBar(attempt + 1), 150);
-    return;
-  }
-  const rect = header.getBoundingClientRect();
-  if (rect.width === 0 && rect.height === 0) {
-    if (attempt < 12) setTimeout(() => obPositionHeaderBar(attempt + 1), 150);
-    return;
-  }
-  bar.style.top = rect.top + 'px';
-  bar.style.left = rect.left + 'px';
-  bar.style.width = rect.width + 'px';
+function obDimFullScreen() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  document.getElementById('ob-dim-top').style.cssText += `top:0;left:0;width:${vw}px;height:${vh}px;`;
+  document.getElementById('ob-dim-bottom').style.cssText += `top:${vh}px;left:0;width:${vw}px;height:0px;`;
+  document.getElementById('ob-dim-left').style.cssText += `top:0;left:0;width:0px;height:${vh}px;`;
+  document.getElementById('ob-dim-right').style.cssText += `top:0;left:${vw}px;width:0px;height:${vh}px;`;
+  document.getElementById('ob-spotlight-ring').classList.remove('open');
 }
 
 function obPositionSpotlight(attempt = 0) {
@@ -7941,7 +7930,17 @@ function obPositionSpotlight(attempt = 0) {
   // silently landing in the wrong place, since a 0×0 rect still "measures"
   // successfully, it's just meaningless).
   if (!target || (rectNow.width === 0 && rectNow.height === 0)) {
-    if (attempt < 12) setTimeout(() => obPositionSpotlight(attempt + 1), 150);
+    if (attempt < 12) {
+      setTimeout(() => obPositionSpotlight(attempt + 1), 150);
+    } else {
+      // Never found a valid target to measure — dim the whole screen
+      // rather than leaving the four panels with no position ever set,
+      // which left them at zero size and therefore invisible despite
+      // technically being "open". A full dim with no cutout is a worse
+      // experience than a working spotlight, but it's a real, visible
+      // state instead of a silent failure that looks like a random bug.
+      obDimFullScreen();
+    }
     return;
   }
 
@@ -7978,6 +7977,11 @@ function obPositionSpotlight(attempt = 0) {
     ring.style.top = y + 'px';
     ring.style.width = w + 'px';
     ring.style.height = h + 'px';
+    // Match the real element's own rounding (plus the padding added around
+    // it) instead of a hardcoded guess that can visibly mismatch the
+    // actual panel's corners.
+    const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
+    ring.style.borderRadius = (targetRadius + pad) + 'px';
 
     // Tip bubble sits just below the spotlight, or above it if there's not
     // enough room underneath. Suppressed for steps with a field walk —
