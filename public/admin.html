@@ -7973,7 +7973,14 @@ function obPositionSpotlight(attempt = 0) {
     // visible regardless. evenodd is what makes the overlapping region
     // genuinely unpainted (true zero alpha), which is what a mask needs.
     const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
-    const r = Math.max(targetRadius, 0);
+    // Browsers automatically cap border-radius rendering at 50% of the
+    // smaller dimension — a pill-shaped button might genuinely have
+    // border-radius:999px in CSS while only being ~40px tall, and the
+    // *rendered* radius is capped accordingly. This path is built by hand,
+    // so it needs that same cap explicitly — without it, a radius larger
+    // than the shape itself makes the arc math self-intersect into a
+    // bowtie/X pattern instead of a rounded rectangle.
+    const r = Math.max(Math.min(targetRadius, w / 2, h / 2), 0);
     const cutoutPath = `M${x + r},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0 1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0 1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0 1 ${x + r},${y} Z`;
     const outerPath = `M0,0 H${vw} V${vh} H0 Z`;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}"><path fill-rule="evenodd" fill="white" d="${outerPath} ${cutoutPath}"/></svg>`;
