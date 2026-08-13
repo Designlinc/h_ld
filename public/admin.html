@@ -7970,27 +7970,35 @@ function obPositionSpotlight(attempt = 0) {
     // to get subtly wrong in a way that silently fails to show any cutout
     // at all. Top and bottom span the full width; left and right fill in
     // the sides at exactly the target's height.
+    //
+    // Only left/right actually touch the target's corners (top/bottom span
+    // the full viewport width, so they never meet a corner) — each gets
+    // rounding on just its two inner corners, matching the real target's
+    // own border-radius, so the cutout doesn't show square notches poking
+    // in around an otherwise-rounded ring.
+    const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
+
     const top = document.getElementById('ob-dim-top');
     top.style.top = '0'; top.style.left = '0'; top.style.width = vw + 'px'; top.style.height = Math.max(y, 0) + 'px';
+    top.style.borderRadius = '0';
 
     const bottom = document.getElementById('ob-dim-bottom');
     bottom.style.top = (y + h) + 'px'; bottom.style.left = '0'; bottom.style.width = vw + 'px'; bottom.style.height = Math.max(vh - (y + h), 0) + 'px';
+    bottom.style.borderRadius = '0';
 
     const left = document.getElementById('ob-dim-left');
     left.style.top = y + 'px'; left.style.left = '0'; left.style.width = Math.max(x, 0) + 'px'; left.style.height = h + 'px';
+    left.style.borderRadius = `0 ${targetRadius}px ${targetRadius}px 0`; // top-right, bottom-right — the corners facing the cutout
 
     const right = document.getElementById('ob-dim-right');
     right.style.top = y + 'px'; right.style.left = (x + w) + 'px'; right.style.width = Math.max(vw - (x + w), 0) + 'px'; right.style.height = h + 'px';
+    right.style.borderRadius = `${targetRadius}px 0 0 ${targetRadius}px`; // top-left, bottom-left — the corners facing the cutout
 
     const ring = document.getElementById('ob-spotlight-ring');
     ring.style.left = x + 'px';
     ring.style.top = y + 'px';
     ring.style.width = w + 'px';
     ring.style.height = h + 'px';
-    // Match the real element's own rounding (plus the padding added around
-    // it) instead of a hardcoded guess that can visibly mismatch the
-    // actual panel's corners.
-    const targetRadius = parseFloat(getComputedStyle(target).borderRadius) || 0;
     ring.style.borderRadius = (targetRadius + pad) + 'px';
 
     // Tip bubble sits just below the spotlight, or above it if there's not
