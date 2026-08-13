@@ -1367,7 +1367,7 @@
      Two rings: a subtle one around the whole section for context, and a
      bright one that walks field-by-field within it for actual guidance. */
   #ob-dim-top, #ob-dim-bottom, #ob-dim-left, #ob-dim-right {
-    position: fixed; z-index: 500;
+    position: fixed; z-index: 150;
     background: rgba(20,26,28,.32);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
@@ -1375,13 +1375,13 @@
   }
   #ob-dim-top.open, #ob-dim-bottom.open, #ob-dim-left.open, #ob-dim-right.open { opacity: 1; pointer-events: all; }
   #ob-spotlight-ring {
-    position: fixed; z-index: 501; border-radius: 16px;
+    position: fixed; z-index: 151; border-radius: 16px;
     box-shadow: 0 0 0 2px rgba(255,255,255,.5);
     pointer-events: none; opacity: 0; transition: opacity .25s, top .35s ease, left .35s ease, width .35s ease, height .35s ease;
   }
   #ob-spotlight-ring.open { opacity: 1; }
   #ob-field-ring {
-    position: fixed; z-index: 505; border-radius: 10px;
+    position: fixed; z-index: 155; border-radius: 10px;
     box-shadow: 0 0 0 3px #2563EB, 0 0 0 7px rgba(37,99,235,.25), 0 4px 16px rgba(37,99,235,.3);
     pointer-events: none; opacity: 0;
     transition: opacity .2s, top .25s cubic-bezier(.4,0,.2,1), left .25s cubic-bezier(.4,0,.2,1), width .25s cubic-bezier(.4,0,.2,1), height .25s cubic-bezier(.4,0,.2,1);
@@ -1393,7 +1393,7 @@
     50%      { box-shadow: 0 0 0 3px #2563EB, 0 0 0 10px rgba(37,99,235,.15), 0 4px 20px rgba(37,99,235,.4); }
   }
   #ob-bar {
-    position: fixed; z-index: 502;
+    position: fixed; z-index: 152;
     bottom: 24px; left: 50%; transform: translateX(-50%);
     display: flex; align-items: center; gap: 14px;
     background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
@@ -1411,7 +1411,7 @@
   .ob-bar-dot.done { background: var(--sage); }
   .ob-bar-dot.current { background: var(--cal-orange); }
   #ob-tip {
-    position: fixed; z-index: 503; max-width: 280px;
+    position: fixed; z-index: 153; max-width: 280px;
     background: var(--ink); color: #fff; font-size: 13px; line-height: 1.5;
     padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-md);
     opacity: 0; pointer-events: none; transition: opacity .2s;
@@ -7888,12 +7888,22 @@ function obRenderDots() {
   }).join('');
 }
 
+// Onboarding steps can trigger real modals (service creation, template
+// picker, connection wizard) — if the practitioner navigates away via
+// Back/Skip/Next instead of closing one themselves, it would otherwise be
+// left open and orphaned behind the next step's spotlight. Closes anything
+// currently open rather than tracking each specific modal individually.
+function obCloseAnyOpenModal() {
+  document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
+}
+
 function obGoToStep(n) {
   if (n > OB_STEPS.length) return obFinish();
   if (n < 1) n = 1;
   obCurrentStep = n;
   DB.set('ob_resume_step', n); // survives a full page reload/redirect (e.g. connecting Google/Square/Xero)
   obClearFieldWalk();
+  obCloseAnyOpenModal();
 
   const step = OB_STEPS[n - 1];
   document.getElementById('ob-bar-title').textContent = step.title;
@@ -7948,9 +7958,9 @@ function obPositionSpotlight(attempt = 0) {
 
   setTimeout(() => {
     const rect = target.getBoundingClientRect();
-    const pad = 10;
-    const x = Math.max(rect.left - pad, 4);
-    const y = Math.max(rect.top - pad, 4);
+    const pad = 0; // exact match to the real panel's own size, no extra margin
+    const x = Math.max(rect.left - pad, 0);
+    const y = Math.max(rect.top - pad, 0);
     const w = rect.width + pad * 2;
     const h = rect.height + pad * 2;
     const vw = window.innerWidth, vh = window.innerHeight;
@@ -8013,7 +8023,7 @@ function obClearFieldWalk() {
   document.getElementById('ob-field-ring').classList.remove('open');
   if (_obFieldListenerEl && _obFieldListener) {
     _obFieldListenerEl.removeEventListener('input', _obFieldListener);
-    _obFieldListenerEl.removeEventListener('blur', _obFieldListener);
+    _obFieldListenerEl.removeEventListener('focus', _obFieldListener);
   }
   _obFieldListener = null;
   _obFieldListenerEl = null;
@@ -8029,13 +8039,14 @@ function obIsFieldFilled(fieldId) {
   return true;
 }
 
-function obWalkFields(step) {
+function obWalkFields(step, index = 0) {
   obClearFieldWalk();
-  const nextField = (step.fields || []).find(id => !obIsFieldFilled(id));
-  if (!nextField) return; // everything in this step is already filled — no field ring needed
+  const fields = step.fields || [];
+  if (index >= fields.length) return; // walked every field in this step — done
 
-  const el = document.getElementById(nextField);
-  if (!el) return;
+  const fieldId = fields[index];
+  const el = document.getElementById(fieldId);
+  if (!el) { obWalkFields(step, index + 1); return; }
 
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   setTimeout(() => {
@@ -8049,12 +8060,19 @@ function obWalkFields(step) {
     ring.classList.add('open');
   }, 200);
 
-  _obFieldListener = () => {
-    if (obIsFieldFilled(nextField)) obWalkFields(step); // move to the next incomplete field, or clear the ring if that was the last one
-  };
+  const advance = () => obWalkFields(step, index + 1);
   _obFieldListenerEl = el;
-  el.addEventListener('input', _obFieldListener);
-  el.addEventListener('blur', _obFieldListener);
+  if (obIsFieldFilled(fieldId)) {
+    // Already has a value (e.g. pre-filled from signup) — just reviewing it
+    // is enough to move on, a single click/focus counts as "seen it".
+    _obFieldListener = advance;
+    el.addEventListener('focus', _obFieldListener);
+  } else {
+    // Genuinely empty — has to wait for actual content, otherwise clicking
+    // into the field would jump the ring away before anything's been typed.
+    _obFieldListener = advance;
+    el.addEventListener('input', _obFieldListener);
+  }
 }
 
 function obSaveCurrentStepIfNeeded() {
