@@ -5089,6 +5089,7 @@ let currentPage = 'dashboard';
 let currentBookingTab = 'upcoming';
 let selectedBookingId = null;
 let editingServiceId = null;
+let _serviceDraft = null; // remembers unsaved "New Service" content if the modal gets closed without saving — not used when editing an existing service, since that data is already safely saved server-side regardless
 let editingBookingId = null;
 let currentServiceImage = null; // base64 string or null
 
@@ -7602,6 +7603,18 @@ function openServiceModal(id) {
       document.getElementById('sm-location').value = s.location || '';
       if (s.image) setImagePreview(s.image);
     }
+  } else if (_serviceDraft) {
+    // Picking back up where they left off after an accidental close —
+    // standard click-off-to-close UX stays intact, nothing typed is lost.
+    document.getElementById('sm-name').value = _serviceDraft.name || '';
+    document.getElementById('sm-desc').value = _serviceDraft.desc || '';
+    document.getElementById('sm-duration').value = _serviceDraft.duration ?? 60;
+    document.getElementById('sm-price').value = _serviceDraft.price ?? 0;
+    document.getElementById('sm-deposit').value = _serviceDraft.deposit ?? 0;
+    document.getElementById('sm-category').value = _serviceDraft.category || 'initial';
+    document.getElementById('sm-location').value = _serviceDraft.location || '';
+    if (_serviceDraft.image) setImagePreview(_serviceDraft.image);
+    toast('Restored what you had entered previously', '');
   } else {
     ['sm-name','sm-desc','sm-location'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('sm-duration').value = 60;
@@ -7669,8 +7682,30 @@ function handleImageUpload(e) {
 
 function removeServiceImage() { setImagePreview(null); }
 
-function closeServiceModal() { document.getElementById('service-modal-backdrop').classList.remove('open'); }
-function closeServiceModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeServiceModal(); }
+function closeServiceModal() {
+  // Remembers what was typed if this was a brand-new (not editing) service
+  // with any real content — covers all three ways of closing without
+  // saving (X, Cancel, clicking the backdrop), since they all call this
+  // same function. saveService()'s own success path clears this right
+  // after, since there's nothing left to remember once it's actually saved.
+  if (!editingServiceId) {
+    const name = document.getElementById('sm-name').value.trim();
+    const desc = document.getElementById('sm-desc').value.trim();
+    const location = document.getElementById('sm-location').value.trim();
+    if (name || desc || location) {
+      _serviceDraft = {
+        name, desc, location,
+        duration: document.getElementById('sm-duration').value,
+        price: document.getElementById('sm-price').value,
+        deposit: document.getElementById('sm-deposit').value,
+        category: document.getElementById('sm-category').value,
+        image: currentServiceImage,
+      };
+    }
+  }
+  document.getElementById('service-modal-backdrop').classList.remove('open');
+}
+function closeServiceModalIfBg(e) { if (e.target === e.currentTarget) closeServiceModal(); }
 
 async function saveService() {
   const name = document.getElementById('sm-name').value.trim();
@@ -7699,6 +7734,7 @@ async function saveService() {
     await flushServicesSync();
     toast(isNew ? 'Service created' : 'Service updated', 'success');
     closeServiceModal();
+    _serviceDraft = null;
     renderServices();
   } catch (err) {
     // flushServicesSync already shows its own error toast — leaving the
@@ -7913,15 +7949,6 @@ function obRenderDots() {
 // Back/Skip/Next instead of closing one themselves, it would otherwise be
 // left open and orphaned behind the next step's spotlight. Closes anything
 // currently open rather than tracking each specific modal individually.
-// True while the spotlight is actively showing — used to suppress
-// accidental backdrop-click-to-close on modals opened from within an
-// onboarding step (Services, Forms, Connections), since losing everything
-// just typed to a stray click is a much bigger deal mid-onboarding than
-// it is during normal use, where that same click-off-to-close is expected.
-function obIsActive() {
-  return document.getElementById('ob-bar')?.classList.contains('open');
-}
-
 function obCloseAnyOpenModal() {
   document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
 }
@@ -8253,7 +8280,7 @@ function openTemplatePickerModal() {
   document.getElementById('template-picker-modal-backdrop').classList.add('open');
 }
 function closeTemplatePickerModal() { document.getElementById('template-picker-modal-backdrop').classList.remove('open'); }
-function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeTemplatePickerModal(); }
+function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget) closeTemplatePickerModal(); }
 
 function applyFormTemplate(templateKey) {
   const template = (INTAKE_FORM_TEMPLATES || []).find(t => t.key === templateKey);
@@ -9269,7 +9296,7 @@ function calBack() {
 }
 
 function closeCalModal() { document.getElementById('cal-modal-backdrop').classList.remove('open'); }
-function closeCalModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeCalModal(); }
+function closeCalModalIfBg(e) { if (e.target === e.currentTarget) closeCalModal(); }
 
 // ═══════════════════════════════════════════════════════════
 // BOOKINGS VIEW TOGGLE
