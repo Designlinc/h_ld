@@ -4976,7 +4976,10 @@ function flushServicesSync() {
     _servicesSyncPromise = apiFetch('/services', {
       method: 'PUT',
       body: JSON.stringify(denormalizeServicesForSync(_cache.services || [])),
-    }).catch(err => toast('Could not save service changes: ' + err.message, 'error'));
+    }).catch(err => {
+      toast('Could not save service changes: ' + err.message, 'error');
+      throw err; // re-thrown so a caller that awaits this can actually detect the failure, not just fire-and-forget callers relying on the toast alone
+    });
   }
   return _servicesSyncPromise;
 }
@@ -7667,24 +7670,44 @@ function handleImageUpload(e) {
 function removeServiceImage() { setImagePreview(null); }
 
 function closeServiceModal() { document.getElementById('service-modal-backdrop').classList.remove('open'); }
-function closeServiceModalIfBg(e) { if (e.target === e.currentTarget) closeServiceModal(); }
+function closeServiceModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeServiceModal(); }
 
-function saveService() {
+async function saveService() {
   const name = document.getElementById('sm-name').value.trim();
   if (!name) { toast('Service name is required', 'error'); return; }
   const services = getServices();
   const data = { name, image: currentServiceImage || null, icon: null, desc: document.getElementById('sm-desc').value, duration: parseInt(document.getElementById('sm-duration').value) || 60, price: parseFloat(document.getElementById('sm-price').value) || 0, deposit: parseFloat(document.getElementById('sm-deposit').value) || 0, category: document.getElementById('sm-category').value, location: document.getElementById('sm-location').value, active: true };
+  const isNew = !editingServiceId;
   if (editingServiceId) {
     const idx = services.findIndex(s => s.id === editingServiceId);
     if (idx >= 0) services[idx] = { ...services[idx], ...data };
-    toast('Service updated', 'success');
   } else {
     services.push({ id: 's' + Date.now(), ...data });
-    toast('Service created', 'success');
   }
   setServices(services);
-  closeServiceModal();
-  renderServices();
+
+  // Waits for the actual server write to confirm before closing the modal
+  // or declaring success — this used to close immediately and rely on a
+  // background save that could silently fail with only an easily-missed
+  // toast as the only sign, which is exactly what "pressed save, it
+  // closed, but nothing was actually saved" looks like from the outside.
+  const btn = document.getElementById('service-save-btn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await flushServicesSync();
+    toast(isNew ? 'Service created' : 'Service updated', 'success');
+    closeServiceModal();
+    renderServices();
+  } catch (err) {
+    // flushServicesSync already shows its own error toast — leaving the
+    // modal open here (rather than closing it as if this succeeded) so
+    // there's a clear chance to retry instead of silently losing it.
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
 }
 
 function deleteService(id) {
@@ -7890,6 +7913,15 @@ function obRenderDots() {
 // Back/Skip/Next instead of closing one themselves, it would otherwise be
 // left open and orphaned behind the next step's spotlight. Closes anything
 // currently open rather than tracking each specific modal individually.
+// True while the spotlight is actively showing — used to suppress
+// accidental backdrop-click-to-close on modals opened from within an
+// onboarding step (Services, Forms, Connections), since losing everything
+// just typed to a stray click is a much bigger deal mid-onboarding than
+// it is during normal use, where that same click-off-to-close is expected.
+function obIsActive() {
+  return document.getElementById('ob-bar')?.classList.contains('open');
+}
+
 function obCloseAnyOpenModal() {
   document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
 }
@@ -8221,7 +8253,7 @@ function openTemplatePickerModal() {
   document.getElementById('template-picker-modal-backdrop').classList.add('open');
 }
 function closeTemplatePickerModal() { document.getElementById('template-picker-modal-backdrop').classList.remove('open'); }
-function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget) closeTemplatePickerModal(); }
+function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeTemplatePickerModal(); }
 
 function applyFormTemplate(templateKey) {
   const template = (INTAKE_FORM_TEMPLATES || []).find(t => t.key === templateKey);
@@ -9237,7 +9269,7 @@ function calBack() {
 }
 
 function closeCalModal() { document.getElementById('cal-modal-backdrop').classList.remove('open'); }
-function closeCalModalIfBg(e) { if (e.target === e.currentTarget) closeCalModal(); }
+function closeCalModalIfBg(e) { if (e.target === e.currentTarget && !obIsActive()) closeCalModal(); }
 
 // ═══════════════════════════════════════════════════════════
 // BOOKINGS VIEW TOGGLE
