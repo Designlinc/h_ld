@@ -2721,6 +2721,32 @@
           <div class="form-row" style="margin-top:16px">
             <div class="form-group"><label class="form-label">Buffer Between Appointments (minutes)</label><input class="form-input" id="s-buffer" type="number" value="15" min="0" max="60"></div>
           </div>
+
+          <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">Holidays &amp; Time Off</div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="openHolidayForm()">+ Add holiday</button>
+            </div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">Block out dates you're away — clients won't be able to book during this time. Past holidays are removed automatically.</div>
+            <div id="holidays-list"></div>
+            <div id="holiday-form" style="display:none;margin-top:12px;padding:14px;background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:var(--radius)">
+              <div class="form-row full">
+                <div class="form-group"><label class="form-label">Label (optional)</label><input class="form-input" id="hol-label" placeholder="e.g. Christmas break"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">From</label><input class="form-input" id="hol-start-date" type="date"></div>
+                <div class="form-group"><label class="form-label">From time (optional)</label><input class="form-input" id="hol-start-time" type="time"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">To</label><input class="form-input" id="hol-end-date" type="date"></div>
+                <div class="form-group"><label class="form-label">To time (optional)</label><input class="form-input" id="hol-end-time" type="time"></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-primary" style="font-size:12px;padding:8px 16px" id="holiday-save-btn" onclick="saveHoliday()">Save holiday</button>
+                <button class="btn btn-ghost" style="font-size:12px;padding:8px 16px" onclick="closeHolidayForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -7864,6 +7890,119 @@ function removeLogo() {
   toast('Logo removed', 'success');
 }
 
+// ═══════════════════════════════════════════════════════════
+// HOLIDAYS / TIME OFF
+// "Automatically removed once passed" is handled by always filtering to
+// upcoming/current holidays wherever they're displayed or checked, rather
+// than needing a scheduled cleanup job that could fail silently — a past
+// holiday simply stops being shown or blocking anything, with nothing
+// extra to maintain.
+// ═══════════════════════════════════════════════════════════
+
+// Only holidays that haven't fully ended yet — this one filter is what
+// makes past holidays disappear automatically, everywhere this is used.
+function getActiveHolidays(settings) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return (settings.holidays || []).filter(h => new Date(h.end + 'T23:59:59') >= today);
+}
+
+function renderHolidaysList() {
+  const el = document.getElementById('holidays-list');
+  if (!el) return;
+  const holidays = getActiveHolidays(getSettings()).sort((a, b) => a.start.localeCompare(b.start));
+  if (!holidays.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0">No upcoming holidays scheduled.</div>';
+    return;
+  }
+  const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+  el.innerHTML = holidays.map(h => {
+    const range = h.start === h.end ? fmt(h.start) : `${fmt(h.start)} – ${fmt(h.end)}`;
+    const times = (h.startTime || h.endTime) ? ` (${h.startTime || 'start of day'} – ${h.endTime || 'end of day'})` : '';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">${h.label || 'Time off'}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">${range}${times}</div>
+      </div>
+      <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red)" onclick="deleteHoliday('${h.id}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function openHolidayForm() {
+  document.getElementById('holiday-form').style.display = 'block';
+  document.getElementById('hol-label').value = '';
+  document.getElementById('hol-start-date').value = '';
+  document.getElementById('hol-start-time').value = '';
+  document.getElementById('hol-end-date').value = '';
+  document.getElementById('hol-end-time').value = '';
+}
+
+function closeHolidayForm() {
+  document.getElementById('holiday-form').style.display = 'none';
+}
+
+// A dedicated, awaited save rather than routing through the page-wide
+// debounced settings sync — add/remove here should confirm immediately,
+// the same reliability fix already applied to services and forms earlier.
+async function saveHolidaysToServer() {
+  const settings = getSettings();
+  try {
+    await apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'app_settings', value: settings }) });
+  } catch (err) {
+    toast('Could not save holiday: ' + err.message, 'error');
+    throw err;
+  }
+}
+
+async function saveHoliday() {
+  const startDate = document.getElementById('hol-start-date').value;
+  const endDate = document.getElementById('hol-end-date').value || startDate;
+  if (!startDate) { toast('Please choose a start date', 'error'); return; }
+  if (endDate < startDate) { toast('End date can\'t be before the start date', 'error'); return; }
+
+  const holiday = {
+    id: 'hol' + Date.now(),
+    label: document.getElementById('hol-label').value.trim(),
+    start: startDate,
+    end: endDate,
+    startTime: document.getElementById('hol-start-time').value || null,
+    endTime: document.getElementById('hol-end-time').value || null,
+  };
+
+  const settings = getSettings();
+  const holidays = [...(settings.holidays || []), holiday];
+  _cache.settings.holidays = holidays;
+
+  const btn = document.getElementById('holiday-save-btn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    await saveHolidaysToServer();
+    toast('Holiday added', 'success');
+    closeHolidayForm();
+    renderHolidaysList();
+  } catch (err) {
+    _cache.settings.holidays = settings.holidays || []; // roll back — the save didn't actually succeed
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
+async function deleteHoliday(id) {
+  const settings = getSettings();
+  const before = settings.holidays || [];
+  _cache.settings.holidays = before.filter(h => h.id !== id);
+  renderHolidaysList();
+  try {
+    await saveHolidaysToServer();
+  } catch (err) {
+    _cache.settings.holidays = before; // roll back and re-render if the removal didn't actually save
+    renderHolidaysList();
+  }
+}
+
 function saveSettings() {
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const daySchedule = {};
@@ -7890,6 +8029,7 @@ function saveSettings() {
     daySchedule,
     buffer: parseInt(document.getElementById('s-buffer').value) || 15,
     cancelPolicy: document.getElementById('s-cancel-policy').value,
+    holidays: _cache.settings.holidays || [], // carried forward explicitly — setSettings replaces the whole object, this isn't gathered from a form field on this page
   };
   setSettings(s);
   updateBusinessNameBar();
@@ -8971,6 +9111,7 @@ function loadSettingsUI() {
     startInput.value = day.start || '09:00';
     endInput.value = day.end || '17:00';
   });
+  renderHolidaysList();
 }
 
 // ═══════════════════════════════════════════════════════════
