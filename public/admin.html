@@ -11037,6 +11037,7 @@ let _neWaveAnimFrame = null;
 // work perfectly fine either way, this is additive only.
 let _neSpeechRecognition = null;
 let _neLivePreviewId = null;
+let _neStopCommandTimer = null;
 
 function speechRecognitionSupported() {
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -11071,6 +11072,18 @@ function startLivePreview() {
     let text = '';
     for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
     span.textContent = text;
+
+    // "Stop recording" voice command. Waits briefly for silence after the
+    // phrase rather than triggering the instant it's heard — if more
+    // speech keeps coming in, this timer keeps getting reset, so a
+    // sentence that happens to contain similar words mid-thought doesn't
+    // cut recording off early.
+    clearTimeout(_neStopCommandTimer);
+    if (/\bstop( the)? recording\b\s*$/i.test(text.trim())) {
+      _neStopCommandTimer = setTimeout(() => {
+        if (_neRecordingActive) stopNoteRecording();
+      }, 800);
+    }
   };
   // Deliberately quiet on error/end — this is a nice-to-have visual aid,
   // not something that should ever interrupt or error out the actual
@@ -11082,6 +11095,7 @@ function startLivePreview() {
 }
 
 function stopLivePreview() {
+  clearTimeout(_neStopCommandTimer);
   if (_neSpeechRecognition) {
     try { _neSpeechRecognition.stop(); } catch { /* ignore */ }
     _neSpeechRecognition = null;
@@ -11090,14 +11104,57 @@ function stopLivePreview() {
 
 // Called once the real Groq transcript comes back — replaces the rough
 // placeholder outright rather than appending alongside it.
+// Converts the simple "- " bullet / blank-line-paragraph convention the
+// cleanup prompt outputs into real HTML — actual <ul><li> elements and
+// paragraph breaks, not literal dashes sitting in the note as plain text.
+function noteMarkdownLiteToFragment(text) {
+  const frag = document.createDocumentFragment();
+  const blocks = text.split(/\n\s*\n/).filter(b => b.trim());
+  blocks.forEach((block, blockIdx) => {
+    const lines = block.split('\n').map(l => l.trim()).filter(l => l.length);
+    if (!lines.length) return;
+    const isList = lines.every(l => l.startsWith('- '));
+    if (isList) {
+      const ul = document.createElement('ul');
+      ul.style.margin = '4px 0 4px 20px';
+      lines.forEach(l => {
+        const li = document.createElement('li');
+        li.textContent = l.replace(/^-\s*/, '');
+        ul.appendChild(li);
+      });
+      frag.appendChild(ul);
+    } else {
+      frag.appendChild(document.createTextNode(lines.join(' ')));
+    }
+    if (blockIdx < blocks.length - 1) {
+      frag.appendChild(document.createElement('br'));
+      frag.appendChild(document.createElement('br'));
+    }
+  });
+  return frag;
+}
+
 function resolveLivePreview(finalText) {
   const span = _neLivePreviewId ? document.getElementById(_neLivePreviewId) : null;
   _neLivePreviewId = null;
+  const fragment = noteMarkdownLiteToFragment(finalText);
   if (span) {
-    span.replaceWith(document.createTextNode(finalText + ' '));
+    span.replaceWith(fragment, document.createTextNode(' '));
     updateNEToolbar();
   } else {
-    insertTextIntoNote(finalText);
+    const editor = document.getElementById(_neActiveEditorId);
+    editor.focus();
+    const sel = window.getSelection();
+    const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+    if (!hasSelectionInEditor) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    sel.getRangeAt(0).insertNode(fragment);
+    updateNEToolbar();
   }
 }
 
