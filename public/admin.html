@@ -6597,7 +6597,7 @@ function openOngoingIssuesNote() {
     // Find the ongoing issues note template to pre-fill if new
     const ongoingNote = (c.notes || []).find(n => n.templateId === 'ongoing-issues' || (n.title||'').toLowerCase().includes('ongoing'));
     if (ongoingNote) {
-      editor.innerHTML = ongoingNote.html || (ongoingNote.text ? ongoingNote.text.replace(/\n/g,'<br>') : '');
+      editor.innerHTML = stripLivePreviewArtifacts(ongoingNote.html || (ongoingNote.text ? ongoingNote.text.replace(/\n/g,'<br>') : ''));
     } else {
       // Pre-fill from template
       const noteTemplates = getNoteTemplates();
@@ -6681,7 +6681,7 @@ function openBookingNoteEditor() {
   const editor = document.getElementById('ne-editor');
   if (b.practitionerNotes) {
     const isHtml = /<[a-z][\s\S]*>/i.test(b.practitionerNotes);
-    editor.innerHTML = isHtml ? b.practitionerNotes : b.practitionerNotes.replace(/\n/g,'<br>');
+    editor.innerHTML = stripLivePreviewArtifacts(isHtml ? b.practitionerNotes : b.practitionerNotes.replace(/\n/g,'<br>'));
   } else {
     // No notes yet for this appointment — start from the default note template
     const defaultTmpl = getDefaultNoteTemplate();
@@ -10726,7 +10726,7 @@ function openNoteEditor(noteIndex) {
     const note = c.notes[neEditingNoteIndex];
     document.getElementById('ne-session-info').textContent = 'Editing note from '
       + new Date(note.createdAt).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
-    editor.innerHTML = note.html || (note.text ? note.text.replace(/\n/g,'<br>') : '');
+    editor.innerHTML = stripLivePreviewArtifacts(note.html || (note.text ? note.text.replace(/\n/g,'<br>') : ''));
   } else {
     // New note — pre-fill from default template if one exists
     document.getElementById('ne-session-info').textContent = sessionBook
