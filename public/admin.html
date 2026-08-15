@@ -1443,6 +1443,10 @@
   }
   #ob-tip.open { opacity: 1; }
   #ob-tip::after { content: ''; position: absolute; top: -6px; left: 24px; width: 12px; height: 12px; background: var(--ink); transform: rotate(45deg); }
+
+  .ne-live-preview { color: var(--ink-soft); font-style: italic; }
+  .ne-live-preview::after { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--ink-soft); margin-left: 4px; vertical-align: middle; animation: neLivePulse 1s ease-in-out infinite; }
+  @keyframes neLivePulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
   .toggle-row:last-child { border-bottom: none; }
   .toggle-label { font-size: 13px; font-weight: 500; color: var(--ink); }
   .toggle-sub { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
@@ -11022,6 +11026,89 @@ let _neAudioContext = null;
 let _neAnalyser = null;
 let _neWaveAnimFrame = null;
 
+// ── Live preview — the free, built-in browser speech recognition running
+// alongside the actual recording, purely so something visibly appears on
+// screen while talking for reassurance. This is NOT what ends up in the
+// note — it has no custom vocabulary and no cleanup pass, so it's
+// noticeably rougher than the real transcript. The moment Groq's accurate
+// version comes back, this placeholder gets replaced outright, never left
+// alongside it. Chrome/Edge support this well; Safari is inconsistent;
+// Firefox doesn't support it at all — recording and the waveform still
+// work perfectly fine either way, this is additive only.
+let _neSpeechRecognition = null;
+let _neLivePreviewId = null;
+
+function speechRecognitionSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function startLivePreview() {
+  if (!speechRecognitionSupported()) return;
+
+  const editor = document.getElementById(_neActiveEditorId);
+  editor.focus();
+  const sel = window.getSelection();
+  const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+  if (!hasSelectionInEditor) {
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  _neLivePreviewId = 'ne-live-preview-' + Date.now();
+  document.execCommand('insertHTML', false, `<span id="${_neLivePreviewId}" class="ne-live-preview"></span>`);
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _neSpeechRecognition = new SR();
+  _neSpeechRecognition.continuous = true;
+  _neSpeechRecognition.interimResults = true;
+  _neSpeechRecognition.lang = 'en-AU';
+
+  _neSpeechRecognition.onresult = (event) => {
+    const span = document.getElementById(_neLivePreviewId);
+    if (!span) return;
+    let text = '';
+    for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
+    span.textContent = text;
+  };
+  // Deliberately quiet on error/end — this is a nice-to-have visual aid,
+  // not something that should ever interrupt or error out the actual
+  // recording/transcription flow if it stumbles.
+  _neSpeechRecognition.onerror = () => {};
+  _neSpeechRecognition.onend = () => {};
+
+  try { _neSpeechRecognition.start(); } catch { /* already running or unsupported mid-session — ignore */ }
+}
+
+function stopLivePreview() {
+  if (_neSpeechRecognition) {
+    try { _neSpeechRecognition.stop(); } catch { /* ignore */ }
+    _neSpeechRecognition = null;
+  }
+}
+
+// Called once the real Groq transcript comes back — replaces the rough
+// placeholder outright rather than appending alongside it.
+function resolveLivePreview(finalText) {
+  const span = _neLivePreviewId ? document.getElementById(_neLivePreviewId) : null;
+  _neLivePreviewId = null;
+  if (span) {
+    span.replaceWith(document.createTextNode(finalText + ' '));
+    updateNEToolbar();
+  } else {
+    insertTextIntoNote(finalText);
+  }
+}
+
+// Called if transcription fails or comes back empty — the placeholder
+// shouldn't linger with nothing to replace it.
+function clearLivePreview() {
+  const span = _neLivePreviewId ? document.getElementById(_neLivePreviewId) : null;
+  _neLivePreviewId = null;
+  if (span) span.remove();
+}
+
 function startWaveformVisualizer(stream) {
   const canvas = document.getElementById('ne-record-wave');
   const icon = document.getElementById('ne-record-icon');
@@ -11079,6 +11166,7 @@ async function startNoteRecording() {
     _neMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _neAudioChunks.push(e.data); };
     _neMediaRecorder.onstop = () => {
       stopWaveformVisualizer();
+      stopLivePreview();
       stream.getTracks().forEach(t => t.stop()); // releases the mic indicator in the browser tab
       processNoteRecording();
     };
@@ -11089,6 +11177,7 @@ async function startNoteRecording() {
     btn.classList.remove('processing');
     document.getElementById('ne-record-label').textContent = 'Stop';
     startWaveformVisualizer(stream);
+    startLivePreview();
   } catch (err) {
     toast('Microphone access was denied or unavailable — check your browser\u2019s site settings', 'error');
   }
@@ -11120,6 +11209,7 @@ async function processNoteRecording() {
   try {
     const blob = new Blob(_neAudioChunks, { type: _neAudioChunks[0]?.type || 'audio/webm' });
     if (blob.size < 1000) {
+      clearLivePreview();
       toast('Recording was too short — try again', 'error');
       return;
     }
@@ -11130,12 +11220,14 @@ async function processNoteRecording() {
       body: JSON.stringify({ audioDataUrl: dataUrl, category }),
     });
     if (result.text) {
-      insertTextIntoNote(result.text);
+      resolveLivePreview(result.text);
       toast('Voice note added', 'success');
     } else {
+      clearLivePreview();
       toast('Didn\u2019t catch anything — try again', 'error');
     }
   } catch (err) {
+    clearLivePreview();
     toast('Transcription failed: ' + err.message, 'error');
   } finally {
     btn.classList.remove('processing');
