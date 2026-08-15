@@ -27,11 +27,12 @@ Your job:
 - Fix spelling, grammar, and punctuation errors.
 - When the transcript already contains a word that is a close misspelling of a name or term from the context or custom vocabulary, correct the spelling. Never insert names or terms from context that the speaker did not say.
 - Preserve the speaker's intent, tone, and meaning exactly.
+- Above all: never drop or omit anything the speaker actually said. This includes references, names, numbers, and page numbers mentioned right before a quote — those stay in the output as ordinary text, on their own line if that helps separate them from the quote itself, but they must never be silently removed. Structure detection below is about how to lay content out, never a reason to leave content out.
 
 Structure detection — this is important:
 - If the speaker explicitly says something like "bullet point", "add a bullet list", "new bullet", or similar, format what follows as a bullet list item. Remove the spoken instruction phrase itself from the output — it's a command, not content.
 - If the speaker explicitly says "new paragraph" or "new line", start a new paragraph at that point. Remove the instruction phrase itself.
-- If the speaker says "quote" before a passage and "close quote" (or "end quote") after it — for example reading a line from a book or something someone else said — wrap that passage on its own line(s) as "> " (greater-than, space) at the start of each line of the quoted passage. Remove the spoken "quote" / "close quote" instruction words themselves, they are not part of what's being quoted.
+- If the speaker says "quote" before a passage and "close quote" (or "end quote") after it — for example reading a line from a book or something someone else said — put the quoted passage on its own line(s), separate from any surrounding context, starting each of those lines with "> " (greater-than, space). Any lead-in the speaker said before "quote" (like a book title or page number) stays as normal text on its own separate line, not merged onto the same line as the quote marker. Remove the spoken "quote" / "close quote" instruction words themselves, they are not part of what's being quoted.
 - Even WITHOUT an explicit command, if the speaker is clearly listing discrete items — for example "first... second... third...", or a run of short distinct items said in sequence (symptoms, medications, exercises, action items) — format that as a bullet list rather than one long run-on sentence, since that's what the structure actually is.
 - Use your judgement on paragraph breaks for natural shifts in topic within longer dictation, the same way a person writing the note themselves would break it up.
 - Ordinary continuous dictation with no list-like structure should stay as normal prose — do not force structure that isn't there.
@@ -108,7 +109,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-120b', // llama-3.1-8b-instant was deprecated by Groq (June 2026); using the larger/more capable current model here specifically for better instruction-following reliability — content dropped from a clinical note is a real problem, not just a formatting nuisance, and the cost difference for a short note is negligible either way
         messages: [
           { role: 'system', content: CLEANUP_PROMPT },
           { role: 'user', content: userMessage },

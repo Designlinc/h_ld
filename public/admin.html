@@ -11110,35 +11110,65 @@ function stopLivePreview() {
 // paragraph breaks, not literal dashes sitting in the note as plain text.
 function noteMarkdownLiteToFragment(text) {
   const frag = document.createDocumentFragment();
-  const blocks = text.split(/\n\s*\n/).filter(b => b.trim());
-  blocks.forEach((block, blockIdx) => {
-    const lines = block.split('\n').map(l => l.trim()).filter(l => l.length);
-    if (!lines.length) return;
-    const isList = lines.every(l => l.startsWith('- '));
-    const isQuote = lines.every(l => l.startsWith('> '));
-    if (isList) {
+  const rawLines = text.split('\n');
+  let i = 0;
+  let needsBreakBefore = false; // true once a blank line has been seen, so the next content gets a paragraph break first
+
+  function addBreakIfNeeded() {
+    if (needsBreakBefore && frag.childNodes.length) {
+      frag.appendChild(document.createElement('br'));
+      frag.appendChild(document.createElement('br'));
+    }
+    needsBreakBefore = false;
+  }
+
+  while (i < rawLines.length) {
+    const line = rawLines[i].trim();
+
+    if (!line) { needsBreakBefore = true; i++; continue; }
+
+    if (line.startsWith('- ')) {
       // No inline style here on purpose — .note-editor-content ul already
       // defines the correct spacing/indentation, matching what the
       // toolbar's own bullet list button produces exactly.
+      const items = [];
+      while (i < rawLines.length && rawLines[i].trim().startsWith('- ')) {
+        items.push(rawLines[i].trim().replace(/^-\s*/, ''));
+        i++;
+      }
+      addBreakIfNeeded();
       const ul = document.createElement('ul');
-      lines.forEach(l => {
-        const li = document.createElement('li');
-        li.textContent = l.replace(/^-\s*/, '');
-        ul.appendChild(li);
-      });
+      items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
       frag.appendChild(ul);
-    } else if (isQuote) {
+      continue;
+    }
+
+    if (line.startsWith('> ')) {
+      const quoteLines = [];
+      while (i < rawLines.length && rawLines[i].trim().startsWith('> ')) {
+        quoteLines.push(rawLines[i].trim().replace(/^>\s*/, ''));
+        i++;
+      }
+      addBreakIfNeeded();
       const bq = document.createElement('blockquote');
-      bq.textContent = lines.map(l => l.replace(/^>\s*/, '')).join(' ');
+      bq.textContent = '\u201C' + quoteLines.join(' ') + '\u201D';
       frag.appendChild(bq);
-    } else {
-      frag.appendChild(document.createTextNode(lines.join(' ')));
+      continue;
     }
-    if (blockIdx < blocks.length - 1) {
-      frag.appendChild(document.createElement('br'));
-      frag.appendChild(document.createElement('br'));
+
+    // Plain-text run — collects consecutive ordinary lines, stopping the
+    // instant a list or quote line starts, rather than requiring an
+    // entire paragraph block to be one uniform type.
+    const plainLines = [];
+    while (i < rawLines.length) {
+      const l = rawLines[i].trim();
+      if (!l || l.startsWith('- ') || l.startsWith('> ')) break;
+      plainLines.push(l);
+      i++;
     }
-  });
+    addBreakIfNeeded();
+    frag.appendChild(document.createTextNode(plainLines.join(' ')));
+  }
   return frag;
 }
 
@@ -11495,10 +11525,26 @@ function onNEInput() {
   }, 1500);
 }
 
+// Defensive cleanup — a live-preview span should never end up saved as
+// part of a note's permanent content (it's only ever meant to be a
+// temporary on-screen placeholder), but if a note gets saved while one is
+// still present — closing the editor mid-recording, an autosave firing
+// during processing — this strips it before persisting, rather than
+// baking the pulsing-dot styling permanently into the note.
+function stripLivePreviewArtifacts(html) {
+  if (!html.includes('ne-live-preview')) return html;
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  temp.querySelectorAll('.ne-live-preview').forEach(span => {
+    span.replaceWith(document.createTextNode(span.textContent || ''));
+  });
+  return temp.innerHTML;
+}
+
 function saveNoteFromEditor(silent) {
   try {
     const editor = document.getElementById('ne-editor');
-    const noteHtml = editor.innerHTML.trim();
+    const noteHtml = stripLivePreviewArtifacts(editor.innerHTML.trim());
     if (!noteHtml || noteHtml === '<br>') {
       if (!silent) toast('Nothing to save \u2014 write a note first', 'error');
       return; // silent auto-close with no content simply discards, never overwrites with blank
@@ -11563,6 +11609,9 @@ function discardNote() {
 }
 
 function closeNoteEditor(save) {
+  if (_neRecordingActive) stopNoteRecording();
+  stopWaveformVisualizer();
+  stopLivePreview();
   clearTimeout(neAutoSaveTimer);
   if (save !== false) saveNoteFromEditor(true); // flush unsaved changes unless explicitly discarding
   document.getElementById('note-editor-overlay').classList.remove('open', 'fullscreen');
