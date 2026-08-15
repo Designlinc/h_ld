@@ -1076,6 +1076,7 @@
   .note-editor-content ul, .note-editor-content ol { padding-left: 24px; margin: 6px 0 10px; }
   .note-editor-content li { margin-bottom: 4px; }
   .note-editor-content hr { border: none; border-top: 2px solid var(--border); margin: 20px 0; }
+  .note-editor-content blockquote { margin: 8px 0 10px; padding: 2px 0 2px 14px; border-left: 3px solid var(--border); color: var(--ink-mid); font-style: italic; }
   .note-editor-content img { max-width: 100%; border-radius: 8px; display: block; }
   .ne-img-wrap {
     position: relative; display: inline-block;
@@ -11114,15 +11115,22 @@ function noteMarkdownLiteToFragment(text) {
     const lines = block.split('\n').map(l => l.trim()).filter(l => l.length);
     if (!lines.length) return;
     const isList = lines.every(l => l.startsWith('- '));
+    const isQuote = lines.every(l => l.startsWith('> '));
     if (isList) {
+      // No inline style here on purpose — .note-editor-content ul already
+      // defines the correct spacing/indentation, matching what the
+      // toolbar's own bullet list button produces exactly.
       const ul = document.createElement('ul');
-      ul.style.margin = '4px 0 4px 20px';
       lines.forEach(l => {
         const li = document.createElement('li');
         li.textContent = l.replace(/^-\s*/, '');
         ul.appendChild(li);
       });
       frag.appendChild(ul);
+    } else if (isQuote) {
+      const bq = document.createElement('blockquote');
+      bq.textContent = lines.map(l => l.replace(/^>\s*/, '')).join(' ');
+      frag.appendChild(bq);
     } else {
       frag.appendChild(document.createTextNode(lines.join(' ')));
     }
