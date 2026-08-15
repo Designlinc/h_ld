@@ -984,6 +984,30 @@
   .ne-autosave { font-size: 11px; color: var(--sage); opacity: 0; transition: opacity .3s; flex-shrink: 0; }
   .ne-autosave.show { opacity: 1; }
   .note-editor-header .btn { flex-shrink: 0; }
+
+  /* ── Voice note record button — deliberately larger and more visually
+     distinct than the small toolbar icon buttons, since this needs to
+     read as an obvious, standalone action rather than blend in with
+     formatting controls. ── */
+  .ne-record-btn {
+    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+    padding: 8px 16px 8px 14px; border-radius: 999px; border: 1.5px solid var(--cal-green);
+    background: var(--cal-green-pale); color: var(--cal-green);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background .15s, border-color .15s, transform .1s, box-shadow .15s;
+  }
+  .ne-record-btn:hover { filter: brightness(0.96); box-shadow: 0 2px 8px rgba(30,74,48,.15); }
+  .ne-record-btn:active { transform: scale(.96); }
+  .ne-record-btn.recording {
+    background: #FBE9E7; border-color: var(--red); color: var(--red);
+    animation: neRecordPulse 1.6s ease-in-out infinite;
+  }
+  .ne-record-btn.recording:hover { filter: brightness(0.97); }
+  .ne-record-btn.processing { background: var(--border); border-color: var(--border); color: var(--ink-soft); cursor: wait; animation: none; }
+  @keyframes neRecordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(168,51,46,.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(168,51,46,0); }
+  }
   .ne-close-btn {
     width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
     border: 1px solid var(--border); background: var(--white);
@@ -3896,6 +3920,28 @@
     </div>
 
 
+<!-- ═══ MIC PERMISSION MODAL ═══ -->
+<div class="modal-backdrop" id="mic-permission-modal-backdrop">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Microphone Access</span>
+      <button class="modal-close" onclick="closeMicPermissionModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:4px 0 20px">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--cal-green-pale);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--cal-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+        </div>
+        <div style="font-size:14px;color:var(--ink-mid);line-height:1.6">h_ld needs access to your microphone to record voice notes. Nothing is recorded until you press Record, and you can stop at any time. Your browser will ask you to confirm this next.</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="confirmMicPermission()">Allow microphone access</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="closeMicPermissionModal()">Not now</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ NOTE EDITOR MODAL ═══ -->
 <div class="note-editor-overlay" id="note-editor-overlay">
   <div class="note-editor-modal">
@@ -3912,6 +3958,11 @@
         <div class="note-editor-session" id="ne-session-info"></div>
         <input id="ne-template-name" class="form-input" placeholder="Template name…"
           style="display:none;max-width:220px;font-size:13px;padding:6px 10px;margin-left:8px">
+        <div style="flex:1"></div>
+        <button class="ne-record-btn" id="ne-record-btn" onclick="toggleNoteRecording()" title="Record voice note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <span id="ne-record-label">Record</span>
+        </button>
         <div style="flex:1"></div>
         <div id="ne-autosave-indicator" class="ne-autosave"></div>
         <button class="btn btn-ghost" style="margin-right:8px" onclick="discardNote()">Discard</button>
@@ -10907,6 +10958,154 @@ function placeCursorAtEnd(el) {
     sel.removeAllRanges();
     sel.addRange(range);
   } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// VOICE NOTES — record, transcribe, insert
+// Scoped entirely to the note editor — this is the only place any of this
+// runs, nowhere else in the app.
+// ═══════════════════════════════════════════════════════════
+let _neMediaRecorder = null;
+let _neAudioChunks = [];
+let _neRecordingActive = false;
+let _neMicPermissionGranted = false; // avoids re-showing our own explainer modal every time once they've said yes this session
+
+// Loose match from the practitioner's free-text "Practitioner Title"
+// setting to one of the known vocabulary categories — title is whatever
+// they typed (e.g. "Clinical Kinesiologist", "Naturopathic Practitioner"),
+// not a fixed enum, so this checks for a recognisable term inside it
+// rather than requiring an exact match.
+function resolveVocabCategory() {
+  const title = (getSettings().pracTitle || '').toLowerCase();
+  const synonyms = {
+    kinesiologist: ['kinesiolog'],
+    naturopath: ['naturopath'],
+    homeopath: ['homeopath'],
+    psychologist: ['psycholog'],
+    reiki: ['reiki'],
+    counsellor: ['counsell', 'counsel'],
+    'energy-worker': ['energy work', 'energy healer', 'energy healing'],
+    therapist: ['massage', 'remedial therap', 'myotherap'],
+    osteopath: ['osteopath'],
+    nutritionist: ['nutrition'],
+    reflexologist: ['reflexolog'],
+    acupuncturist: ['acupunctur'],
+    chiropractor: ['chiroprac'],
+  };
+  for (const [key, terms] of Object.entries(synonyms)) {
+    if (terms.some(t => title.includes(t))) return key;
+  }
+  return null;
+}
+
+function openMicPermissionModal() { document.getElementById('mic-permission-modal-backdrop').classList.add('open'); }
+function closeMicPermissionModal() { document.getElementById('mic-permission-modal-backdrop').classList.remove('open'); }
+
+async function confirmMicPermission() {
+  closeMicPermissionModal();
+  await startNoteRecording();
+}
+
+function toggleNoteRecording() {
+  if (_neRecordingActive) {
+    stopNoteRecording();
+  } else if (_neMicPermissionGranted) {
+    startNoteRecording();
+  } else {
+    openMicPermissionModal();
+  }
+}
+
+async function startNoteRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    _neMicPermissionGranted = true;
+    _neAudioChunks = [];
+    const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm' : '';
+    _neMediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    _neMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _neAudioChunks.push(e.data); };
+    _neMediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop()); // releases the mic indicator in the browser tab
+      processNoteRecording();
+    };
+    _neMediaRecorder.start();
+    _neRecordingActive = true;
+    const btn = document.getElementById('ne-record-btn');
+    btn.classList.add('recording');
+    btn.classList.remove('processing');
+    document.getElementById('ne-record-label').textContent = 'Stop';
+  } catch (err) {
+    toast('Microphone access was denied or unavailable — check your browser\u2019s site settings', 'error');
+  }
+}
+
+function stopNoteRecording() {
+  if (_neMediaRecorder && _neMediaRecorder.state !== 'inactive') {
+    _neMediaRecorder.stop(); // triggers onstop -> processNoteRecording
+  }
+  _neRecordingActive = false;
+  const btn = document.getElementById('ne-record-btn');
+  btn.classList.remove('recording');
+  btn.classList.add('processing');
+  document.getElementById('ne-record-label').textContent = 'Processing…';
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function processNoteRecording() {
+  const btn = document.getElementById('ne-record-btn');
+  const label = document.getElementById('ne-record-label');
+  try {
+    const blob = new Blob(_neAudioChunks, { type: _neAudioChunks[0]?.type || 'audio/webm' });
+    if (blob.size < 1000) {
+      toast('Recording was too short — try again', 'error');
+      return;
+    }
+    const dataUrl = await blobToDataUrl(blob);
+    const category = resolveVocabCategory();
+    const result = await apiFetch('/notes/transcribe', {
+      method: 'POST',
+      body: JSON.stringify({ audioDataUrl: dataUrl, category }),
+    });
+    if (result.text) {
+      insertTextIntoNote(result.text);
+      toast('Voice note added', 'success');
+    } else {
+      toast('Didn\u2019t catch anything — try again', 'error');
+    }
+  } catch (err) {
+    toast('Transcription failed: ' + err.message, 'error');
+  } finally {
+    btn.classList.remove('processing');
+    label.textContent = 'Record';
+  }
+}
+
+// Inserts at the current cursor position if one exists inside the active
+// note editor; otherwise appends at the end rather than risking an
+// unpredictable insert position (e.g. if Record was clicked without
+// having clicked into the note first).
+function insertTextIntoNote(text) {
+  const editor = document.getElementById(_neActiveEditorId);
+  editor.focus();
+  const sel = window.getSelection();
+  const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+  if (!hasSelectionInEditor) {
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  document.execCommand('insertText', false, text + ' ');
+  updateNEToolbar();
 }
 
 function execNE(cmd, val) {
