@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   const { audioDataUrl, category } = req.body || {};
   if (!audioDataUrl) return res.status(400).json({ error: 'Missing audioDataUrl' });
 
-  const match = /^data:([^;]+);base64,(.+)$/.exec(audioDataUrl);
+  const match = /^data:(.+?);base64,(.+)$/.exec(audioDataUrl);
   if (!match) return res.status(400).json({ error: 'audioDataUrl must be a base64 data URL' });
   const [, mimeType, base64] = match;
 

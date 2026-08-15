@@ -920,6 +920,7 @@
     display: none; pointer-events: none;
   }
   .note-editor-overlay.open { display: block; }
+  #mic-permission-modal-backdrop { z-index: 350; } /* above the note editor (300), which is where this modal is always opened from */
   .note-editor-modal {
     position: absolute;
     left: calc(var(--sidebar-w) + 12px); /* sits clear of the sidebar, never overlaps */
@@ -3960,7 +3961,8 @@
           style="display:none;max-width:220px;font-size:13px;padding:6px 10px;margin-left:8px">
         <div style="flex:1"></div>
         <button class="ne-record-btn" id="ne-record-btn" onclick="toggleNoteRecording()" title="Record voice note">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <svg id="ne-record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          <canvas id="ne-record-wave" width="60" height="18" style="display:none"></canvas>
           <span id="ne-record-label">Record</span>
         </button>
         <div style="flex:1"></div>
@@ -11016,6 +11018,57 @@ function toggleNoteRecording() {
   }
 }
 
+let _neAudioContext = null;
+let _neAnalyser = null;
+let _neWaveAnimFrame = null;
+
+function startWaveformVisualizer(stream) {
+  const canvas = document.getElementById('ne-record-wave');
+  const icon = document.getElementById('ne-record-icon');
+  const ctx = canvas.getContext('2d');
+  icon.style.display = 'none';
+  canvas.style.display = 'block';
+
+  _neAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const source = _neAudioContext.createMediaStreamSource(stream);
+  _neAnalyser = _neAudioContext.createAnalyser();
+  _neAnalyser.fftSize = 64;
+  source.connect(_neAnalyser);
+  const data = new Uint8Array(_neAnalyser.frequencyBinCount);
+
+  function draw() {
+    _neWaveAnimFrame = requestAnimationFrame(draw);
+    _neAnalyser.getByteFrequencyData(data);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const barCount = 9;
+    const barWidth = 3;
+    const gap = 3;
+    const totalWidth = barCount * barWidth + (barCount - 1) * gap;
+    let x = (canvas.width - totalWidth) / 2;
+    for (let i = 0; i < barCount; i++) {
+      // Sample across the frequency range rather than just the first few
+      // bins, so the bars reflect the actual voice rather than only bass.
+      const level = data[Math.floor((i / barCount) * data.length)] / 255;
+      const barHeight = Math.max(2, level * canvas.height);
+      ctx.fillStyle = getComputedStyle(document.getElementById('ne-record-btn')).color;
+      ctx.fillRect(x, (canvas.height - barHeight) / 2, barWidth, barHeight);
+      x += barWidth + gap;
+    }
+  }
+  draw();
+}
+
+function stopWaveformVisualizer() {
+  if (_neWaveAnimFrame) cancelAnimationFrame(_neWaveAnimFrame);
+  _neWaveAnimFrame = null;
+  if (_neAudioContext) { _neAudioContext.close().catch(() => {}); _neAudioContext = null; }
+  _neAnalyser = null;
+  const canvas = document.getElementById('ne-record-wave');
+  const icon = document.getElementById('ne-record-icon');
+  if (canvas) canvas.style.display = 'none';
+  if (icon) icon.style.display = '';
+}
+
 async function startNoteRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -11025,6 +11078,7 @@ async function startNoteRecording() {
     _neMediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     _neMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _neAudioChunks.push(e.data); };
     _neMediaRecorder.onstop = () => {
+      stopWaveformVisualizer();
       stream.getTracks().forEach(t => t.stop()); // releases the mic indicator in the browser tab
       processNoteRecording();
     };
@@ -11034,6 +11088,7 @@ async function startNoteRecording() {
     btn.classList.add('recording');
     btn.classList.remove('processing');
     document.getElementById('ne-record-label').textContent = 'Stop';
+    startWaveformVisualizer(stream);
   } catch (err) {
     toast('Microphone access was denied or unavailable — check your browser\u2019s site settings', 'error');
   }
@@ -11041,7 +11096,7 @@ async function startNoteRecording() {
 
 function stopNoteRecording() {
   if (_neMediaRecorder && _neMediaRecorder.state !== 'inactive') {
-    _neMediaRecorder.stop(); // triggers onstop -> processNoteRecording
+    _neMediaRecorder.stop(); // triggers onstop -> processNoteRecording, which also stops the visualizer
   }
   _neRecordingActive = false;
   const btn = document.getElementById('ne-record-btn');
