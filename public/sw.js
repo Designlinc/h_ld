@@ -1,7 +1,7 @@
 // public/sw.js — Service Worker for push notifications
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Solful';
+  const title = data.title || 'h_ld';
   const options = {
     body:  data.body  || '',
     icon:  data.icon  || '/icon-192.png',

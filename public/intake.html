@@ -243,7 +243,7 @@
 <body>
 
 <div class="page-header">
-  <img src="/logo.png" alt="Logo">
+  <img id="page-logo" src="/logo-placeholder.svg" alt="Logo">
   <h1 id="page-title">Client Intake Form</h1>
   <p id="page-sub">Please complete this form before your appointment</p>
 </div>
@@ -458,6 +458,18 @@ async function init() {
     const bRes = await fetch(API_BASE + '/bookings/' + bookingId);
     if (!bRes.ok) { showError('Booking not found or link has expired.'); return; }
     booking = await bRes.json();
+
+    // Use the practitioner's own uploaded logo if they have one — this
+    // used to be hardcoded to a specific business's logo regardless of
+    // who the form actually belonged to.
+    try {
+      const sRes = await fetch(API_BASE + '/settings');
+      if (sRes.ok) {
+        const settingsData = await sRes.json();
+        const logoUrl = settingsData?.app_settings?.logoUrl;
+        if (logoUrl) document.getElementById('page-logo').src = logoUrl;
+      }
+    } catch { /* keep the generic placeholder if this fails — non-critical */ }
 
     // Load forms — the real forms table, not settings (a leftover
     // location nothing writes to anymore)

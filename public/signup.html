@@ -84,13 +84,13 @@
   <form id="signup-form" onsubmit="return handleSignup(event)">
     <div class="field">
       <label for="f-org-name">Business name</label>
-      <input type="text" id="f-org-name" placeholder="Solful Kinesiology" autocomplete="organization" required oninput="onOrgNameInput()">
+      <input type="text" id="f-org-name" placeholder="Willow Wellness" autocomplete="organization" required oninput="onOrgNameInput()">
     </div>
 
     <div class="field">
       <label for="f-subdomain">Your booking address</label>
       <div class="subdomain-row" id="subdomain-row">
-        <input type="text" id="f-subdomain" placeholder="solful" autocomplete="off" required oninput="onSubdomainInput()">
+        <input type="text" id="f-subdomain" placeholder="willow-wellness" autocomplete="off" required oninput="onSubdomainInput()">
         <span class="subdomain-status" id="subdomain-status"></span>
         <span class="subdomain-suffix">.h-ld.com</span>
       </div>
@@ -124,7 +124,7 @@ let _subdomainAvailable = false;
 let _subdomainCheckTimer = null;
 let _subdomainEditedManually = false;
 
-// Turns "Solful Kinesiology" into "solful-kinesiology" — a reasonable
+// Turns "Willow Wellness" into "willow-wellness" — a reasonable
 // starting point the practitioner can still freely edit.
 function slugify(str) {
   return str.toLowerCase()
