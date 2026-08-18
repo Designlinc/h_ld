@@ -56,25 +56,22 @@ export default async function handler(req, res) {
     }
 
     // Server-side safety guardrail, independent of whatever the frontend
-    // sends: this endpoint can only ever remove organizations that are
-    // genuinely still 'pending' (never completed signup/payment) — never
-    // active, trial, suspended, or cancelled accounts, which may have real
-    // client data. Refuses the entire batch rather than silently skipping
-    // anything that doesn't qualify, so a bug elsewhere can't accidentally
-    // widen what this is capable of deleting.
+    // sends: a currently-active (paying, in-use) organization must be
+    // suspended before it can be permanently deleted — one deliberate
+    // extra step between "selected in a bulk action" and "gone forever"
+    // for the one status where that distinction matters most. Pending,
+    // trial, suspended, and cancelled organizations can be deleted directly.
     const rows = await sql`SELECT id, subdomain, billing_status FROM organizations WHERE id = ANY(${organizationIds})`;
-    const notPending = rows.filter(r => r.billing_status !== 'pending');
-    if (notPending.length) {
-      return res.status(400).json({ error: `Refusing to delete — ${notPending.length} of the selected organizations are not pending (this tool only removes abandoned signups that never completed setup)` });
-    }
     if (rows.length !== organizationIds.length) {
       return res.status(404).json({ error: 'One or more organizations were not found' });
     }
+    const stillActive = rows.filter(r => r.billing_status === 'active');
+    if (stillActive.length) {
+      return res.status(400).json({ error: `${stillActive.length} of the selected organizations are still active — suspend them first before permanently deleting` });
+    }
 
     // ON DELETE CASCADE on every dependent table handles cleanup of
-    // practitioners, bookings, clients, etc. automatically — a genuinely
-    // pending org shouldn't have any of these anyway, since requireOrg()
-    // blocks pending orgs from the API entirely, but this is safe either way.
+    // practitioners, bookings, clients, etc. automatically.
     await sql`DELETE FROM organizations WHERE id = ANY(${organizationIds})`;
     rows.forEach(r => invalidateOrgCache(r.subdomain));
     return res.json({ ok: true, deleted: organizationIds.length });

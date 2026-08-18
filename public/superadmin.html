@@ -164,6 +164,7 @@
       <span class="header-badge">Super Admin</span>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn btn-ghost" onclick="openCleanupView()">Cleanup</button>
       <button class="btn btn-ghost" onclick="openBackgroundEditor()">Background</button>
       <button class="btn btn-ghost" onclick="logout()">Sign out</button>
     </div>
@@ -178,6 +179,7 @@
     </div>
     <div id="detail-view" style="display:none"></div>
     <div id="background-view" style="display:none"></div>
+    <div id="cleanup-view" style="display:none"></div>
   </main>
 </div>
 
@@ -221,6 +223,22 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeRestoreModal()">Cancel</button>
       <button class="btn btn-danger" onclick="confirmRestoreAccess()" id="restore-confirm-btn">Restore access</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BULK DELETE MODAL ═══ -->
+<div class="modal-backdrop" id="bulk-delete-modal-backdrop" onclick="closeBulkDeleteModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Permanently delete these accounts?</div>
+    <div class="modal-sub">This removes all data for each organization below — clients, bookings, notes, everything. This cannot be undone. If any of them want to sign up again later, this clears the way for that (no conflicting subdomain or email).</div>
+    <ul id="bulk-delete-list" style="max-height:160px;overflow-y:auto;font-size:13px;margin:12px 0;padding-left:18px"></ul>
+    <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Type DELETE to confirm</label>
+    <input type="text" id="bulk-delete-confirm-input" class="form-input" placeholder="DELETE">
+    <div id="bulk-delete-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeBulkDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmBulkDelete()" id="bulk-delete-confirm-btn">Delete permanently</button>
     </div>
   </div>
 </div>
@@ -389,6 +407,9 @@ function logout() { clearAuthToken(); showLogin(); }
 
 // ── Organizations ──
 let _orgs = [];
+let _selectedOrgIds = new Set();
+let _sortColumn = 'created_at';
+let _sortDir = 'desc';
 
 async function loadOrganizations() {
   const wrap = document.getElementById('org-table-wrap');
@@ -396,32 +417,82 @@ async function loadOrganizations() {
   try {
     const data = await apiFetch('/admin/organizations');
     _orgs = data.organizations || [];
+    _selectedOrgIds.clear();
     renderOrganizations();
   } catch (err) {
     wrap.innerHTML = '<div class="empty">Could not load organizations: ' + err.message + '</div>';
   }
 }
 
-function renderOrganizations() {
-  const q = document.getElementById('org-search').value.trim().toLowerCase();
-  const wrap = document.getElementById('org-table-wrap');
+function sortOrgsBy(column) {
+  if (_sortColumn === column) {
+    _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _sortColumn = column;
+    _sortDir = 'asc';
+  }
+  renderOrganizations();
+}
 
-  const filtered = !q ? _orgs : _orgs.filter(o =>
+function toggleOrgSelected(id, checked) {
+  if (checked) _selectedOrgIds.add(id); else _selectedOrgIds.delete(id);
+  renderOrganizations();
+}
+
+function toggleSelectAllOrgs(checked) {
+  const visible = getFilteredSortedOrgs();
+  if (checked) visible.forEach(o => _selectedOrgIds.add(o.id));
+  else visible.forEach(o => _selectedOrgIds.delete(o.id));
+  renderOrganizations();
+}
+
+function getFilteredSortedOrgs() {
+  const q = document.getElementById('org-search').value.trim().toLowerCase();
+  let list = !q ? _orgs.slice() : _orgs.filter(o =>
     (o.name || '').toLowerCase().includes(q) ||
     (o.subdomain || '').toLowerCase().includes(q) ||
     (o.owner_email || '').toLowerCase().includes(q)
   );
+
+  const col = _sortColumn;
+  const dir = _sortDir === 'asc' ? 1 : -1;
+  list.sort((a, b) => {
+    let av = a[col], bv = b[col];
+    if (col === 'created_at') { av = new Date(av || 0).getTime(); bv = new Date(bv || 0).getTime(); }
+    else if (typeof av === 'number' || typeof bv === 'number') { av = Number(av) || 0; bv = Number(bv) || 0; }
+    else { av = (av || '').toString().toLowerCase(); bv = (bv || '').toString().toLowerCase(); }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+  return list;
+}
+
+function sortArrow(column) {
+  if (_sortColumn !== column) return '';
+  return _sortDir === 'asc' ? ' \u2191' : ' \u2193';
+}
+
+function renderOrganizations() {
+  const wrap = document.getElementById('org-table-wrap');
+  const filtered = getFilteredSortedOrgs();
+
+  renderBulkActionsBar();
 
   if (filtered.length === 0) {
     wrap.innerHTML = '<div class="empty">No organizations found.</div>';
     return;
   }
 
+  const allVisibleSelected = filtered.every(o => _selectedOrgIds.has(o.id));
+
   const rows = filtered.map(o => {
     const statusCls = o.billing_status || 'trial';
     const created = o.created_at ? new Date(o.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const checked = _selectedOrgIds.has(o.id) ? 'checked' : '';
 
     return `<tr>
+      <td style="width:36px"><input type="checkbox" ${checked} onclick="toggleOrgSelected('${o.id}', this.checked)"></td>
       <td>
         <div class="org-name">${escapeHtml(o.name)}</div>
         <div class="org-sub">${escapeHtml(o.subdomain)}.h-ld.com</div>
@@ -444,12 +515,90 @@ function renderOrganizations() {
     </tr>`;
   }).join('');
 
+  const th = (label, column) => `<th style="cursor:pointer;user-select:none" onclick="sortOrgsBy('${column}')">${label}${sortArrow(column)}</th>`;
+
   wrap.innerHTML = `<table>
     <thead><tr>
-      <th>Organization</th><th>Owner</th><th>Plan</th><th>Status</th><th>Staff</th><th>Integrations</th><th>Created</th><th></th>
+      <th style="width:36px"><input type="checkbox" ${allVisibleSelected ? 'checked' : ''} onclick="toggleSelectAllOrgs(this.checked)"></th>
+      ${th('Organization', 'name')}${th('Owner', 'owner_email')}${th('Plan', 'plan_tier')}${th('Status', 'billing_status')}${th('Staff', 'practitioner_count')}<th>Integrations</th>${th('Created', 'created_at')}<th></th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function renderBulkActionsBar() {
+  let bar = document.getElementById('bulk-actions-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulk-actions-bar';
+    bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ink);border-radius:10px;margin-bottom:12px;color:#fff';
+    document.querySelector('.toolbar').after(bar);
+  }
+  const n = _selectedOrgIds.size;
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <span style="font-size:13px;font-weight:600">${n} selected</span>
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost" style="background:rgba(255,255,255,.12);color:#fff" onclick="bulkSuspendSelected()">Suspend selected</button>
+    <button class="btn btn-danger" onclick="openBulkDeleteModal()">Delete permanently</button>
+    <button class="btn btn-ghost" style="background:rgba(255,255,255,.12);color:#fff" onclick="clearOrgSelection()">Clear</button>
+  `;
+}
+
+function clearOrgSelection() { _selectedOrgIds.clear(); renderOrganizations(); }
+
+async function bulkSuspendSelected() {
+  const ids = Array.from(_selectedOrgIds);
+  if (!ids.length) return;
+  if (!confirm(`Suspend ${ids.length} organization${ids.length === 1 ? '' : 's'}? They\u2019ll immediately lose access until reactivated.`)) return;
+  const bar = document.getElementById('bulk-actions-bar');
+  bar.style.opacity = '.5'; bar.style.pointerEvents = 'none';
+  const results = await Promise.allSettled(
+    ids.map(id => apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId: id, billingStatus: 'suspended' }) }))
+  );
+  const failed = results.filter(r => r.status === 'rejected').length;
+  if (failed) alert(`${failed} of ${ids.length} could not be suspended — they may already be in that state, or something else went wrong.`);
+  _selectedOrgIds.clear();
+  await loadOrganizations();
+}
+
+// ── Bulk permanent delete ──
+function openBulkDeleteModal() {
+  const ids = Array.from(_selectedOrgIds);
+  if (!ids.length) return;
+  const selectedOrgs = _orgs.filter(o => ids.includes(o.id));
+  document.getElementById('bulk-delete-list').innerHTML = selectedOrgs.map(o => `<li>${escapeHtml(o.name)} <span style="color:var(--ink-soft)">(${escapeHtml(o.subdomain)})</span></li>`).join('');
+  document.getElementById('bulk-delete-confirm-input').value = '';
+  document.getElementById('bulk-delete-error').style.display = 'none';
+  document.getElementById('bulk-delete-modal-backdrop').classList.add('open');
+}
+function closeBulkDeleteModal() { document.getElementById('bulk-delete-modal-backdrop').classList.remove('open'); }
+function closeBulkDeleteModalIfBg(e) { if (e.target === e.currentTarget) closeBulkDeleteModal(); }
+
+async function confirmBulkDelete() {
+  const input = document.getElementById('bulk-delete-confirm-input');
+  const errEl = document.getElementById('bulk-delete-error');
+  if (input.value.trim().toUpperCase() !== 'DELETE') {
+    errEl.textContent = 'Type DELETE (in capitals) to confirm.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const ids = Array.from(_selectedOrgIds);
+  const btn = document.getElementById('bulk-delete-confirm-btn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    await apiFetch('/admin/organizations', { method: 'DELETE', body: JSON.stringify({ organizationIds: ids }) });
+    closeBulkDeleteModal();
+    _selectedOrgIds.clear();
+    await loadOrganizations();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = prevLabel;
+  }
 }
 
 // ── Impersonation ──
