@@ -27,12 +27,16 @@ const MFA_FROM_EMAIL = process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
 const ROOT_DOMAIN = process.env.ROOT_DOMAIN || 'h-ld.com';
 const VERIFY_TOKEN_TTL_HOURS = 48;
 
-async function sendConfirmationEmail(email, verifyToken) {
+async function sendConfirmationEmail(email, verifyToken, subdomain) {
   const confirmUrl = `https://${ROOT_DOMAIN}/api/auth/verify-email?token=${verifyToken}`;
+  const subdomainUrl = `https://${subdomain}.${ROOT_DOMAIN}/admin.html`;
+  const subdomainLabel = `${subdomain}.${ROOT_DOMAIN}/admin.html`;
   const bodyHtml = `
     <p style="margin:0 0 20px;font-size:15px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Thanks for signing up! Confirm your email address to activate your account and get started.</p>
     ${buttonHtml(confirmUrl, 'Confirm your account')}
-    <p style="margin:0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours. If you didn't create this account, you can safely ignore this email.</p>
+    <p style="margin:28px 0 12px;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">You can also access your h_ld account via your own subdomain:</p>
+    ${buttonHtml(subdomainUrl, subdomainLabel)}
+    <p style="margin:20px 0 0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours. If you didn't create this account, you can safely ignore this email.</p>
   `;
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set — confirmation email not sent. Link was:', confirmUrl);
@@ -125,7 +129,7 @@ export default async function handler(req, res) {
   // Confirmation email goes out now, alongside payment — the two gates
   // (billing_status via requireOrg, email_verified via requireAuth) are
   // independent and can complete in either order.
-  await sendConfirmationEmail(normalizedEmail, verifyToken);
+  await sendConfirmationEmail(normalizedEmail, verifyToken, normalizedSubdomain);
 
   // Handed back now so the post-checkout redirect can carry it straight into
   // the app — it identifies who they are, but is useless for actually doing

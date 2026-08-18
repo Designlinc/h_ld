@@ -51,12 +51,16 @@ async function issueCode(email) {
   await sendMfaEmail(email, code);
 }
 
-async function sendVerificationEmail(email, verifyToken) {
+async function sendVerificationEmail(email, verifyToken, subdomain) {
   const confirmUrl = `https://${ROOT_DOMAIN}/api/auth/verify-email?token=${verifyToken}`;
+  const subdomainUrl = `https://${subdomain}.${ROOT_DOMAIN}/admin.html`;
+  const subdomainLabel = `${subdomain}.${ROOT_DOMAIN}/admin.html`;
   const bodyHtml = `
     <p style="margin:0 0 20px;font-size:15px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Confirm your email address to activate your account and get started.</p>
     ${buttonHtml(confirmUrl, 'Confirm your account')}
-    <p style="margin:0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours.</p>
+    <p style="margin:28px 0 12px;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">You can also access your h_ld account via your own subdomain:</p>
+    ${buttonHtml(subdomainUrl, subdomainLabel)}
+    <p style="margin:20px 0 0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours.</p>
   `;
   if (!RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set — confirmation email not sent. Link was:', confirmUrl);
@@ -104,7 +108,7 @@ export default async function handler(req, res) {
     const verifyToken = crypto.randomBytes(32).toString('hex');
     const verifyTokenExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60 * 1000);
     await sql`UPDATE practitioners SET email_verify_token = ${verifyToken}, email_verify_token_expires = ${verifyTokenExpires} WHERE id = ${practitioner.id}`;
-    await sendVerificationEmail(normalizedEmail, verifyToken);
+    await sendVerificationEmail(normalizedEmail, verifyToken, org.subdomain);
     return res.json({ ok: true });
   }
 
