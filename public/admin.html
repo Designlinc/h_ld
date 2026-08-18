@@ -3200,7 +3200,7 @@
 
 <!-- ═══ FORM TEMPLATE PICKER MODAL ═══ -->
 <div class="modal-backdrop" id="template-picker-modal-backdrop" onclick="closeTemplatePickerModalIfBg(event)">
-  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column">
+  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title">Use a template</span>
       <button class="modal-close" onclick="closeTemplatePickerModal()">
@@ -3216,7 +3216,7 @@
 
 <!-- ═══ CALENDAR CONNECT MODAL ═══ -->
 <div class="modal-backdrop" id="cal-modal-backdrop" onclick="closeCalModalIfBg(event)">
-  <div class="modal" style="width:500px">
+  <div class="modal" style="width:500px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="cal-modal-icon" id="cal-modal-icon"></div>
@@ -3367,7 +3367,7 @@
 
 <!-- ═══ NEW BOOKING MODAL ═══ -->
 <div class="modal-backdrop" id="booking-modal-backdrop" onclick="closeBookingModalIfBg(event)">
-  <div class="modal">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="booking-modal-title">New Booking</span>
       <button class="modal-close" onclick="closeBookingModal()">
@@ -3438,7 +3438,7 @@
 
 <!-- ═══ SERVICE MODAL ═══ -->
 <div class="modal-backdrop" id="service-modal-backdrop" onclick="closeServiceModalIfBg(event)">
-  <div class="modal">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="service-modal-title">New Service</span>
       <button class="modal-close" onclick="closeServiceModal()">
@@ -3524,7 +3524,7 @@
 
 <!-- ═══ FORM BUILDER MODAL ═══ -->
 <div class="modal-backdrop" id="form-modal-backdrop" onclick="closeFormModalIfBg(event)">
-  <div class="modal" style="width:860px;max-width:96vw">
+  <div class="modal" style="width:860px;max-width:96vw" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="form-modal-title">New Intake Form</span>
       <div style="display:flex;align-items:center;gap:8px">
@@ -3623,7 +3623,7 @@
 
 <!-- ═══ FORM PREVIEW MODAL ═══ -->
 <div class="modal-backdrop" id="form-preview-modal-backdrop" onclick="closeFormPreviewModalIfBg(event)">
-  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column">
+  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title">Preview</span>
       <button class="modal-close" onclick="closeFormPreviewModal()">
@@ -3639,7 +3639,7 @@
 
 <!-- ═══ PAYMENT MODAL ═══ -->
 <div class="modal-backdrop" id="payment-modal-backdrop" onclick="closePaymentModalIfBg(event)">
-  <div class="modal" style="width:440px">
+  <div class="modal" style="width:440px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title">Record Payment</span>
       <button class="modal-close" onclick="closePaymentModal()">
@@ -3744,7 +3744,7 @@
 
 <!-- ═══ MESSAGE TEMPLATE MODAL ═══ -->
 <div class="modal-backdrop" id="tmpl-modal-backdrop" onclick="closeTmplModalIfBg(event)">
-  <div class="modal" style="width:600px;max-height:90vh;display:flex;flex-direction:column">
+  <div class="modal" style="width:600px;max-height:90vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
     <div class="modal-header" style="flex-shrink:0">
       <div>
         <span class="modal-title" id="tmpl-modal-title">Edit Message Template</span>
@@ -3907,7 +3907,7 @@
 
 <!-- ═══ CLIENT MODAL ═══ -->
 <div class="modal-backdrop" id="client-modal-backdrop" onclick="closeClientModalIfBg(event)">
-  <div class="modal" style="width:480px">
+  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title" id="client-modal-title">New Client</span>
       <button class="modal-close" onclick="closeClientModal()">
@@ -14599,10 +14599,47 @@ if (_bootResetToken) {
   setAuthToken(_bootSignupToken);
   window.history.replaceState({}, '', window.location.pathname);
   bootApp();
-} else if (getAuthToken()) {
-  bootApp();
 } else {
-  showLogin();
+  checkOrgStatusThenBoot();
+}
+
+// Suspended/cancelled/not-found accounts see a clear status screen
+// immediately, before any login form — rather than a normal-looking
+// login prompt that only reveals the actual problem after they've typed
+// in credentials and tried to sign in.
+async function checkOrgStatusThenBoot() {
+  try {
+    const res = await fetch(API_BASE + '/auth/org-status');
+    const data = await res.json();
+    if (['suspended', 'cancelled', 'not_found'].includes(data.status)) {
+      showOrgBlockedScreen(data.status, data.orgName);
+      return;
+    }
+  } catch {
+    // If the status check itself fails (network hiccup, etc.), fall
+    // through to normal boot rather than blocking access on our own error.
+  }
+  if (getAuthToken()) { bootApp(); } else { showLogin(); }
+}
+
+function showOrgBlockedScreen(status, orgName) {
+  const copy = {
+    suspended: { title: 'This account is currently suspended', body: 'Access to ' + (orgName ? '"' + orgName + '"' : 'this account') + ' has been temporarily suspended.' },
+    cancelled: { title: 'This subscription has been cancelled', body: (orgName ? '"' + orgName + '"' : 'This account') + '\u2019s subscription is no longer active.' },
+    not_found: { title: 'No account found', body: 'There\u2019s no active account at this address.' },
+  }[status] || { title: 'Account unavailable', body: 'This account can\u2019t be accessed right now.' };
+
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FEEEE1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:20px">
+      <div style="background:#fff;border-radius:16px;padding:40px 32px;max-width:420px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+        <div style="width:52px;height:52px;border-radius:50%;background:#FEEEE1;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#C2491D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h1 style="font-size:18px;margin:0 0 10px;color:#1A1A1A">${copy.title}</h1>
+        <p style="font-size:14px;color:#6F6F71;line-height:1.6;margin:0 0 24px">${copy.body} If you believe this is a mistake, please get in touch with h_ld support.</p>
+        <a href="mailto:support@h-ld.com" style="display:inline-block;background:#1A1A1A;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px">Contact support</a>
+      </div>
+    </div>`;
 }
 
 // Measure scrollbar width and set as CSS variable for calendar alignment
