@@ -2727,7 +2727,11 @@
             <div class="form-group"><label class="form-label">Practitioner Title</label><input class="form-input" id="s-prac-title" placeholder="Kinesiologist" value=""></div>
           </div>
           <div class="form-row full">
-            <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="s-address" value=""></div>
+            <div class="form-group">
+              <label class="form-label">Address</label>
+              <input class="form-input" id="s-address" value="">
+              <div id="s-address-autocomplete-wrap" style="display:none"></div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group" style="position:relative">
@@ -4002,6 +4006,25 @@
       </div>
     </div>
 
+
+<!-- ═══ ONBOARDING WELCOME MODAL ═══ -->
+<div class="modal-backdrop" id="ob-welcome-modal-backdrop" style="z-index:360">
+  <div class="modal" style="width:400px" onclick="event.stopPropagation()">
+    <div class="modal-body" style="text-align:center;padding:36px 32px">
+      <svg viewBox="0 0 155.78 70.61" style="width:64px;height:auto;margin:0 auto 24px;display:block" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#231f20">
+          <path d="M29.71,47.43v-11.65c0-4.34-2.17-7.86-6.03-7.86-4.07,0-6.17,3.52-6.17,7.86v11.11c0,3.39,1.15,4.4,4.2,4.61v2.37H4.03v-2.37c3.19-.2,4.34-1.22,4.34-4.61v-29.54c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v12.81c0,2.44,1.22,2.91,2.1,1.9,1.56-2.03,4-4.34,9.21-4.34s10.03,2.17,10.03,11.72v13.21c0,2.3,1.02,3.52,2.98,2.78v1.42c-.88,1.97-3.25,2.64-5.35,2.64-3.93,0-6.77-2.17-6.77-6.84Z"/>
+          <path d="M87.48,47.43v-30.08c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.42,2.64-3.86,0-6.7-2.17-6.7-6.84Z"/>
+          <path d="M102.13,38.96c0-10.64,7.32-16.26,14.64-16.26s9.42,5.42,9.42-.74v-4.61c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.35,2.64-2.23,0-4.81-.81-5.62-2.84-.47-1.15-1.09-1.76-1.96-1.76-1.49,0-4.07,4.61-10.23,4.61-6.64,0-13.01-5.42-13.01-15.31ZM120.01,49.13c2.71,0,6.17-1.83,6.17-7.59v-4.2c0-8.47-4.47-11.86-8.06-11.86-3.93,0-6.31,4.34-6.31,10.23,0,6.98,3.32,13.42,8.2,13.42Z"/>
+          <path d="M141.85,49.26c0-2.78,2.23-5.01,4.94-5.01s4.95,2.24,4.95,5.01-2.24,5.01-4.95,5.01-4.94-2.23-4.94-5.01Z"/>
+        </g>
+        <path fill="#231f20" d="M79.16,48.65v5.71h-27.31v-5.71h-3.99v13.69h31.33c2.18,0,3.95-1.77,3.95-3.95v-9.73h-3.99Z"/>
+      </svg>
+      <div style="font-size:19px;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:24px">Welcome to h_ld, let's get you set up</div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="obStartSetup()">Start set up</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ ONBOARDING RESUME MODAL ═══ -->
 <div class="modal-backdrop" id="ob-resume-modal-backdrop" style="z-index:350">
@@ -5625,6 +5648,74 @@ function setSidebarAvatar(url) {
     img.src = '';
     img.style.display = 'none';
     icon.style.display = 'block';
+  }
+}
+
+// Address autocomplete for the Business Info field — uses Google's
+// current PlaceAutocompleteElement (their older Autocomplete widget class
+// stopped being available to new API keys as of March 2025, so this isn't
+// a style choice, it's the only option for a freshly-created key). This
+// is enhancement-only: the plain #s-address input is always fully
+// functional on its own, and stays that way if the Maps key isn't
+// configured yet, or if anything here fails for any reason.
+async function initAddressAutocomplete() {
+  const plainInput = document.getElementById('s-address');
+  if (!plainInput) return;
+
+  // Already set up — just keep its value in sync with whatever the plain
+  // input currently holds (e.g. settings reloaded with a saved address)
+  // rather than recreating the element from scratch.
+  const existing = document.getElementById('s-address-autocomplete');
+  if (existing) {
+    if (plainInput.value) existing.value = plainInput.value;
+    return;
+  }
+
+  try {
+    const res = await fetch(API_BASE + '/config/maps-key');
+    const data = await res.json();
+    if (!data.key) return; // not configured — plain input stays as-is, no error shown
+
+    if (!document.getElementById('google-maps-script')) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.id = 'google-maps-script';
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}`;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
+    const wrap = document.getElementById('s-address-autocomplete-wrap');
+    if (!wrap) return;
+
+    const autocomplete = new PlaceAutocompleteElement({
+      includedRegionCodes: ['au'], // biases toward Australian addresses, matching the rest of the app's AU focus — doesn't hard-block other countries
+    });
+    autocomplete.id = 's-address-autocomplete';
+    autocomplete.style.width = '100%';
+    if (plainInput.value) autocomplete.value = plainInput.value;
+
+    autocomplete.addEventListener('gmp-select', async (e) => {
+      try {
+        const place = e.placePrediction.toPlace();
+        await place.fetchFields({ fields: ['formattedAddress'] });
+        plainInput.value = place.formattedAddress || '';
+      } catch (err) {
+        console.warn('Could not fetch selected address details:', err);
+      }
+    });
+
+    wrap.appendChild(autocomplete);
+    wrap.style.display = 'block';
+    plainInput.style.display = 'none';
+  } catch (err) {
+    // Script failed to load, key invalid, component unsupported, etc. —
+    // the plain input was never touched, so nothing is actually broken.
+    console.warn('Address autocomplete unavailable, using plain input:', err);
   }
 }
 
@@ -8346,6 +8437,15 @@ async function deleteHoliday(id) {
 }
 
 function saveSettings() {
+  // If the address autocomplete element is active, its own current text
+  // is the source of truth — someone may have typed a full address
+  // without ever selecting a dropdown suggestion, which the gmp-select
+  // listener alone wouldn't catch.
+  const addressAutocomplete = document.getElementById('s-address-autocomplete');
+  if (addressAutocomplete && addressAutocomplete.value) {
+    document.getElementById('s-address').value = addressAutocomplete.value;
+  }
+
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const daySchedule = {};
   days.forEach(d => {
@@ -8476,6 +8576,16 @@ function obRefreshTip(stepKey, message) {
 }
 
 // ── Booking Page onboarding step ──
+function openObWelcomeModal() {
+  obDimAllExcept([]); // dims everything within app-root; the modal itself stays bright automatically, since every .modal-backdrop is already protected
+  document.getElementById('ob-welcome-modal-backdrop').classList.add('open');
+}
+
+function obStartSetup() {
+  document.getElementById('ob-welcome-modal-backdrop').classList.remove('open');
+  obOpen(1);
+}
+
 function obOpenBookingPageChoice() {
   document.getElementById('ob-bp-choice-backdrop').classList.add('open');
 }
@@ -9558,6 +9668,7 @@ function loadSettingsUI() {
   updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
+  initAddressAutocomplete();
   setLogoPreview(s.logoUrl || null);
   if (s.buffer) document.getElementById('s-buffer').value = s.buffer;
   if (s.cancelPolicy) document.getElementById('s-cancel-policy').value = s.cancelPolicy;
