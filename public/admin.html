@@ -1451,6 +1451,72 @@
   /* Arrow on the right edge, pointing right — tip sits to the left of its target */
   #ob-tip.arrow-right::after { top: 20px; right: -6px; left: auto; }
 
+  /* ── Booking Page onboarding: choice cards ── */
+  .ob-bp-choice-card {
+    background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius-lg);
+    padding: 22px 18px; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
+  }
+  .ob-bp-choice-card:hover { border-color: var(--sage-mid); box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+  .ob-bp-choice-card:active { transform: scale(.98); }
+
+  /* ── Booking Page onboarding: animated embed demo ──
+     One self-contained looping timeline (percentage keyframes on a shared
+     duration) rather than JS-driven timing — cursor moves to Copy, the
+     button flashes as if clicked, then a booking widget fades into the
+     mock website panel as if just pasted in. */
+  .ob-demo-stage { display: flex; align-items: center; gap: 16px; }
+  .ob-demo-panel-label { font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+  .ob-demo-code-panel, .ob-demo-website-panel { flex: 1; min-width: 0; }
+  .ob-demo-arrow { flex-shrink: 0; opacity: .5; }
+  .ob-demo-code-box {
+    position: relative; background: #1E2422; border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; gap: 7px; min-height: 120px;
+  }
+  .ob-demo-code-line { height: 7px; border-radius: 4px; background: rgba(255,255,255,.18); }
+  .ob-demo-copy-btn {
+    position: absolute; bottom: 12px; right: 12px;
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 10px; font-weight: 600;
+    padding: 5px 9px; border-radius: 6px;
+    animation: obDemoCopyFlash 4s ease infinite;
+  }
+  .ob-demo-cursor {
+    position: absolute; width: 14px; height: 14px; bottom: 30px; right: 60px;
+    border: 2px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    animation: obDemoCursorMove 4s ease infinite;
+  }
+  .ob-demo-website-box {
+    background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; gap: 8px; min-height: 120px;
+  }
+  .ob-demo-website-line { height: 7px; border-radius: 4px; background: var(--border); }
+  .ob-demo-widget {
+    margin-top: 4px; background: var(--white); border: 1.5px solid var(--sage-light); border-radius: 8px;
+    padding: 10px; display: flex; flex-direction: column; gap: 6px;
+    opacity: 0; transform: scale(.9) translateY(4px);
+    animation: obDemoWidgetAppear 4s ease infinite;
+  }
+  .ob-demo-widget-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--sage-light); margin-bottom: 2px; }
+  .ob-demo-widget-line { height: 6px; border-radius: 3px; background: var(--sage-light); }
+
+  @keyframes obDemoCursorMove {
+    0%   { opacity: 0; bottom: 60px; right: 90px; }
+    15%  { opacity: 1; bottom: 30px; right: 60px; }
+    25%  { opacity: 1; bottom: 30px; right: 60px; }
+    32%  { opacity: 0; bottom: 30px; right: 60px; }
+    100% { opacity: 0; }
+  }
+  @keyframes obDemoCopyFlash {
+    0%, 20%   { background: rgba(255,255,255,.12); }
+    25%, 30%  { background: var(--sage); }
+    35%, 100% { background: rgba(255,255,255,.12); }
+  }
+  @keyframes obDemoWidgetAppear {
+    0%, 40%   { opacity: 0; transform: scale(.9) translateY(4px); }
+    55%, 90%  { opacity: 1; transform: scale(1) translateY(0); }
+    100%      { opacity: 0; transform: scale(.9) translateY(4px); }
+  }
+
   .ob-check-badge {
     position: absolute; z-index: 5;
     width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
@@ -2353,7 +2419,7 @@
       <div class="services-grid" id="services-grid"></div>
 
       <!-- Booking Page panel -->
-      <div class="panel" style="margin-top:28px">
+      <div class="panel" style="margin-top:28px" id="ob-target-booking-page">
         <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <span class="panel-title" style="display:flex;align-items:center;gap:8px">
             Booking Page
@@ -3950,6 +4016,122 @@
       </div>
       <div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:20px">Let’s complete your set up.</div>
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="continueObResume()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BOOKING PAGE ONBOARDING — CHOICE MODAL ═══ -->
+<div class="modal-backdrop" id="ob-bp-choice-backdrop" style="z-index:360" onclick="if(event.target===event.currentTarget)obCloseBookingChoice()">
+  <div class="modal" style="width:540px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">How do you want clients to book with you?</span>
+      <button class="modal-close" onclick="obCloseBookingChoice()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <div style="font-size:13px;color:var(--ink-soft);margin-bottom:18px">Either option works — plenty of practitioners use both.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <button class="ob-bp-choice-card" onclick="obShowBookingLinkPreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <div style="font-weight:600;font-size:14px;color:var(--ink);margin-top:10px">Use the public booking page</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">A standalone link — share it anywhere, no website needed</div>
+        </button>
+        <button class="ob-bp-choice-card" onclick="obShowEmbedInstructions()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <div style="font-weight:600;font-size:14px;color:var(--ink);margin-top:10px">Embed it in your website</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Adds the booking form directly into your own site</div>
+        </button>
+      </div>
+      <div style="margin-top:20px;text-align:center">
+        <button class="btn btn-ghost" onclick="obCloseBookingChoice()">I'll set this up later</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BOOKING PAGE ONBOARDING — 1440px BROWSER WINDOW PREVIEW ═══ -->
+<div class="modal-backdrop" id="ob-browser-preview-backdrop" style="z-index:370;background:rgba(20,26,28,.55)" onclick="if(event.target===event.currentTarget)obCloseBrowserPreview()">
+  <div style="width:1440px;max-width:96vw;max-height:90vh;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35);display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="background:#EDEBE9;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="display:flex;gap:7px">
+        <div style="width:11px;height:11px;border-radius:50%;background:#E5675A"></div>
+        <div style="width:11px;height:11px;border-radius:50%;background:#E5B85A"></div>
+        <div style="width:11px;height:11px;border-radius:50%;background:#6FB582"></div>
+      </div>
+      <div style="flex:1;background:#fff;border-radius:7px;padding:7px 14px;font-size:12px;color:var(--ink-soft);border:1px solid var(--border)" id="ob-browser-url-bar"></div>
+      <button onclick="obCloseBrowserPreview()" style="background:none;border:none;cursor:pointer;color:var(--ink-soft);padding:4px;display:flex" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <iframe id="ob-browser-preview-frame" src="" style="width:100%;height:800px;max-height:80vh;border:none;flex:1"></iframe>
+  </div>
+</div>
+
+<!-- ═══ BOOKING PAGE ONBOARDING — EMBED INSTRUCTIONS ═══ -->
+<div class="modal-backdrop" id="ob-embed-instructions-backdrop" style="z-index:370" onclick="if(event.target===event.currentTarget)obCloseEmbedInstructions()">
+  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Embed your booking form</span>
+      <button class="modal-close" onclick="obCloseEmbedInstructions()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <p style="font-size:14px;color:var(--ink);line-height:1.6;margin:0 0 20px">You can embed your booking form into your website with:</p>
+      <div style="display:flex;gap:12px;margin-bottom:10px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--sage-pale);color:var(--sage);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+        <div style="font-size:13px;color:var(--ink);line-height:1.6">Simply copy the <strong>Styled embed code</strong> — full branding, ready to paste in as-is.</div>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--sage-pale);color:var(--sage);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+        <div style="font-size:13px;color:var(--ink);line-height:1.6">Or create a <strong>Custom embed code</strong>, which simply lets you add your website's own font.</div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:16px;justify-content:center" onclick="obShowEmbedDemo()">Watch a quick demo</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="copyEmbedCode('styled')">Copy Styled embed code</button>
+        <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="obCloseEmbedInstructions(); copyEmbedCode('custom')">Create Custom embed code</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BOOKING PAGE ONBOARDING — ANIMATED EMBED DEMO ═══ -->
+<div class="modal-backdrop" id="ob-embed-demo-backdrop" style="z-index:380" onclick="if(event.target===event.currentTarget)obCloseEmbedDemo()">
+  <div class="modal" style="width:600px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">How embedding works</span>
+      <button class="modal-close" onclick="obCloseEmbedDemo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <div class="ob-demo-stage" id="ob-embed-demo-stage">
+        <div class="ob-demo-code-panel">
+          <div class="ob-demo-panel-label">Your embed code</div>
+          <div class="ob-demo-code-box">
+            <div class="ob-demo-code-line" style="width:70%"></div>
+            <div class="ob-demo-code-line" style="width:90%"></div>
+            <div class="ob-demo-code-line" style="width:50%"></div>
+            <div class="ob-demo-copy-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</div>
+            <div class="ob-demo-cursor"></div>
+          </div>
+        </div>
+        <svg class="ob-demo-arrow" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <div class="ob-demo-website-panel">
+          <div class="ob-demo-panel-label">Your website</div>
+          <div class="ob-demo-website-box">
+            <div class="ob-demo-website-line" style="width:60%"></div>
+            <div class="ob-demo-website-line" style="width:80%"></div>
+            <div class="ob-demo-widget">
+              <div class="ob-demo-widget-dot"></div>
+              <div class="ob-demo-widget-line" style="width:70%"></div>
+              <div class="ob-demo-widget-line" style="width:45%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);text-align:center;margin:18px 0 0">Copy the code, paste it into your site's HTML — the booking form appears right where you put it.</p>
     </div>
   </div>
 </div>
@@ -8231,6 +8413,9 @@ const OB_STEPS = [
   { key: 'services',      page: 'services', target: 'ob-target-add-service',   title: 'Add a service',     skippable: false,
     tip: 'Add at least one service so clients have something to actually book.',
     tipPlacement: 'left' },
+  { key: 'booking-page',  page: 'services', target: 'ob-target-booking-page',  title: 'Your booking page', skippable: true,
+    tip: 'This is how clients actually reach you — share the link directly, or embed the form on your own website.',
+    onEnter: obOpenBookingPageChoice },
   { key: 'forms',         page: 'forms',    target: 'ob-target-use-template',  title: 'Intake forms',      skippable: true,
     tip: 'Pick a starting template, or skip this and build your own intake form later.' },
   { key: 'notifications', page: 'settings', target: 'ob-target-notifications', title: 'Notifications',     skippable: false,
@@ -8296,6 +8481,41 @@ function obRefreshTip(stepKey, message) {
   tip.classList.add('open');
 }
 
+// ── Booking Page onboarding step ──
+function obOpenBookingPageChoice() {
+  document.getElementById('ob-bp-choice-backdrop').classList.add('open');
+}
+function obCloseBookingChoice() {
+  document.getElementById('ob-bp-choice-backdrop').classList.remove('open');
+}
+
+function obShowBookingLinkPreview() {
+  obCloseBookingChoice();
+  const url = `https://${location.hostname}/book`;
+  document.getElementById('ob-browser-url-bar').textContent = url;
+  document.getElementById('ob-browser-preview-frame').src = '/book.html';
+  document.getElementById('ob-browser-preview-backdrop').classList.add('open');
+}
+function obCloseBrowserPreview() {
+  document.getElementById('ob-browser-preview-backdrop').classList.remove('open');
+  setTimeout(() => { document.getElementById('ob-browser-preview-frame').src = ''; }, 300);
+}
+
+function obShowEmbedInstructions() {
+  obCloseBookingChoice();
+  document.getElementById('ob-embed-instructions-backdrop').classList.add('open');
+}
+function obCloseEmbedInstructions() {
+  document.getElementById('ob-embed-instructions-backdrop').classList.remove('open');
+}
+
+function obShowEmbedDemo() {
+  document.getElementById('ob-embed-demo-backdrop').classList.add('open');
+}
+function obCloseEmbedDemo() {
+  document.getElementById('ob-embed-demo-backdrop').classList.remove('open');
+}
+
 function obCloseAnyOpenModal() {
   document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
 }
@@ -8320,7 +8540,10 @@ function obGoToStep(n) {
 
   // Two rAFs: one for the page-switch DOM to settle, one for layout to
   // actually reflow before measuring the target's real position.
-  requestAnimationFrame(() => requestAnimationFrame(() => { obPositionSpotlight(); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    obPositionSpotlight();
+    if (step.onEnter) step.onEnter();
+  }));
 }
 
 // Smallest rect containing both given rects — used to expand a spotlight
