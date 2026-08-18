@@ -1,7 +1,8 @@
-// api/admin/organizations.js — list, detail view, suspend/reactivate, subdomain change
+// api/admin/organizations.js — list, detail view, suspend/reactivate, subdomain change, remove
 import sql from '../../lib/db.js';
 import { requireSuperAdmin } from '../../lib/auth.js';
 import { invalidateOrgCache } from '../../lib/tenant.js';
+import { requireStripe } from '../../lib/stripe.js';
 
 const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin']);
 const SUBDOMAIN_PATTERN = /^[a-z0-9-]{3,63}$/;
@@ -48,6 +49,37 @@ export default async function handler(req, res) {
     return res.json({ organizations: rows });
   }
 
+  if (req.method === 'DELETE') {
+    const { organizationIds } = req.body || {};
+    if (!Array.isArray(organizationIds) || !organizationIds.length) {
+      return res.status(400).json({ error: 'organizationIds array required' });
+    }
+
+    // Server-side safety guardrail, independent of whatever the frontend
+    // sends: this endpoint can only ever remove organizations that are
+    // genuinely still 'pending' (never completed signup/payment) — never
+    // active, trial, suspended, or cancelled accounts, which may have real
+    // client data. Refuses the entire batch rather than silently skipping
+    // anything that doesn't qualify, so a bug elsewhere can't accidentally
+    // widen what this is capable of deleting.
+    const rows = await sql`SELECT id, subdomain, billing_status FROM organizations WHERE id = ANY(${organizationIds})`;
+    const notPending = rows.filter(r => r.billing_status !== 'pending');
+    if (notPending.length) {
+      return res.status(400).json({ error: `Refusing to delete — ${notPending.length} of the selected organizations are not pending (this tool only removes abandoned signups that never completed setup)` });
+    }
+    if (rows.length !== organizationIds.length) {
+      return res.status(404).json({ error: 'One or more organizations were not found' });
+    }
+
+    // ON DELETE CASCADE on every dependent table handles cleanup of
+    // practitioners, bookings, clients, etc. automatically — a genuinely
+    // pending org shouldn't have any of these anyway, since requireOrg()
+    // blocks pending orgs from the API entirely, but this is safe either way.
+    await sql`DELETE FROM organizations WHERE id = ANY(${organizationIds})`;
+    rows.forEach(r => invalidateOrgCache(r.subdomain));
+    return res.json({ ok: true, deleted: organizationIds.length });
+  }
+
   if (req.method === 'PATCH') {
     const { organizationId, billingStatus, subdomain } = req.body || {};
     if (!organizationId) return res.status(400).json({ error: 'organizationId required' });
@@ -59,17 +91,34 @@ export default async function handler(req, res) {
     if (!existingOrg) return res.status(404).json({ error: 'Organization not found' });
 
     if (billingStatus) {
-      // Deliberately only these two values — 'trial' is set by signup and
-      // 'cancelled' is set by the billing cancel flow / Stripe webhook.
-      // Manually forcing either of those from here would desync this from
-      // what Stripe actually thinks is happening. (Restoring access to a
-      // cancelled org still goes through 'active' here — the frontend is
-      // responsible for making clear that does NOT recreate a real
-      // subscription underneath it.)
-      if (!['active', 'suspended'].includes(billingStatus)) {
-        return res.status(400).json({ error: "billingStatus must be 'active' or 'suspended'" });
+      // 'trial' is set by signup and shouldn't be forced from here.
+      // 'cancelled' needs to actually cancel the real Stripe subscription
+      // first (same as the customer-facing cancel flow) — writing
+      // 'cancelled' straight to the database without that would leave a
+      // real subscription still running and still billing them, just with
+      // h_ld's own records no longer reflecting reality.
+      if (billingStatus === 'cancelled') {
+        const [orgRow] = await sql`SELECT stripe_subscription_id FROM organizations WHERE id = ${organizationId}`;
+        if (orgRow?.stripe_subscription_id) {
+          const stripe = requireStripe(res);
+          if (!stripe) return; // requireStripe already sent the error response
+          try {
+            await stripe.subscriptions.cancel(orgRow.stripe_subscription_id);
+          } catch (err) {
+            // Already cancelled or otherwise gone on Stripe's side is fine
+            // to proceed past — anything else is a real failure worth
+            // stopping for rather than silently marking cancelled anyway.
+            if (err.code !== 'resource_missing') {
+              return res.status(502).json({ error: 'Could not cancel the Stripe subscription: ' + err.message });
+            }
+          }
+        }
+        await sql`UPDATE organizations SET billing_status = 'cancelled' WHERE id = ${organizationId}`;
+      } else if (['active', 'suspended'].includes(billingStatus)) {
+        await sql`UPDATE organizations SET billing_status = ${billingStatus} WHERE id = ${organizationId}`;
+      } else {
+        return res.status(400).json({ error: "billingStatus must be 'active', 'suspended', or 'cancelled'" });
       }
-      await sql`UPDATE organizations SET billing_status = ${billingStatus} WHERE id = ${organizationId}`;
     }
 
     if (subdomain) {
