@@ -2,8 +2,11 @@
 // practitioner, then immediately starts a Stripe Checkout session — no free
 // accounts. The org is created with billing_status 'pending', which
 // requireOrg() blocks from actually using the app; the Stripe webhook
-// (checkout.session.completed) flips it to 'active' once payment succeeds,
-// which is the only way in.
+// (checkout.session.completed) flips it to 'active' once payment succeeds.
+// Separately, the practitioner starts with email_verified false, which
+// requireAuth() also blocks on — cleared by clicking the confirmation link
+// sent below (see api/auth/verify-email.js). Both gates are independent
+// and can clear in either order; real access requires both.
 //
 // Unlike every other route, this one deliberately does NOT call
 // requireOrg() — there's no organization yet, that's the whole point. It's
@@ -12,12 +15,40 @@
 import sql from '../../lib/db.js';
 import { signToken } from '../../lib/auth.js';
 import { requireStripe } from '../../lib/stripe.js';
+import { renderEmail, buttonHtml } from '../../lib/emailTemplate.js';
 import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 
 const RESERVED_SUBDOMAINS = new Set(['www', 'app', 'admin', 'api', 'book', 'mail', 'support']);
 const SUBDOMAIN_PATTERN = /^[a-z0-9-]{3,63}$/;
 const PRICE_ID = process.env.STRIPE_PRICE_ID;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const MFA_FROM_EMAIL = process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
+const ROOT_DOMAIN = process.env.ROOT_DOMAIN || 'h-ld.com';
+const VERIFY_TOKEN_TTL_HOURS = 48;
+
+async function sendConfirmationEmail(email, verifyToken) {
+  const confirmUrl = `https://${ROOT_DOMAIN}/api/auth/verify-email?token=${verifyToken}`;
+  const bodyHtml = `
+    <p style="margin:0 0 20px;font-size:15px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Thanks for signing up! Confirm your email address to activate your account and get started.</p>
+    ${buttonHtml(confirmUrl, 'Confirm your account')}
+    <p style="margin:0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours. If you didn't create this account, you can safely ignore this email.</p>
+  `;
+  if (!RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — confirmation email not sent. Link was:', confirmUrl);
+    return;
+  }
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: MFA_FROM_EMAIL,
+      to: email,
+      subject: 'Confirm your h_ld. account',
+      html: renderEmail({ bodyHtml }),
+    }),
+  });
+}
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -60,6 +91,8 @@ export default async function handler(req, res) {
   const practitionerId = randomUUID();
   const passwordHash = await bcrypt.hash(password, 12);
   const trimmedOrgName = orgName.trim();
+  const verifyToken = randomBytes(32).toString('hex');
+  const verifyTokenExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60 * 1000);
 
   try {
     // ...and the table's UNIQUE constraints as the real guarantee, in case
@@ -71,8 +104,8 @@ export default async function handler(req, res) {
       VALUES (${organizationId}, ${normalizedSubdomain}, ${trimmedOrgName}, 'standard', 'pending')
     `;
     await sql`
-      INSERT INTO practitioners (id, organization_id, email, password, name, role)
-      VALUES (${practitionerId}, ${organizationId}, ${normalizedEmail}, ${passwordHash}, ${name ? name.trim() : null}, 'owner')
+      INSERT INTO practitioners (id, organization_id, email, password, name, role, email_verify_token, email_verify_token_expires)
+      VALUES (${practitionerId}, ${organizationId}, ${normalizedEmail}, ${passwordHash}, ${name ? name.trim() : null}, 'owner', ${verifyToken}, ${verifyTokenExpires})
     `;
     // Seed Settings with what was already collected here, so the practitioner
     // lands on their real business name instead of the generic "Your
@@ -89,15 +122,22 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Something went wrong creating your account' });
   }
 
+  // Confirmation email goes out now, alongside payment — the two gates
+  // (billing_status via requireOrg, email_verified via requireAuth) are
+  // independent and can complete in either order.
+  await sendConfirmationEmail(normalizedEmail, verifyToken);
+
   // Handed back now so the post-checkout redirect can carry it straight into
   // the app — it identifies who they are, but is useless for actually doing
-  // anything until billing_status flips to 'active', since every API route
-  // goes through requireOrg() first.
+  // anything until billing_status flips to 'active' AND the email is
+  // confirmed, since every API route goes through requireOrg() and
+  // requireAuth() first.
   const token = signToken({
     practitioner_id: practitionerId,
     organization_id: organizationId,
     role: 'owner',
     email: normalizedEmail,
+    email_verified: false,
   });
 
   let session;

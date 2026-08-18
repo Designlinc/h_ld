@@ -4425,6 +4425,64 @@ function showActivationPendingScreen() {
   setTimeout(() => { window.location.reload(); }, 2000);
 }
 
+// Decodes a JWT's payload client-side (base64, no signature verification
+// needed here — this is purely to read the email out for display/resend
+// purposes, the server independently verifies the token on every real
+// request regardless of what this reads).
+function decodeJwtPayload(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+  } catch { return null; }
+}
+
+function showEmailVerificationPendingScreen(knownEmail) {
+  const token = getAuthToken();
+  const payload = token ? decodeJwtPayload(token) : null;
+  const email = knownEmail || payload?.email || '';
+
+  let el = document.getElementById('verify-pending-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'verify-pending-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#FEEEE1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    el.innerHTML = `
+      <div style="width:52px;height:52px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#231F20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+      </div>
+      <div style="font-size:16px;font-weight:600;color:#231F20">Confirm your email to continue</div>
+      <div style="font-size:13px;color:#8A868A;max-width:340px;line-height:1.6">We sent a confirmation link to <strong id="verify-pending-email" style="color:#231F20"></strong>. Click it to activate your account and get started.</div>
+      <button id="verify-resend-btn" class="btn btn-primary" style="margin-top:4px" onclick="resendVerificationEmail()">Resend confirmation email</button>
+      <div id="verify-resend-status" style="font-size:12px;color:#8A868A;height:16px"></div>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="clearAuthToken(); showLogin();">Sign out</button>
+    `;
+    document.body.appendChild(el);
+  }
+  el.dataset.email = email;
+  document.getElementById('verify-pending-email').textContent = email || 'your email address';
+}
+
+async function resendVerificationEmail() {
+  const el = document.getElementById('verify-pending-overlay');
+  const email = el?.dataset.email;
+  const btn = document.getElementById('verify-resend-btn');
+  const statusEl = document.getElementById('verify-resend-status');
+  if (!email) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, resendVerification: true }),
+    });
+    if (!res.ok) throw new Error();
+    statusEl.textContent = 'Sent — check your inbox.';
+  } catch {
+    statusEl.textContent = 'Could not resend right now — please try again shortly.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -4450,6 +4508,15 @@ async function apiFetch(path, options = {}) {
       // still a successful payment in progress.
       showActivationPendingScreen();
       throw new Error('payment_pending');
+    }
+  }
+
+  if (res.status === 403) {
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (data.error === 'email_not_verified') {
+      showEmailVerificationPendingScreen();
+      throw new Error('email_not_verified');
     }
   }
 
@@ -4506,7 +4573,13 @@ async function handleLogin(e) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (!res.ok) {
+      if (data.error === 'email_not_verified') {
+        showEmailVerificationPendingScreen(email);
+        return;
+      }
+      throw new Error(data.error || 'Login failed');
+    }
 
     if (data.mfaRequired) {
       _mfaEmail = email;

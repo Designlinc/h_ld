@@ -2,9 +2,12 @@
 import sql from '../../lib/db.js';
 import { signToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
-import { renderEmail, codeBlockHtml } from '../../lib/emailTemplate.js';
+import { renderEmail, codeBlockHtml, buttonHtml } from '../../lib/emailTemplate.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+
+const VERIFY_TOKEN_TTL_HOURS = 48;
+const ROOT_DOMAIN = process.env.ROOT_DOMAIN || 'h-ld.com';
 
 const MFA_CODE_TTL_MINUTES = 10;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -48,6 +51,29 @@ async function issueCode(email) {
   await sendMfaEmail(email, code);
 }
 
+async function sendVerificationEmail(email, verifyToken) {
+  const confirmUrl = `https://${ROOT_DOMAIN}/api/auth/verify-email?token=${verifyToken}`;
+  const bodyHtml = `
+    <p style="margin:0 0 20px;font-size:15px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Confirm your email address to activate your account and get started.</p>
+    ${buttonHtml(confirmUrl, 'Confirm your account')}
+    <p style="margin:0;font-size:13px;color:#1A1A1A;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">This link expires in ${VERIFY_TOKEN_TTL_HOURS} hours.</p>
+  `;
+  if (!RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — confirmation email not sent. Link was:', confirmUrl);
+    return;
+  }
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: MFA_FROM_EMAIL,
+      to: email,
+      subject: 'Confirm your h_ld. account',
+      html: renderEmail({ bodyHtml }),
+    }),
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -59,9 +85,28 @@ export default async function handler(req, res) {
   const org = await requireOrg(req, res);
   if (!org) return;
 
-  const { email, password, code, resend } = req.body || {};
+  const { email, password, code, resend, resendVerification } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email required' });
   const normalizedEmail = email.trim().toLowerCase();
+
+  // ── Step: resend the account confirmation email (distinct from the MFA
+  // code resend below — this is for someone who hasn't clicked their
+  // original confirmation link yet, possibly because it expired) ──
+  if (resendVerification) {
+    const [practitioner] = await sql`
+      SELECT id, email_verified FROM practitioners WHERE email = ${normalizedEmail} AND organization_id = ${org.id}
+    `;
+    // Same non-committal response whether the account doesn't exist or is
+    // already verified — don't let this endpoint be used to probe which
+    // emails have signed up.
+    if (!practitioner || practitioner.email_verified) return res.json({ ok: true });
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyTokenExpires = new Date(Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60 * 1000);
+    await sql`UPDATE practitioners SET email_verify_token = ${verifyToken}, email_verify_token_expires = ${verifyTokenExpires} WHERE id = ${practitioner.id}`;
+    await sendVerificationEmail(normalizedEmail, verifyToken);
+    return res.json({ ok: true });
+  }
 
   // ── Step: resend a fresh code (user already passed the password step) ──
   if (resend) {
@@ -96,6 +141,7 @@ export default async function handler(req, res) {
       organization_id: org.id,
       role: practitioner.role,
       email: practitioner.email,
+      email_verified: practitioner.email_verified,
     });
     return res.json({
       token,
@@ -118,6 +164,10 @@ export default async function handler(req, res) {
 
   const valid = await bcrypt.compare(password, practitioner.password);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+  if (!practitioner.email_verified) {
+    return res.status(403).json({ error: 'email_not_verified', message: 'Please confirm your email address before signing in — check your inbox for the confirmation link.' });
+  }
 
   // Password correct — instead of issuing a token immediately, send the MFA
   // code and tell the client to move to the verification step.
