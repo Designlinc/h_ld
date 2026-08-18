@@ -1390,16 +1390,12 @@
      that element's real position on screen — rather than a separate wizard
      UI, this teaches the practitioner where things actually live, and
      anything they fill in here is the real field, already saved in place.
-     Two rings: a subtle one around the whole section for context, and a
-     bright one that walks field-by-field within it for actual guidance. */
-  #ob-dim {
-    position: fixed; inset: 0; z-index: 150;
-    background: rgba(20,26,28,.32);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    opacity: 0; pointer-events: none; transition: opacity .25s;
-  }
-  #ob-dim.open { opacity: 1; pointer-events: all; }
+     Dimming is applied directly to the real surrounding elements' own
+     opacity (see obDimAllExcept) rather than a separate covering layer —
+     no cutout geometry to compute, no click-through concerns, since the
+     target is never covered by anything in the first place. Two rings: a
+     subtle one around the whole section for context, and a bright one
+     that walks field-by-field within it for actual guidance. */
   #ob-spotlight-ring {
     position: fixed; z-index: 151; border-radius: 16px;
     box-shadow: 0 0 0 2px rgba(255,255,255,.5);
@@ -4523,7 +4519,6 @@
 </div>
 
 <!-- ═══ ONBOARDING SPOTLIGHT ═══ -->
-<div id="ob-dim"></div>
 <div id="ob-spotlight-ring"></div>
 <div id="ob-field-ring"></div>
 <div id="ob-tip"></div>
@@ -8440,7 +8435,6 @@ function continueObResume() {
 
 function obOpen(startStep) {
   obCurrentStep = Math.min(Math.max(startStep || 1, 1), OB_STEPS.length);
-  document.getElementById('ob-dim').classList.add('open');
   document.getElementById('ob-spotlight-ring').classList.add('open');
   document.getElementById('ob-bar').classList.add('open');
   window.addEventListener('resize', obRepositionDebounced);
@@ -8546,20 +8540,68 @@ function obGoToStep(n) {
   }));
 }
 
-// Smallest rect containing both given rects — used to expand a spotlight
-// cutout to cover a page header plus whatever content list sits below it.
-function unionRect(a, b) {
-  const left = Math.min(a.left, b.left);
-  const top = Math.min(a.top, b.top);
-  const right = Math.max(a.right, b.right);
-  const bottom = Math.max(a.bottom, b.bottom);
-  return { left, top, right, bottom, width: right - left, height: bottom - top };
+// ── Opacity-based dimming ──
+// Walks up from each element that should stay bright, all the way to
+// #app-root, marking every node on that path as protected. Then dims
+// every child of every protected node that isn't itself protected — this
+// naturally handles multiple kept-bright elements (e.g. a page header
+// plus a content grid below it) without needing to compute any bounding
+// geometry, and never covers the target with anything, so there's no
+// click-through question to get wrong. Real onboarding UI (bar, tip,
+// rings), modals, toasts, and the note editor are never touched — they
+// live outside #app-root entirely, so the walk never reaches them.
+let _obDimmedElements = [];
+
+function obDimAllExcept(keepBrightElements) {
+  obClearDimming();
+  const root = document.getElementById('app-root');
+  if (!root) return;
+
+  const protectedSet = new Set([root]);
+  const protectPath = (el) => {
+    let node = el;
+    while (node && node !== root) {
+      protectedSet.add(node);
+      node = node.parentElement;
+    }
+  };
+
+  keepBrightElements.forEach(protectPath);
+
+  // Every modal and every piece of onboarding's own UI is always
+  // protected, at whatever depth it actually lives — confirmed by
+  // checking directly that these are nested inside wrapper elements
+  // within #app-root, not direct children of it, so only protecting the
+  // element itself (and not its full ancestor chain) would leave it
+  // sitting inside an otherwise-dimmed wrapper and visually faded anyway,
+  // even though the element's own opacity was never touched.
+  document.querySelectorAll('.modal-backdrop, .toast-container, #note-editor-overlay, [id^="ob-"]').forEach(protectPath);
+
+  protectedSet.forEach(node => {
+    Array.from(node.children || []).forEach(child => {
+      if (protectedSet.has(child)) return;
+      child.style.transition = 'opacity .3s ease';
+      child.style.opacity = '0.15';
+      child.style.pointerEvents = 'none';
+      _obDimmedElements.push(child);
+    });
+  });
 }
 
+function obClearDimming() {
+  _obDimmedElements.forEach(el => {
+    el.style.opacity = '';
+    el.style.pointerEvents = '';
+  });
+  _obDimmedElements = [];
+}
+
+// Used when a step's target genuinely can't be found/measured after
+// retrying — dims everything within app-root with nothing kept bright,
+// which is a real, visible state rather than leaving nothing positioned
+// at all (the old failure mode that made this look like a random bug).
 function obDimFullScreen() {
-  const dim = document.getElementById('ob-dim');
-  dim.style.clipPath = 'none';
-  dim.style.webkitClipPath = 'none';
+  obDimAllExcept([]);
   document.getElementById('ob-spotlight-ring').classList.remove('open');
 }
 
@@ -8591,62 +8633,36 @@ function obPositionSpotlight(attempt = 0) {
   target.scrollIntoView({ block: 'center', behavior: attempt === 0 ? 'auto' : 'smooth' });
 
   setTimeout(() => {
-    let rect = target.getBoundingClientRect();
+    let rects = [{ el: target, rect: target.getBoundingClientRect() }];
 
-    // Once something's actually been created, expand the cutout to cover
-    // it too — otherwise the button stays visible but whatever was just
-    // added remains blurred out just beyond it, which defeats the point
-    // of showing a confirmation at all.
+    // Once something's actually been created, keep it bright too —
+    // otherwise the button stays visible but whatever was just added
+    // remains dimmed just beyond it, which defeats the point of showing a
+    // confirmation at all.
     if (step.key === 'services' && getServices().length) {
       const grid = document.getElementById('services-grid');
       const header = target.closest('.page-header');
-      if (grid && header) rect = unionRect(header.getBoundingClientRect(), grid.getBoundingClientRect());
+      if (grid && header) rects = [{ el: header, rect: header.getBoundingClientRect() }, { el: grid, rect: grid.getBoundingClientRect() }];
     } else if (step.key === 'forms' && getForms().length) {
       const list = document.getElementById('forms-list') || document.getElementById('forms-grid');
       const header = target.closest('.page-header');
-      if (list && header) rect = unionRect(header.getBoundingClientRect(), list.getBoundingClientRect());
+      if (list && header) rects = [{ el: header, rect: header.getBoundingClientRect() }, { el: list, rect: list.getBoundingClientRect() }];
     }
 
-    const x = Math.max(rect.left, 0);
-    const y = Math.max(rect.top, 0);
-    const w = rect.width;
-    const h = rect.height;
+    obDimAllExcept(rects.map(r => r.el));
+
+    // Ring/tip position around the overall bounding box of everything
+    // being kept bright, for cases with more than one (services/forms
+    // once something exists).
+    const x = Math.min(...rects.map(r => Math.max(r.rect.left, 0)));
+    const y = Math.min(...rects.map(r => Math.max(r.rect.top, 0)));
+    const right = Math.max(...rects.map(r => r.rect.right));
+    const bottom = Math.max(...rects.map(r => r.rect.bottom));
+    const w = right - x;
+    const h = bottom - y;
     const vw = window.innerWidth, vh = window.innerHeight;
 
-    // A rounded-rect cutout can't be built correctly from separate
-    // rectangles — each one's border-radius only curves into its own body,
-    // which is the wrong direction to continue a neighboring shape's curve
-    // (this is what produced corners rounding "the wrong way"). An SVG
-    // mask sidesteps the problem entirely: the cutout is drawn as an actual
-    // rounded rect via SVG's own rx, which is correct by construction.
-    // A hole in SVG requires an actual compound path with two subpaths
-    // under fill-rule="evenodd" — drawing a "transparent" rect on top of a
-    // solid one doesn't erase what's beneath it, it just paints nothing
-    // additional there, leaving the white background fully intact and
-    // visible regardless. evenodd is what makes the overlapping region
-    // genuinely unpainted (true zero alpha), which is what a mask needs.
-    const wasExpanded = rect.width !== target.getBoundingClientRect().width;
-    const targetRadius = wasExpanded ? 16 : (parseFloat(getComputedStyle(target).borderRadius) || 0);
-    // Browsers automatically cap border-radius rendering at 50% of the
-    // smaller dimension — a pill-shaped button might genuinely have
-    // border-radius:999px in CSS while only being ~40px tall, and the
-    // *rendered* radius is capped accordingly. This path is built by hand,
-    // so it needs that same cap explicitly — without it, a radius larger
-    // than the shape itself makes the arc math self-intersect into a
-    // bowtie/X pattern instead of a rounded rectangle.
-    const r = Math.max(Math.min(targetRadius, w / 2, h / 2), 0);
-    const cutoutPath = `M${x + r},${y} H${x + w - r} A${r},${r} 0 0 1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0 1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0 1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0 1 ${x + r},${y} Z`;
-    const outerPath = `M0,0 H${vw} V${vh} H0 Z`;
-    const dim = document.getElementById('ob-dim');
-    // clip-path (unlike mask-image) affects hit-testing as well as
-    // rendering — only the visibly-painted region actually captures
-    // clicks. mask-image only controls what's painted, so the cutout area
-    // still blocked every click across the whole screen even though it
-    // looked transparent — exactly what made every field after Step 1
-    // impossible to interact with.
-    dim.style.clipPath = `path(evenodd, "${outerPath} ${cutoutPath}")`;
-    dim.style.webkitClipPath = dim.style.clipPath;
-
+    const targetRadius = rects.length > 1 ? 16 : (parseFloat(getComputedStyle(target).borderRadius) || 0);
     const ring = document.getElementById('ob-spotlight-ring');
     ring.style.left = x + 'px';
     ring.style.top = y + 'px';
@@ -8808,7 +8824,7 @@ function obSkip() {
 async function obFinish() {
   obSaveCurrentStepIfNeeded();
   obClearFieldWalk();
-  document.getElementById('ob-dim').classList.remove('open');
+  obClearDimming();
   document.getElementById('ob-spotlight-ring').classList.remove('open');
   document.getElementById('ob-bar').classList.remove('open');
   document.getElementById('ob-tip').classList.remove('open');
@@ -14526,7 +14542,7 @@ async function bootApp() {
     if (resumeStep && resumeStep > 1) {
       openObResumeModal(resumeStep);
     } else {
-      obOpen(1);
+      openObWelcomeModal();
     }
   }
   if (aiSpeakEnabled) {
