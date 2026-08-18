@@ -225,6 +225,20 @@
   </div>
 </div>
 
+<!-- ═══ REMOVE ACCOUNT MODAL ═══ -->
+<div class="modal-backdrop" id="remove-org-modal-backdrop" onclick="closeRemoveOrgModalIfBg(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Remove <span id="remove-org-name"></span>?</div>
+    <div class="modal-sub">This cancels the organization's access immediately — it does not delete any of their data, and can be reversed later from "Restore access" if needed. To confirm, type the organization's name exactly as shown above.</div>
+    <input type="text" id="remove-org-confirm-input" class="form-input" placeholder="Type the organization name to confirm">
+    <div id="remove-org-error" class="error-msg" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeRemoveOrgModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmRemoveOrg()" id="remove-org-confirm-btn">Remove account</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ CHANGE SUBDOMAIN MODAL ═══ -->
 <div class="modal-backdrop" id="subdomain-modal-backdrop" onclick="closeSubdomainModalIfBg(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -602,14 +616,64 @@ function closeOrgDetail() {
   loadOrganizations();
 }
 
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function billingActionButton(org) {
   if (org.billing_status === 'suspended') {
-    return `<button class="btn btn-primary" onclick="setBillingStatus('${org.id}','active', true)">Reactivate</button>`;
+    return `<button class="btn btn-primary" onclick="setBillingStatus('${org.id}','active', true)">Reactivate</button>
+      <button class="btn btn-danger" style="margin-left:8px" onclick="openRemoveOrgModal('${org.id}','${escHtml(org.name)}')">Remove account</button>`;
   }
   if (org.billing_status === 'cancelled') {
     return `<button class="btn btn-danger" onclick="openRestoreModal()">Restore access</button>`;
   }
-  return `<button class="btn btn-danger" onclick="setBillingStatus('${org.id}','suspended', true)">Suspend</button>`;
+  return `<button class="btn btn-danger" onclick="setBillingStatus('${org.id}','suspended', true)">Suspend</button>
+    <button class="btn btn-danger" style="margin-left:8px" onclick="openRemoveOrgModal('${org.id}','${escHtml(org.name)}')">Remove account</button>`;
+}
+
+// ── Remove account — sets billing_status to 'cancelled', the same state
+// the existing "Restore access" flow already knows how to reverse. This
+// doesn't delete any data — it's a reversible status change, not a
+// permanent deletion, which is deliberate given how consequential
+// destroying a real business's data would be. Requires typing the exact
+// organization name to confirm, rather than a plain confirm() dialog,
+// since this is materially more serious than Suspend.
+let _removeOrgId = null;
+function openRemoveOrgModal(orgId, orgName) {
+  _removeOrgId = orgId;
+  document.getElementById('remove-org-name').textContent = orgName;
+  document.getElementById('remove-org-confirm-input').value = '';
+  document.getElementById('remove-org-confirm-input').dataset.expected = orgName;
+  document.getElementById('remove-org-error').style.display = 'none';
+  document.getElementById('remove-org-modal-backdrop').classList.add('open');
+}
+function closeRemoveOrgModal() { document.getElementById('remove-org-modal-backdrop').classList.remove('open'); _removeOrgId = null; }
+function closeRemoveOrgModalIfBg(e) { if (e.target === e.currentTarget) closeRemoveOrgModal(); }
+
+async function confirmRemoveOrg() {
+  const input = document.getElementById('remove-org-confirm-input');
+  const errEl = document.getElementById('remove-org-error');
+  if (input.value.trim() !== input.dataset.expected) {
+    errEl.textContent = 'That doesn\u2019t match the organization name — check the spelling and try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('remove-org-confirm-btn');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Removing…';
+  try {
+    await apiFetch('/admin/organizations', { method: 'PATCH', body: JSON.stringify({ organizationId: _removeOrgId, billingStatus: 'cancelled' }) });
+    closeRemoveOrgModal();
+    if (_currentDetailOrg) { await openOrgDetail(_currentDetailOrg.id); } else { await loadOrganizations(); }
+  } catch (err) {
+    errEl.textContent = 'Could not remove account: ' + err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
 }
 
 function renderOrgDetail() {
