@@ -5204,6 +5204,17 @@ async function handleResetPassword(e) {
 }
 
 function showLogin() {
+  // Defensive cleanup — every sign-out path converges on this function,
+  // so this is the one place that guarantees no residual onboarding
+  // state (dimmed elements, an open field-walk ring, a lingering modal)
+  // can ever bleed into a login screen or a future session. Dimming in
+  // particular is applied as inline styles directly on real page
+  // elements — without this, signing out mid-onboarding would leave
+  // those specific elements dimmed indefinitely, until some future
+  // onboarding session happened to touch the exact same elements again.
+  obClearDimming();
+  obClearFieldWalk();
+  obCloseAnyOpenModal();
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('app-root').style.display = 'none';
 }
@@ -8697,7 +8708,6 @@ function obRefreshTip(stepKey, message) {
 
 // ── Booking Page onboarding step ──
 function openObWelcomeModal() {
-  obDimAllExcept([]); // dims everything within app-root; the modal itself stays bright automatically, since every .modal-backdrop is already protected
   document.getElementById('ob-welcome-modal-backdrop').classList.add('open');
 }
 
