@@ -5807,16 +5807,32 @@ async function initAddressAutocomplete() {
     const data = await res.json();
     if (!data.key) return; // not configured — plain input stays as-is, no error shown
 
-    if (!document.getElementById('google-maps-script')) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.id = 'google-maps-script';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}`;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+    // Google's own documented inline bootstrap loader (de-minified from
+    // their published snippet) — a plain <script src="...maps/api/js?key=...">
+    // tag alone does NOT make google.maps.importLibrary available at all;
+    // this is what actually defines it as a real function that lazily
+    // loads whichever library is requested. Without this specific setup,
+    // every importLibrary() call below would throw immediately.
+    if (!window.google?.maps?.importLibrary) {
+      (function (g) {
+        let h, a, k;
+        const p = 'The Google Maps JavaScript API', c = 'google', l = 'importLibrary', q = '__ib__', m = document, b = window;
+        const bb = b[c] || (b[c] = {});
+        const d = bb.maps || (bb.maps = {});
+        const r = new Set(), e = new URLSearchParams();
+        const u = () => h || (h = new Promise(async (f, n) => {
+          await (a = m.createElement('script'));
+          e.set('libraries', [...r] + '');
+          for (k in g) e.set(k.replace(/[A-Z]/g, t => '_' + t[0].toLowerCase()), g[k]);
+          e.set('callback', c + '.maps.' + q);
+          a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+          d[q] = f;
+          a.onerror = () => h = n(Error(p + ' could not load.'));
+          a.nonce = m.querySelector('script[nonce]')?.nonce || '';
+          m.head.append(a);
+        }));
+        d[l] ? console.warn(p + ' only loads once. Ignoring:', g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n));
+      })({ key: data.key, v: 'weekly' });
     }
 
     const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
