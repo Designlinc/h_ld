@@ -8798,24 +8798,31 @@ function obDimAllExcept(keepBrightElements) {
   if (!root) return;
 
   const protectedSet = new Set([root]);
-  const protectPath = (el) => {
-    let node = el;
+
+  // Protects the element itself, everything inside it, AND the path up
+  // to root — not just the path. The earlier version only walked
+  // upward, so a protected container's own contents (anything that
+  // wasn't itself an ancestor of some other protected element, like a
+  // label sitting next to an ID'd sibling, or a service card inside a
+  // protected grid) fell straight through and got dimmed anyway, even
+  // though the container wrapping them was correctly left alone.
+  const protectFully = (el) => {
+    protectedSet.add(el);
+    el.querySelectorAll('*').forEach(d => protectedSet.add(d));
+    let node = el.parentElement;
     while (node && node !== root) {
       protectedSet.add(node);
       node = node.parentElement;
     }
   };
 
-  keepBrightElements.forEach(protectPath);
+  keepBrightElements.forEach(protectFully);
 
   // Every modal and every piece of onboarding's own UI is always
   // protected, at whatever depth it actually lives — confirmed by
   // checking directly that these are nested inside wrapper elements
-  // within #app-root, not direct children of it, so only protecting the
-  // element itself (and not its full ancestor chain) would leave it
-  // sitting inside an otherwise-dimmed wrapper and visually faded anyway,
-  // even though the element's own opacity was never touched.
-  document.querySelectorAll('.modal-backdrop, .toast-container, #note-editor-overlay, [id^="ob-"]').forEach(protectPath);
+  // within #app-root, not direct children of it.
+  document.querySelectorAll('.modal-backdrop, .toast-container, #note-editor-overlay, [id^="ob-"]').forEach(protectFully);
 
   protectedSet.forEach(node => {
     Array.from(node.children || []).forEach(child => {
