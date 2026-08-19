@@ -1455,62 +1455,118 @@
   .ob-bp-choice-card:hover { border-color: var(--sage-mid); box-shadow: 0 4px 16px rgba(0,0,0,.06); }
   .ob-bp-choice-card:active { transform: scale(.98); }
 
-  /* ── Booking Page onboarding: animated embed demo ──
-     One self-contained looping timeline (percentage keyframes on a shared
-     duration) rather than JS-driven timing — cursor moves to Copy, the
-     button flashes as if clicked, then a booking widget fades into the
-     mock website panel as if just pasted in. */
-  .ob-demo-stage { display: flex; align-items: center; gap: 16px; }
-  .ob-demo-panel-label { font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
-  .ob-demo-code-panel, .ob-demo-website-panel { flex: 1; min-width: 0; }
-  .ob-demo-arrow { flex-shrink: 0; opacity: .5; }
-  .ob-demo-code-box {
-    position: relative; background: #1E2422; border-radius: 10px; padding: 14px;
-    display: flex; flex-direction: column; gap: 7px; min-height: 120px;
+  /* ── Booking Page onboarding: large, detailed animated demo ──
+     A realistic recreation of the actual app UI (not abstract shapes),
+     shown at a large, easily-readable size, cycling through two scenes
+     like a genuine screen recording: the real Booking Page panel, then
+     the practitioner's own website with the widget embedded. One
+     self-contained looping timeline via percentage keyframes. */
+  .ob-demo-viewport {
+    position: relative; width: 100%; height: 560px; overflow: hidden;
+    background: var(--bg); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
   }
-  .ob-demo-code-line { height: 7px; border-radius: 4px; background: rgba(255,255,255,.18); }
-  .ob-demo-copy-btn {
-    position: absolute; bottom: 12px; right: 12px;
-    display: flex; align-items: center; gap: 5px;
-    background: rgba(255,255,255,.12); color: #fff; font-size: 10px; font-weight: 600;
-    padding: 5px 9px; border-radius: 6px;
-    animation: obDemoCopyFlash 4s ease infinite;
-  }
-  .ob-demo-cursor {
-    position: absolute; width: 14px; height: 14px; bottom: 30px; right: 60px;
-    border: 2px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
-    animation: obDemoCursorMove 4s ease infinite;
-  }
-  .ob-demo-website-box {
-    background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px;
-    display: flex; flex-direction: column; gap: 8px; min-height: 120px;
-  }
-  .ob-demo-website-line { height: 7px; border-radius: 4px; background: var(--border); }
-  .ob-demo-widget {
-    margin-top: 4px; background: var(--white); border: 1.5px solid var(--sage-light); border-radius: 8px;
-    padding: 10px; display: flex; flex-direction: column; gap: 6px;
-    opacity: 0; transform: scale(.9) translateY(4px);
-    animation: obDemoWidgetAppear 4s ease infinite;
-  }
-  .ob-demo-widget-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--sage-light); margin-bottom: 2px; }
-  .ob-demo-widget-line { height: 6px; border-radius: 3px; background: var(--sage-light); }
+  .ob-demo-scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
+  .ob-demo-scene-a { animation: obDemoSceneA 9s ease infinite; }
+  .ob-demo-scene-b { animation: obDemoSceneB 9s ease infinite; }
 
-  @keyframes obDemoCursorMove {
-    0%   { opacity: 0; bottom: 60px; right: 90px; }
-    15%  { opacity: 1; bottom: 30px; right: 60px; }
-    25%  { opacity: 1; bottom: 30px; right: 60px; }
-    32%  { opacity: 0; bottom: 30px; right: 60px; }
-    100% { opacity: 0; }
+  /* Scene A — the real Booking Page panel */
+  .ob-demo-mock-panel {
+    width: 620px; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: var(--glass-border); box-shadow: var(--glass-shadow); border-radius: var(--radius-lg); overflow: hidden;
   }
-  @keyframes obDemoCopyFlash {
-    0%, 20%   { background: rgba(255,255,255,.12); }
-    25%, 30%  { background: var(--sage); }
-    35%, 100% { background: rgba(255,255,255,.12); }
+  .ob-demo-mock-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .ob-demo-mock-panel-title { font-size: 15px; font-weight: 500; color: var(--ink); }
+  .ob-demo-mock-btn-row { display: flex; gap: 8px; }
+  .ob-demo-mock-btn {
+    font-size: 12px; font-weight: 500; color: var(--ink-mid); background: rgba(255,255,255,.6);
+    border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
+  }
+  .ob-demo-mock-btn-target { position: relative; animation: obDemoBtnPress 9s ease infinite; }
+  .ob-demo-mock-panel-body { padding: 20px; }
+  .ob-demo-mock-url-box { background: var(--sage-pale); border: 1px solid var(--sage-light); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px; }
+  .ob-demo-mock-url-label { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .ob-demo-mock-url-row { display: flex; gap: 8px; align-items: center; }
+  .ob-demo-mock-url-input { flex: 1; font-size: 12px; color: var(--ink-mid); background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+  .ob-demo-mock-btn-primary { font-size: 12px; font-weight: 600; color: #fff; background: var(--ink); border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
+  .ob-demo-mock-service-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ob-demo-mock-service-row:last-child { border-bottom: none; }
+  .ob-demo-mock-service-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .ob-demo-mock-service-sub { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .ob-demo-mock-toggle { width: 34px; height: 20px; border-radius: 999px; background: var(--border); position: relative; flex-shrink: 0; }
+  .ob-demo-mock-toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .15s; }
+  .ob-demo-mock-toggle.on { background: var(--cal-green); }
+  .ob-demo-mock-toggle.on::after { left: 16px; }
+
+  .ob-demo-mock-cursor {
+    position: absolute; width: 0; height: 0;
+    border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 15px solid var(--ink);
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.3));
+    transform: rotate(-45deg);
+    animation: obDemoCursorMove 9s ease infinite;
+  }
+  .ob-demo-mock-toast {
+    position: absolute; bottom: 40px; right: 40px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: var(--glass-border); box-shadow: var(--glass-shadow); border-left: 4px solid var(--cal-green);
+    border-radius: 12px; padding: 12px 18px; font-size: 13px; font-weight: 500; color: var(--ink);
+    opacity: 0; transform: translateY(8px);
+    animation: obDemoToast 9s ease infinite;
+  }
+
+  /* Scene B — their website with the widget embedded */
+  .ob-demo-mock-website { width: 700px; background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; }
+  .ob-demo-mock-website-nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--border); }
+  .ob-demo-mock-website-logo { font-family: "quincy-cf", serif; font-size: 18px; font-weight: 700; color: var(--ink); }
+  .ob-demo-mock-website-menu { display: flex; gap: 22px; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+  .ob-demo-mock-website-hero { text-align: center; padding: 32px 28px 24px; }
+  .ob-demo-mock-website-heading { font-family: "quincy-cf", serif; font-size: 26px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .ob-demo-mock-website-sub { font-size: 13px; color: var(--ink-soft); }
+  .ob-demo-mock-widget {
+    width: 380px; margin: 0 auto 32px; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    border: var(--glass-border); box-shadow: var(--glass-shadow); border-radius: var(--radius-lg); padding: 20px;
+    opacity: 0; transform: scale(.92) translateY(10px);
+    animation: obDemoWidgetAppear 9s ease infinite;
+  }
+  .ob-demo-mock-widget-header { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; }
+  .ob-demo-mock-widget-service { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-mid); background: var(--sage-pale); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+  .ob-demo-mock-widget-service-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cal-green); flex-shrink: 0; }
+  .ob-demo-mock-widget-calendar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+  .ob-demo-mock-cal-day { font-size: 10px; color: var(--ink-soft); text-align: center; font-weight: 600; }
+  .ob-demo-mock-cal-num { font-size: 12px; color: var(--ink); text-align: center; padding: 6px 0; border-radius: 6px; }
+  .ob-demo-mock-cal-num.selected { background: var(--ink); color: #fff; font-weight: 700; }
+  .ob-demo-mock-widget-btn { text-align: center; font-size: 13px; font-weight: 600; color: #fff; background: var(--ink); border-radius: 999px; padding: 10px; }
+
+  @keyframes obDemoSceneA {
+    0%, 42%    { opacity: 1; }
+    50%, 100%  { opacity: 0; }
+  }
+  @keyframes obDemoSceneB {
+    0%, 48%    { opacity: 0; }
+    56%, 92%   { opacity: 1; }
+    100%       { opacity: 0; }
+  }
+  @keyframes obDemoCursorMove {
+    0%          { opacity: 0; top: 260px; left: 700px; }
+    10%         { opacity: 1; top: 260px; left: 700px; }
+    28%         { opacity: 1; top: 113px; left: 615px; }
+    33%, 40%    { opacity: 1; top: 113px; left: 615px; transform: rotate(-45deg) scale(.85); }
+    44%, 100%   { opacity: 0; top: 113px; left: 615px; }
+  }
+  @keyframes obDemoBtnPress {
+    0%, 27%    { background: rgba(255,255,255,.6); color: var(--ink-mid); border-color: var(--border); }
+    30%, 40%   { background: var(--sage); color: #fff; border-color: var(--sage); }
+    44%, 100%  { background: rgba(255,255,255,.6); color: var(--ink-mid); border-color: var(--border); }
+  }
+  @keyframes obDemoToast {
+    0%, 32%    { opacity: 0; transform: translateY(8px); }
+    36%, 46%   { opacity: 1; transform: translateY(0); }
+    50%, 100%  { opacity: 0; transform: translateY(8px); }
   }
   @keyframes obDemoWidgetAppear {
-    0%, 40%   { opacity: 0; transform: scale(.9) translateY(4px); }
-    55%, 90%  { opacity: 1; transform: scale(1) translateY(0); }
-    100%      { opacity: 0; transform: scale(.9) translateY(4px); }
+    0%, 60%    { opacity: 0; transform: scale(.92) translateY(10px); }
+    72%, 90%   { opacity: 1; transform: scale(1) translateY(0); }
+    100%       { opacity: 0; transform: scale(.92) translateY(10px); }
   }
 
   .ob-check-badge {
@@ -4117,40 +4173,95 @@
 
 <!-- ═══ BOOKING PAGE ONBOARDING — ANIMATED EMBED DEMO ═══ -->
 <div class="modal-backdrop" id="ob-embed-demo-backdrop" style="z-index:380" onclick="if(event.target===event.currentTarget)obCloseEmbedDemo()">
-  <div class="modal" style="width:600px" onclick="event.stopPropagation()">
+  <div class="modal" style="width:960px;max-width:96vw" onclick="event.stopPropagation()">
     <div class="modal-header">
       <span class="modal-title">How embedding works</span>
       <button class="modal-close" onclick="obCloseEmbedDemo()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:24px">
-      <div class="ob-demo-stage" id="ob-embed-demo-stage">
-        <div class="ob-demo-code-panel">
-          <div class="ob-demo-panel-label">Your embed code</div>
-          <div class="ob-demo-code-box">
-            <div class="ob-demo-code-line" style="width:70%"></div>
-            <div class="ob-demo-code-line" style="width:90%"></div>
-            <div class="ob-demo-code-line" style="width:50%"></div>
-            <div class="ob-demo-copy-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</div>
-            <div class="ob-demo-cursor"></div>
+    <div class="modal-body" style="padding:0">
+      <div class="ob-demo-viewport">
+
+        <!-- Scene A: the real Booking Page panel, recreated -->
+        <div class="ob-demo-scene ob-demo-scene-a">
+          <div class="ob-demo-mock-panel">
+            <div class="ob-demo-mock-panel-header">
+              <span class="ob-demo-mock-panel-title">Booking Page</span>
+              <div class="ob-demo-mock-btn-row">
+                <span class="ob-demo-mock-btn">View</span>
+                <span class="ob-demo-mock-btn ob-demo-mock-btn-target" id="ob-demo-styled-btn">Styled embed</span>
+                <span class="ob-demo-mock-btn">Custom embed</span>
+              </div>
+            </div>
+            <div class="ob-demo-mock-panel-body">
+              <div class="ob-demo-mock-url-box">
+                <div class="ob-demo-mock-url-label">Your public booking page</div>
+                <div class="ob-demo-mock-url-row">
+                  <div class="ob-demo-mock-url-input">https://willow-wellness.h-ld.com/book</div>
+                  <span class="ob-demo-mock-btn-primary">Copy link</span>
+                </div>
+              </div>
+              <div class="ob-demo-mock-service-row">
+                <div class="ob-demo-mock-service-text">
+                  <div class="ob-demo-mock-service-name">Initial Consultation</div>
+                  <div class="ob-demo-mock-service-sub">60 min &middot; $120</div>
+                </div>
+                <div class="ob-demo-mock-toggle on"></div>
+              </div>
+              <div class="ob-demo-mock-service-row">
+                <div class="ob-demo-mock-service-text">
+                  <div class="ob-demo-mock-service-name">Follow-Up Session</div>
+                  <div class="ob-demo-mock-service-sub">45 min &middot; $95</div>
+                </div>
+                <div class="ob-demo-mock-toggle on"></div>
+              </div>
+              <div class="ob-demo-mock-service-row">
+                <div class="ob-demo-mock-service-text">
+                  <div class="ob-demo-mock-service-name">Remedial Massage</div>
+                  <div class="ob-demo-mock-service-sub">90 min &middot; $165</div>
+                </div>
+                <div class="ob-demo-mock-toggle on"></div>
+              </div>
+            </div>
           </div>
+          <div class="ob-demo-mock-toast">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--cal-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+            Styled embed code copied
+          </div>
+          <div class="ob-demo-mock-cursor"></div>
         </div>
-        <svg class="ob-demo-arrow" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        <div class="ob-demo-website-panel">
-          <div class="ob-demo-panel-label">Your website</div>
-          <div class="ob-demo-website-box">
-            <div class="ob-demo-website-line" style="width:60%"></div>
-            <div class="ob-demo-website-line" style="width:80%"></div>
-            <div class="ob-demo-widget">
-              <div class="ob-demo-widget-dot"></div>
-              <div class="ob-demo-widget-line" style="width:70%"></div>
-              <div class="ob-demo-widget-line" style="width:45%"></div>
+
+        <!-- Scene B: their own website, with the widget now embedded -->
+        <div class="ob-demo-scene ob-demo-scene-b">
+          <div class="ob-demo-mock-website">
+            <div class="ob-demo-mock-website-nav">
+              <div class="ob-demo-mock-website-logo">Willow Wellness</div>
+              <div class="ob-demo-mock-website-menu">
+                <span>Home</span><span>About</span><span>Services</span><span>Contact</span>
+              </div>
+            </div>
+            <div class="ob-demo-mock-website-hero">
+              <div class="ob-demo-mock-website-heading">Book Your Session</div>
+              <div class="ob-demo-mock-website-sub">Choose a time that works for you — takes less than a minute.</div>
+            </div>
+            <div class="ob-demo-mock-widget">
+              <div class="ob-demo-mock-widget-header">Book an appointment</div>
+              <div class="ob-demo-mock-widget-service">
+                <div class="ob-demo-mock-widget-service-dot"></div>
+                <span>Initial Consultation — 60 min, $120</span>
+              </div>
+              <div class="ob-demo-mock-widget-calendar">
+                <div class="ob-demo-mock-cal-day">M</div><div class="ob-demo-mock-cal-day">T</div><div class="ob-demo-mock-cal-day">W</div><div class="ob-demo-mock-cal-day">T</div><div class="ob-demo-mock-cal-day">F</div>
+                <div class="ob-demo-mock-cal-num">12</div><div class="ob-demo-mock-cal-num">13</div><div class="ob-demo-mock-cal-num selected">14</div><div class="ob-demo-mock-cal-num">15</div><div class="ob-demo-mock-cal-num">16</div>
+              </div>
+              <div class="ob-demo-mock-widget-btn">Continue</div>
             </div>
           </div>
         </div>
+
       </div>
-      <p style="font-size:12px;color:var(--ink-soft);text-align:center;margin:18px 0 0">Copy the code, paste it into your site's HTML — the booking form appears right where you put it.</p>
+      <p style="font-size:12px;color:var(--ink-soft);text-align:center;padding:16px 0">Copy the code, paste it into your site's HTML — the booking form appears right where you put it.</p>
     </div>
   </div>
 </div>
@@ -4683,6 +4794,14 @@ async function resendVerificationEmail() {
   }
 }
 
+// True the moment any API call reveals the account isn't email-verified
+// yet — checked by bootApp() to stop it from continuing on to show the
+// onboarding welcome modal (or anything else) on top of the verification
+// screen, regardless of which of the several parallel data-loading calls
+// happened to be the one that hit it, or whether that specific call
+// swallowed the error internally rather than letting it propagate.
+let _emailVerificationBlocking = false;
+
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -4715,6 +4834,7 @@ async function apiFetch(path, options = {}) {
     let data = {};
     try { data = await res.json(); } catch {}
     if (data.error === 'email_not_verified') {
+      _emailVerificationBlocking = true;
       showEmailVerificationPendingScreen();
       throw new Error('email_not_verified');
     }
@@ -14641,6 +14761,8 @@ async function bootApp() {
     _cache.noteTemplates = _cache.noteTemplates || [];
     _cache.forms = _cache.forms || defaultForms();
   }
+
+  if (_emailVerificationBlocking) return; // showEmailVerificationPendingScreen already took over the UI — nothing below this should run
 
   showApp();
   setGreeting();
