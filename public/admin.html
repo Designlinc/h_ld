@@ -5469,6 +5469,7 @@ function normalizeBooking(row) {
     practitionerNotes: row.practitioner_notes,
     intakeSubmitted: row.intake_submitted,
     googleEventId: row.google_event_id,
+    microsoftEventId: row.microsoft_event_id,
     homeworkReminder: row.homework_reminder || null,
   };
 }
@@ -5839,9 +5840,12 @@ async function initAddressAutocomplete() {
     const wrap = document.getElementById('s-address-autocomplete-wrap');
     if (!wrap) return;
 
-    const autocomplete = new PlaceAutocompleteElement({
-      includedRegionCodes: ['au'], // biases toward Australian addresses, matching the rest of the app's AU focus — doesn't hard-block other countries
-    });
+    // No options passed — Google's own docs are inconsistent across
+    // versions about which PlaceAutocompleteElementOptions properties
+    // (like includedRegionCodes) require a non-default release channel.
+    // The bare constructor is the form shown in every one of Google's own
+    // current examples, which eliminates that as a variable entirely.
+    const autocomplete = new PlaceAutocompleteElement();
     autocomplete.id = 's-address-autocomplete';
     autocomplete.style.width = '100%';
     if (plainInput.value) autocomplete.value = plainInput.value;
@@ -5860,9 +5864,10 @@ async function initAddressAutocomplete() {
     wrap.style.display = 'block';
     plainInput.style.display = 'none';
   } catch (err) {
-    // Script failed to load, key invalid, component unsupported, etc. —
-    // the plain input was never touched, so nothing is actually broken.
+    // Surfaced visibly now rather than only logged — this has failed
+    // silently twice before, so the actual error needs to be reportable.
     console.warn('Address autocomplete unavailable, using plain input:', err);
+    toast('Address autocomplete failed to load: ' + (err?.message || err), 'error');
   }
 }
 
@@ -6632,11 +6637,19 @@ function updateStatus(id, status) {
       // row itself (and its google_event_id) is about to be deleted below,
       // not just marked cancelled.
       if (b.googleEventId && getConnected().google) {
-        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId }) })
+        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId, provider: 'google' }) })
           .then(() => toast('Removed from Google Calendar', 'success'))
           .catch(err => {
             console.warn('Calendar delete failed:', err.message);
             toast('Booking cancelled, but could not remove it from Google Calendar: ' + err.message, 'error');
+          });
+      }
+      if (b.microsoftEventId && getConnected().microsoft) {
+        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.microsoftEventId, practitionerId: b.practitionerId, provider: 'microsoft' }) })
+          .then(() => toast('Removed from Microsoft Calendar', 'success'))
+          .catch(err => {
+            console.warn('Calendar delete failed:', err.message);
+            toast('Booking cancelled, but could not remove it from Microsoft Calendar: ' + err.message, 'error');
           });
       }
       // Remove from bookings entirely rather than just marking cancelled
@@ -10176,8 +10189,12 @@ async function calSignIn() {
       toast('Could not start Xero connection: ' + err.message, 'error');
     }
   } else if (calConnectProvider === 'microsoft') {
-    // Microsoft OAuth — not yet configured, show placeholder
-    toast('Microsoft Calendar connection coming soon — contact support to set this up', '');
+    try {
+      const data = await apiFetch('/auth/microsoft');
+      window.location.href = data.url;
+    } catch (err) {
+      toast('Could not start Microsoft connection: ' + err.message, 'error');
+    }
   } else {
     toast('Unknown provider', 'error');
   }
@@ -14531,7 +14548,11 @@ async function executeAiAction() {
         if (!match) { resultMsg = 'No upcoming booking found for "' + params.client_name + '".'; break; }
         sendCancellationNotification(match);
         if (match.googleEventId && getConnected().google) {
-          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.googleEventId, practitionerId: match.practitionerId }) })
+          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.googleEventId, practitionerId: match.practitionerId, provider: 'google' }) })
+            .catch(err => console.warn('Calendar delete failed:', err.message));
+        }
+        if (match.microsoftEventId && getConnected().microsoft) {
+          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.microsoftEventId, practitionerId: match.practitionerId, provider: 'microsoft' }) })
             .catch(err => console.warn('Calendar delete failed:', err.message));
         }
         const idx = bookings.indexOf(match);
@@ -14829,16 +14850,17 @@ async function bootApp() {
       .catch(() => {});
   }
 
-  // Handle Google OAuth callback URL params
+  // Handle Google/Microsoft OAuth callback URL params
   const params = new URLSearchParams(window.location.search);
+  const calProviderLabel = params.get('provider') === 'microsoft' ? 'Microsoft Calendar' : 'Google Calendar';
   if (params.get('cal_connected')) {
     window.history.replaceState({}, '', window.location.pathname);
     renderCalConnectedList();
-    toast('Google Calendar connected successfully', 'success');
+    toast(calProviderLabel + ' connected successfully', 'success');
     if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('cal_error')) {
     window.history.replaceState({}, '', window.location.pathname);
-    toast('Google Calendar connection failed — please try again', 'error');
+    toast(calProviderLabel + ' connection failed — please try again', 'error');
     if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
   } else if (params.get('square_connected')) {
     window.history.replaceState({}, '', window.location.pathname);

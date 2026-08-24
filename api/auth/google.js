@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       return res.redirect('https://h-ld.com/?cal_error=1');
     }
     const { practitioner_id: practitionerId, subdomain } = decoded;
-    const failRedirect = `https://${subdomain}.h-ld.com/admin.html?cal_error=1`;
+    const failRedirect = `https://${subdomain}.h-ld.com/admin.html?cal_error=1&provider=google`;
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         updated_at    = NOW()
     `;
 
-    return res.redirect(`https://${subdomain}.h-ld.com/admin.html?cal_connected=1`);
+    return res.redirect(`https://${subdomain}.h-ld.com/admin.html?cal_connected=1&provider=google`);
   }
 
   // ── Initiate OAuth flow — requires a real login, since we need to know
