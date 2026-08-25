@@ -7944,7 +7944,12 @@ function copyPublicBookingUrl() {
 function copyEmbedCode(type) {
   const settings = getSettings();
   const bizName = settings.bizName || 'Your Business';
-  const url = '/book.html';
+  // Must be absolute — this code is pasted into a third-party site's own
+  // HTML, so a relative path resolves against THAT site's domain, not
+  // h_ld's. That's the actual cause of embeds failing entirely on
+  // external sites: the iframe was requesting /book.html on Wix's own
+  // domain, which doesn't exist there.
+  const url = `https://${location.hostname}/book.html`;
 
   if (type === 'styled') {
     const code = `<!-- ${bizName} Booking Widget (Styled) -->
@@ -7984,7 +7989,8 @@ let _cemEmbedCode = '';
 function applyCustomEmbedFont() {
   const settings = getSettings();
   const bizName = settings.bizName || 'Your Business';
-  const url = '/book.html';
+  // Same fix as copyEmbedCode — must be absolute for the same reason.
+  const url = `https://${location.hostname}/book.html`;
   const font = document.getElementById('cem-font-input').value.trim();
   const fontParam = font ? '&font=' + encodeURIComponent(font) : '';
 
