@@ -2876,7 +2876,7 @@
           <div class="form-row">
             <div class="form-group" style="position:relative">
               <label class="form-label">ABN</label>
-              <input class="form-input" id="s-abn" placeholder="Search by business name to find your ABN" oninput="onAbnSearchInput()" autocomplete="off">
+              <input class="form-input" id="s-abn" placeholder="Enter your business name to search for your ABN, or enter your ABN if you know it" oninput="onAbnSearchInput()" autocomplete="off">
               <div id="abn-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
               <div class="field-hint" id="abn-search-hint" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div>
             </div>
@@ -7976,10 +7976,18 @@ function onAbnSearchInput() {
   const hintEl = document.getElementById('abn-search-hint');
   hintEl.textContent = '';
 
-  // An 11-digit number typed directly is treated as the ABN itself, not a
-  // name search — no need to look anything up.
+  // An 11-digit number typed directly is the ABN itself, not a name to
+  // search for — verify it against the ABR directly (same lookup used
+  // once a name-search candidate is picked) rather than searching by name.
   if (/^\d[\d\s]{9,}\d$/.test(query)) {
     resultsEl.style.display = 'none';
+    const cleanAbn = query.replace(/\s+/g, '');
+    if (cleanAbn.length !== 11) {
+      hintEl.style.color = 'var(--red)';
+      hintEl.textContent = 'An ABN is 11 digits';
+      return;
+    }
+    _abnSearchTimer = setTimeout(() => verifyAbnDirectEntry(cleanAbn), 400);
     return;
   }
   if (query.length < 3) {
@@ -8007,6 +8015,34 @@ function onAbnSearchInput() {
       hintEl.style.color = 'var(--red)';
     }
   }, 400);
+}
+
+// Verifies an ABN the practitioner typed directly (rather than found via
+// name search) and, if valid, auto-fills GST status the same way picking
+// a name-search candidate does. Doesn't reformat/overwrite what they typed
+// mid-keystroke — only touches the field once verification succeeds.
+async function verifyAbnDirectEntry(cleanAbn) {
+  const hintEl = document.getElementById('abn-search-hint');
+  hintEl.style.color = 'var(--ink-soft)';
+  hintEl.textContent = 'Verifying…';
+  try {
+    const data = await apiFetch('/settings/abn-search?abn=' + cleanAbn);
+    // Only apply the formatted value if the field still holds what we
+    // verified — the practitioner may have kept typing while this was
+    // in flight.
+    const stillCurrent = document.getElementById('s-abn').value.replace(/\s+/g, '') === cleanAbn;
+    if (stillCurrent) {
+      const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
+      document.getElementById('s-abn').value = formatted;
+      document.getElementById('s-gst-registered').classList.toggle('on', data.gstRegistered);
+      updateGstNote();
+    }
+    hintEl.style.color = '#3D7A5C';
+    hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
+  } catch (err) {
+    hintEl.style.color = 'var(--red)';
+    hintEl.textContent = 'Could not verify — ' + err.message;
+  }
 }
 
 async function selectAbnCandidate(abn) {
