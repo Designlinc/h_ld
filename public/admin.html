@@ -1346,19 +1346,23 @@
 
   .day-schedule-grid { display: flex; flex-direction: column; gap: 6px; }
   .day-schedule-header {
-    display: grid; grid-template-columns: 1fr 120px 120px;
+    display: grid; grid-template-columns: 1fr 120px 120px 30px;
     gap: 10px; padding: 0 12px 4px;
   }
   .day-schedule-col-label {
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: .5px; color: var(--ink-soft); text-align: center;
   }
+  .day-schedule-day { display: flex; flex-direction: column; }
   .day-schedule-row {
-    display: grid; grid-template-columns: 1fr 120px 120px;
+    display: grid; grid-template-columns: 1fr 120px 120px 30px;
     gap: 10px; align-items: center;
     padding: 8px 12px; border-radius: 10px;
     border: 1px solid var(--border); background: var(--white);
     transition: background .15s, border-color .15s;
+  }
+  .day-schedule-day:has(.day-custom-times[style*="flex"]) .day-schedule-row {
+    border-radius: 10px 10px 0 0; border-bottom-color: transparent;
   }
   .day-schedule-row.inactive { background: var(--bg); }
   .day-schedule-toggle {
@@ -1382,6 +1386,54 @@
   .day-schedule-row.inactive .day-schedule-name { color: var(--ink-soft); }
   .day-time-input { text-align: center; padding: 7px 8px !important; font-size: 13px !important; }
   .day-time-input.disabled { background: var(--bg) !important; color: var(--border) !important; cursor: not-allowed; }
+  .day-custom-btn {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--white);
+    color: var(--ink-soft); cursor: pointer; transition: all .15s; padding: 0;
+  }
+  .day-custom-btn svg { width: 15px; height: 15px; }
+  .day-custom-btn:hover:not(:disabled) { border-color: var(--sage); color: var(--sage); background: var(--sage-pale); }
+  .day-custom-btn.has-times { border-color: var(--sage); color: var(--sage); background: var(--sage-pale); }
+  .day-custom-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .day-custom-times {
+    display: none; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 10px 12px; margin-top: -1px;
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 10px 10px; background: rgba(0,0,0,.012);
+  }
+  .day-time-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 6px 5px 12px; border-radius: 999px;
+    background: var(--sage-pale); border: 1px solid var(--sage-light);
+    color: var(--sage); font-size: 12px; font-weight: 600;
+  }
+  .day-time-pill-remove {
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%; padding: 0;
+    border: none; background: rgba(0,0,0,.06); color: var(--sage);
+    font-size: 13px; line-height: 1; cursor: pointer; transition: background .15s;
+  }
+  .day-time-pill-remove:hover { background: var(--red-pale); color: var(--red); }
+  .day-time-adder { display: inline-flex; align-items: center; gap: 6px; }
+  .day-time-adder-input {
+    padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 12px; background: var(--white); color: var(--ink);
+  }
+  .day-time-adder-add {
+    padding: 5px 12px; border-radius: 8px; border: none;
+    background: var(--sage); color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .day-time-adder-add:hover { opacity: .88; }
+  .day-time-adder-cancel {
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; padding: 0;
+    border: none; background: transparent; color: var(--ink-soft);
+    font-size: 15px; cursor: pointer;
+  }
+  .day-time-adder-cancel:hover { background: var(--bg); }
+  .day-custom-hint { font-size: 11px; color: var(--ink-soft); width: 100%; margin-top: 2px; }
   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
 
   /* ── ONBOARDING SPOTLIGHT ──
@@ -2822,67 +2874,97 @@
           <span class="settings-section-title">Working Hours</span>
         </div>
         <div class="settings-body">
+          <div class="field-hint" style="font-size:12px;color:var(--ink-soft);margin:-6px 0 12px">Use the clock button to set specific custom start times for a day instead of one continuous range — handy for split shifts or irregular availability.</div>
           <div class="day-schedule-grid">
             <div class="day-schedule-header">
               <span></span>
               <span class="day-schedule-col-label">Start</span>
               <span class="day-schedule-col-label">End</span>
+              <span></span>
             </div>
-            <div class="day-schedule-row" id="dsr-Mon">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Mon')">
-                <div class="day-toggle-dot active" id="dtd-Mon"></div>
-                <span class="day-schedule-name">Monday</span>
-              </label>
-              <input class="form-input day-time-input" id="s-start-Mon" type="time" value="09:00">
-              <input class="form-input day-time-input" id="s-end-Mon" type="time" value="17:00">
+            <div class="day-schedule-day" id="dsd-Mon">
+              <div class="day-schedule-row" id="dsr-Mon">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Mon')">
+                  <div class="day-toggle-dot active" id="dtd-Mon"></div>
+                  <span class="day-schedule-name">Monday</span>
+                </label>
+                <input class="form-input day-time-input" id="s-start-Mon" type="time" value="09:00">
+                <input class="form-input day-time-input" id="s-end-Mon" type="time" value="17:00">
+                <button type="button" class="day-custom-btn" id="dcb-Mon" title="Add a custom time for Monday" onclick="toggleCustomTimeAdder('Mon')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Mon" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Tue">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Tue')">
-                <div class="day-toggle-dot active" id="dtd-Tue"></div>
-                <span class="day-schedule-name">Tuesday</span>
-              </label>
-              <input class="form-input day-time-input" id="s-start-Tue" type="time" value="09:00">
-              <input class="form-input day-time-input" id="s-end-Tue" type="time" value="17:00">
+            <div class="day-schedule-day" id="dsd-Tue">
+              <div class="day-schedule-row" id="dsr-Tue">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Tue')">
+                  <div class="day-toggle-dot active" id="dtd-Tue"></div>
+                  <span class="day-schedule-name">Tuesday</span>
+                </label>
+                <input class="form-input day-time-input" id="s-start-Tue" type="time" value="09:00">
+                <input class="form-input day-time-input" id="s-end-Tue" type="time" value="17:00">
+                <button type="button" class="day-custom-btn" id="dcb-Tue" title="Add a custom time for Tuesday" onclick="toggleCustomTimeAdder('Tue')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Tue" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Wed">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Wed')">
-                <div class="day-toggle-dot active" id="dtd-Wed"></div>
-                <span class="day-schedule-name">Wednesday</span>
-              </label>
-              <input class="form-input day-time-input" id="s-start-Wed" type="time" value="09:00">
-              <input class="form-input day-time-input" id="s-end-Wed" type="time" value="17:00">
+            <div class="day-schedule-day" id="dsd-Wed">
+              <div class="day-schedule-row" id="dsr-Wed">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Wed')">
+                  <div class="day-toggle-dot active" id="dtd-Wed"></div>
+                  <span class="day-schedule-name">Wednesday</span>
+                </label>
+                <input class="form-input day-time-input" id="s-start-Wed" type="time" value="09:00">
+                <input class="form-input day-time-input" id="s-end-Wed" type="time" value="17:00">
+                <button type="button" class="day-custom-btn" id="dcb-Wed" title="Add a custom time for Wednesday" onclick="toggleCustomTimeAdder('Wed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Wed" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Thu">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Thu')">
-                <div class="day-toggle-dot active" id="dtd-Thu"></div>
-                <span class="day-schedule-name">Thursday</span>
-              </label>
-              <input class="form-input day-time-input" id="s-start-Thu" type="time" value="09:00">
-              <input class="form-input day-time-input" id="s-end-Thu" type="time" value="17:00">
+            <div class="day-schedule-day" id="dsd-Thu">
+              <div class="day-schedule-row" id="dsr-Thu">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Thu')">
+                  <div class="day-toggle-dot active" id="dtd-Thu"></div>
+                  <span class="day-schedule-name">Thursday</span>
+                </label>
+                <input class="form-input day-time-input" id="s-start-Thu" type="time" value="09:00">
+                <input class="form-input day-time-input" id="s-end-Thu" type="time" value="17:00">
+                <button type="button" class="day-custom-btn" id="dcb-Thu" title="Add a custom time for Thursday" onclick="toggleCustomTimeAdder('Thu')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Thu" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Fri">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Fri')">
-                <div class="day-toggle-dot active" id="dtd-Fri"></div>
-                <span class="day-schedule-name">Friday</span>
-              </label>
-              <input class="form-input day-time-input" id="s-start-Fri" type="time" value="09:00">
-              <input class="form-input day-time-input" id="s-end-Fri" type="time" value="17:00">
+            <div class="day-schedule-day" id="dsd-Fri">
+              <div class="day-schedule-row" id="dsr-Fri">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Fri')">
+                  <div class="day-toggle-dot active" id="dtd-Fri"></div>
+                  <span class="day-schedule-name">Friday</span>
+                </label>
+                <input class="form-input day-time-input" id="s-start-Fri" type="time" value="09:00">
+                <input class="form-input day-time-input" id="s-end-Fri" type="time" value="17:00">
+                <button type="button" class="day-custom-btn" id="dcb-Fri" title="Add a custom time for Friday" onclick="toggleCustomTimeAdder('Fri')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Fri" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Sat">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Sat')">
-                <div class="day-toggle-dot" id="dtd-Sat"></div>
-                <span class="day-schedule-name">Saturday</span>
-              </label>
-              <input class="form-input day-time-input disabled" id="s-start-Sat" type="time" value="09:00" disabled>
-              <input class="form-input day-time-input disabled" id="s-end-Sat" type="time" value="17:00" disabled>
+            <div class="day-schedule-day" id="dsd-Sat">
+              <div class="day-schedule-row" id="dsr-Sat">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Sat')">
+                  <div class="day-toggle-dot" id="dtd-Sat"></div>
+                  <span class="day-schedule-name">Saturday</span>
+                </label>
+                <input class="form-input day-time-input disabled" id="s-start-Sat" type="time" value="09:00" disabled>
+                <input class="form-input day-time-input disabled" id="s-end-Sat" type="time" value="17:00" disabled>
+                <button type="button" class="day-custom-btn" id="dcb-Sat" title="Add a custom time for Saturday" onclick="toggleCustomTimeAdder('Sat')" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Sat" style="display:none"></div>
             </div>
-            <div class="day-schedule-row" id="dsr-Sun">
-              <label class="day-schedule-toggle" onclick="toggleDayRow('Sun')">
-                <div class="day-toggle-dot" id="dtd-Sun"></div>
-                <span class="day-schedule-name">Sunday</span>
-              </label>
-              <input class="form-input day-time-input disabled" id="s-start-Sun" type="time" value="09:00" disabled>
-              <input class="form-input day-time-input disabled" id="s-end-Sun" type="time" value="17:00" disabled>
+            <div class="day-schedule-day" id="dsd-Sun">
+              <div class="day-schedule-row" id="dsr-Sun">
+                <label class="day-schedule-toggle" onclick="toggleDayRow('Sun')">
+                  <div class="day-toggle-dot" id="dtd-Sun"></div>
+                  <span class="day-schedule-name">Sunday</span>
+                </label>
+                <input class="form-input day-time-input disabled" id="s-start-Sun" type="time" value="09:00" disabled>
+                <input class="form-input day-time-input disabled" id="s-end-Sun" type="time" value="17:00" disabled>
+                <button type="button" class="day-custom-btn" id="dcb-Sun" title="Add a custom time for Sunday" onclick="toggleCustomTimeAdder('Sun')" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
+              </div>
+              <div class="day-custom-times" id="dct-Sun" style="display:none"></div>
             </div>
           </div>
           <div class="form-row" style="margin-top:16px">
@@ -5586,13 +5668,13 @@ function defaultSettings() {
     email:'', phone:'',
     address:'',
     daySchedule: {
-      Mon: { active:true,  start:'09:00', end:'17:00' },
-      Tue: { active:true,  start:'09:00', end:'17:00' },
-      Wed: { active:true,  start:'09:00', end:'17:00' },
-      Thu: { active:true,  start:'09:00', end:'17:00' },
-      Fri: { active:true,  start:'09:00', end:'17:00' },
-      Sat: { active:false, start:'09:00', end:'17:00' },
-      Sun: { active:false, start:'09:00', end:'17:00' },
+      Mon: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
+      Tue: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
+      Wed: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
+      Thu: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
+      Fri: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
+      Sat: { active:false, start:'09:00', end:'17:00', customTimes:[] },
+      Sun: { active:false, start:'09:00', end:'17:00', customTimes:[] },
     },
     buffer:15,
     cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.',
@@ -7488,14 +7570,19 @@ function refreshAdminSlots() {
   }
 
   // Generate slots
-  const [sh, sm] = dayConfig.start.split(':').map(Number);
-  const [eh, em] = dayConfig.end.split(':').map(Number);
   const slots = [];
-  let cur = sh * 60 + sm;
-  const end = eh * 60 + em;
-  while (cur + duration <= end) {
-    slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
-    cur += duration + buffer;
+  const customTimes = Array.isArray(dayConfig.customTimes) ? dayConfig.customTimes.filter(Boolean) : [];
+  if (customTimes.length > 0) {
+    customTimes.slice().sort().forEach(t => slots.push(t));
+  } else {
+    const [sh, sm] = dayConfig.start.split(':').map(Number);
+    const [eh, em] = dayConfig.end.split(':').map(Number);
+    let cur = sh * 60 + sm;
+    const end = eh * 60 + em;
+    while (cur + duration <= end) {
+      slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
+      cur += duration + buffer;
+    }
   }
 
   // Get existing bookings for this date from cache
@@ -8424,24 +8511,128 @@ function renderComms() {
 function toggleDayRow(day) {
   const dot = document.getElementById('dtd-' + day);
   const row = document.getElementById('dsr-' + day);
-  const startInput = document.getElementById('s-start-' + day);
-  const endInput = document.getElementById('s-end-' + day);
   const isActive = dot.classList.contains('active');
   if (isActive) {
     dot.classList.remove('active');
     row.classList.add('inactive');
-    startInput.disabled = true;
-    startInput.classList.add('disabled');
-    endInput.disabled = true;
-    endInput.classList.add('disabled');
+    _openCustomTimeAdder.delete(day);
   } else {
     dot.classList.add('active');
     row.classList.remove('inactive');
-    startInput.disabled = false;
-    startInput.classList.remove('disabled');
-    endInput.disabled = false;
-    endInput.classList.remove('disabled');
   }
+  renderCustomTimesRow(day);
+}
+
+// ── CUSTOM (SPLIT-SHIFT) WORKING TIMES ──
+// A day can either use one continuous Start–End range, or a set of specific
+// custom start times (e.g. 8:00am and 4:00pm for a split shift). Adding at
+// least one custom time greys out the Start/End inputs for that day; removing
+// the last custom time hands control back to Start/End automatically.
+const _openCustomTimeAdder = new Set(); // days currently showing the "add time" input
+
+function formatTimeLabel(t) {
+  if (!t || typeof t !== 'string' || !t.includes(':')) return t;
+  const [h, m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+// Longest configured service duration — used only as a helpful hint so a
+// practitioner spaces custom times sensibly; it doesn't restrict what they
+// can add. Actual availability is still enforced by existing bookings.
+function getMaxServiceDurationMinutes() {
+  const services = getServices() || [];
+  let max = 0;
+  services.forEach(sv => { if (sv && sv.duration && sv.duration > max) max = sv.duration; });
+  return max || 60;
+}
+
+function getDaySchedule(day) {
+  const s = getSettings();
+  if (!s.daySchedule) s.daySchedule = {};
+  if (!s.daySchedule[day]) s.daySchedule[day] = { active: true, start: '09:00', end: '17:00', customTimes: [] };
+  if (!Array.isArray(s.daySchedule[day].customTimes)) s.daySchedule[day].customTimes = [];
+  return s.daySchedule[day];
+}
+
+function toggleCustomTimeAdder(day) {
+  const btn = document.getElementById('dcb-' + day);
+  if (btn && btn.disabled) return;
+  if (_openCustomTimeAdder.has(day)) _openCustomTimeAdder.delete(day);
+  else _openCustomTimeAdder.add(day);
+  renderCustomTimesRow(day);
+  if (_openCustomTimeAdder.has(day)) {
+    const input = document.getElementById('dcta-input-' + day);
+    if (input) input.focus();
+  }
+}
+
+function confirmAddCustomTime(day) {
+  const input = document.getElementById('dcta-input-' + day);
+  if (!input || !input.value) return;
+  addCustomTime(day, input.value);
+}
+
+function addCustomTime(day, timeValue) {
+  if (!timeValue) return;
+  const dayCfg = getDaySchedule(day);
+  if (!dayCfg.customTimes.includes(timeValue)) {
+    dayCfg.customTimes.push(timeValue);
+    dayCfg.customTimes.sort();
+  }
+  // Keep the adder open so multiple times can be added quickly in a row.
+  renderCustomTimesRow(day);
+}
+
+function removeCustomTime(day, timeValue) {
+  const dayCfg = getDaySchedule(day);
+  dayCfg.customTimes = dayCfg.customTimes.filter(t => t !== timeValue);
+  renderCustomTimesRow(day);
+}
+
+// Centralizes the greyed-out logic for Start/End: disabled if the day is
+// off, OR if the day has one or more custom times set.
+function updateDayInputsState(day) {
+  const dot = document.getElementById('dtd-' + day);
+  const startInput = document.getElementById('s-start-' + day);
+  const endInput = document.getElementById('s-end-' + day);
+  const customBtn = document.getElementById('dcb-' + day);
+  if (!startInput || !endInput) return;
+  const dayCfg = getDaySchedule(day);
+  const dayActive = dot && dot.classList.contains('active');
+  const hasCustomTimes = dayCfg.customTimes.length > 0;
+  const disableRange = !dayActive || hasCustomTimes;
+  startInput.disabled = disableRange;
+  endInput.disabled = disableRange;
+  startInput.classList.toggle('disabled', disableRange);
+  endInput.classList.toggle('disabled', disableRange);
+  if (customBtn) {
+    customBtn.disabled = !dayActive;
+    customBtn.classList.toggle('has-times', hasCustomTimes);
+  }
+}
+
+function renderCustomTimesRow(day) {
+  const dayCfg = getDaySchedule(day);
+  const times = dayCfg.customTimes.slice().sort();
+  const wrap = document.getElementById('dct-' + day);
+  if (!wrap) return;
+  let html = times.map(t => `<span class="day-time-pill">${formatTimeLabel(t)}<button type="button" class="day-time-pill-remove" onclick="removeCustomTime('${day}','${t}')" title="Remove this time">&times;</button></span>`).join('');
+  if (_openCustomTimeAdder.has(day)) {
+    html += `<span class="day-time-adder">
+      <input type="time" class="day-time-adder-input" id="dcta-input-${day}" value="09:00">
+      <button type="button" class="day-time-adder-add" onclick="confirmAddCustomTime('${day}')">Add</button>
+      <button type="button" class="day-time-adder-cancel" onclick="_openCustomTimeAdder.delete('${day}'); renderCustomTimesRow('${day}')" title="Close">&times;</button>
+    </span>`;
+    const maxDur = getMaxServiceDurationMinutes();
+    const hrs = Math.floor(maxDur / 60), mins = maxDur % 60;
+    const durLabel = hrs > 0 ? `${hrs}h${mins ? ' ' + mins + 'm' : ''}` : `${mins}m`;
+    html += `<span class="day-custom-hint">Your longest service is ${durLabel} — space custom times accordingly.</span>`;
+  }
+  wrap.innerHTML = html;
+  wrap.style.display = (times.length > 0 || _openCustomTimeAdder.has(day)) ? 'flex' : 'none';
+  updateDayInputsState(day);
 }
 
 function setLogoPreview(url) {
@@ -8616,10 +8807,12 @@ function saveSettings() {
   const daySchedule = {};
   days.forEach(d => {
     const active = document.getElementById('dtd-' + d).classList.contains('active');
+    const existing = (_cache.settings.daySchedule && _cache.settings.daySchedule[d]) || {};
     daySchedule[d] = {
       active,
       start: document.getElementById('s-start-' + d).value,
       end: document.getElementById('s-end-' + d).value,
+      customTimes: Array.isArray(existing.customTimes) ? existing.customTimes.slice() : [],
     };
   });
   const s = {
@@ -9846,9 +10039,11 @@ function loadSettingsUI() {
   if (s.cancelPolicy) document.getElementById('s-cancel-policy').value = s.cancelPolicy;
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const schedule = s.daySchedule || {};
+  _openCustomTimeAdder.clear();
   days.forEach(d => {
     const day = schedule[d];
     if (!day) return;
+    if (!Array.isArray(day.customTimes)) day.customTimes = [];
     const dot = document.getElementById('dtd-' + d);
     const row = document.getElementById('dsr-' + d);
     const startInput = document.getElementById('s-start-' + d);
@@ -9857,20 +10052,13 @@ function loadSettingsUI() {
     if (day.active) {
       dot.classList.add('active');
       row.classList.remove('inactive');
-      startInput.disabled = false;
-      startInput.classList.remove('disabled');
-      endInput.disabled = false;
-      endInput.classList.remove('disabled');
     } else {
       dot.classList.remove('active');
       row.classList.add('inactive');
-      startInput.disabled = true;
-      startInput.classList.add('disabled');
-      endInput.disabled = true;
-      endInput.classList.add('disabled');
     }
     startInput.value = day.start || '09:00';
     endInput.value = day.end || '17:00';
+    renderCustomTimesRow(d); // also applies the correct disabled/greyed state
   });
   renderHolidaysList();
 }
@@ -10450,6 +10638,19 @@ function renderWeekView() {
     var d = new Date(ws); d.setDate(ws.getDate() + di);
     var cfg = schedule[DAY_KEYS[d.getDay()]];
     if (!cfg || !cfg.active) continue;
+    var customTimes = Array.isArray(cfg.customTimes) ? cfg.customTimes.filter(Boolean) : [];
+    if (customTimes.length > 0) {
+      // Custom-times day: axis just needs to span from the earliest custom
+      // start time through a couple of hours past the latest one.
+      var earliest = timeToMins(customTimes.slice().sort()[0]);
+      var latest = timeToMins(customTimes.slice().sort().slice(-1)[0]) + 120;
+      var curCustom = Math.max(0, earliest - 30);
+      while (curCustom <= latest) {
+        allTimesSet.add(String(Math.floor(curCustom/60)).padStart(2,'0') + ':' + String(curCustom%60).padStart(2,'0'));
+        curCustom += 30;
+      }
+      continue;
+    }
     var cur = timeToMins(cfg.start);
     var endM = timeToMins(cfg.end);
     while (cur <= endM) {
