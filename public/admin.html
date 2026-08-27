@@ -7654,6 +7654,19 @@ function refreshAdminSlots() {
     }
   }
 
+  // A time may already be selected before this renders — either the exact
+  // slot clicked on the calendar (openNewBookingFromCal) or the original
+  // time of a booking being edited. The generated grid above only lands on
+  // times spaced by duration+buffer from the start of the day, so a
+  // clicked/edited time frequently doesn't coincide with any of them —
+  // without this, that time would have no pill at all to show as selected,
+  // even though it's still what's actually stored in #bm-time.
+  const preselectedTime = document.getElementById('bm-time').value;
+  if (preselectedTime && !slots.includes(preselectedTime)) {
+    slots.push(preselectedTime);
+    slots.sort();
+  }
+
   // Get existing bookings for this date from cache
   const bookings = getBookings().filter(b =>
     b.date === date && !['cancelled','noshow'].includes(b.status) && b.id !== editingBookingId
@@ -7685,7 +7698,7 @@ function refreshAdminSlots() {
     });
   }
 
-  const selectedTime = document.getElementById('bm-time').value;
+  const selectedTime = preselectedTime;
 
   if (!slots.length) {
     grid.innerHTML = '<div style="color:var(--ink-soft);font-size:12px;grid-column:1/-1">No slots available for this service duration</div>';
