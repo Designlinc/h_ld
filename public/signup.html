@@ -48,6 +48,7 @@
   .subdomain-row.ok { border-color: #3D7A5C; }
   .subdomain-suffix { padding: 11px 14px; font-size: 13px; color: var(--ink-soft); background: #FAFAF9; border-left: 1px solid var(--border); white-space: nowrap; }
   .subdomain-status { width: 16px; height: 16px; flex-shrink: 0; margin: 0 10px; }
+  .turnstile-field { margin-bottom: 16px; min-height: 65px; }
 
   .btn-primary {
     width: 100%; padding: 13px; border: none; border-radius: var(--radius);
@@ -112,17 +113,52 @@
       <input type="password" id="f-password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required>
     </div>
 
+    <div class="turnstile-field" id="turnstile-field">
+      <div id="turnstile-widget"></div>
+    </div>
+
     <button type="submit" class="btn-primary" id="submit-btn">Create my account</button>
   </form>
 
   <div class="signin-link">Already have an account? <a href="/">Sign in</a></div>
 </div>
 
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script>
 const API_BASE = '/api';
 let _subdomainAvailable = false;
 let _subdomainCheckTimer = null;
 let _subdomainEditedManually = false;
+let _turnstileToken = null;
+let _turnstileWidgetId = null;
+
+// Cloudflare Turnstile — free bot check on the signup form. The site key
+// isn't a secret, but it's still fetched at runtime (rather than baked into
+// this static file) so it can be configured per-environment via
+// TURNSTILE_SITE_KEY without editing this page. If no key is configured
+// (e.g. local dev without it set up), the widget is simply skipped and
+// signup proceeds as before — the server only enforces the check when
+// TURNSTILE_SECRET_KEY is actually set.
+async function initTurnstile() {
+  try {
+    const res = await fetch(`${API_BASE}/config/turnstile-key`);
+    const data = await res.json();
+    if (!data.key) return; // not configured — skip silently
+    const tryRender = () => {
+      if (typeof turnstile === 'undefined') { setTimeout(tryRender, 100); return; }
+      _turnstileWidgetId = turnstile.render('#turnstile-widget', {
+        sitekey: data.key,
+        callback: (token) => { _turnstileToken = token; },
+        'expired-callback': () => { _turnstileToken = null; },
+        'error-callback': () => { _turnstileToken = null; },
+      });
+    };
+    tryRender();
+  } catch (err) {
+    console.warn('Could not load Turnstile:', err.message);
+  }
+}
+initTurnstile();
 
 // Turns "Willow Wellness" into "willow-wellness" — a reasonable
 // starting point the practitioner can still freely edit.
@@ -210,6 +246,14 @@ async function handleSignup(e) {
   const email = document.getElementById('f-email').value.trim();
   const password = document.getElementById('f-password').value;
 
+  // Only require the check if the widget actually loaded (i.e. Turnstile is
+  // configured for this environment) — see initTurnstile() above.
+  if (_turnstileWidgetId !== null && !_turnstileToken) {
+    errorBanner.textContent = 'Please complete the security check before continuing.';
+    errorBanner.style.display = 'block';
+    return false;
+  }
+
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Creating your account…';
@@ -218,7 +262,7 @@ async function handleSignup(e) {
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subdomain, orgName, name, email, password }),
+      body: JSON.stringify({ subdomain, orgName, name, email, password, turnstileToken: _turnstileToken }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Something went wrong');
@@ -232,6 +276,11 @@ async function handleSignup(e) {
     errorBanner.style.display = 'block';
     btn.disabled = false;
     btn.textContent = 'Create my account';
+    // Turnstile tokens are single-use — reset so they can retry.
+    if (_turnstileWidgetId !== null && typeof turnstile !== 'undefined') {
+      turnstile.reset(_turnstileWidgetId);
+      _turnstileToken = null;
+    }
   }
   return false;
 }

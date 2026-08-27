@@ -26,6 +26,32 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const MFA_FROM_EMAIL = process.env.MFA_FROM_EMAIL || 'h_ld. <noreply@h-ld.com>';
 const ROOT_DOMAIN = process.env.ROOT_DOMAIN || 'h-ld.com';
 const VERIFY_TOKEN_TTL_HOURS = 48;
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY;
+
+// Free bot/spam check (dashboard.cloudflare.com > Turnstile) — the frontend
+// widget produces a one-time token which is verified here before anything
+// gets written to the database or a Stripe customer gets created. If
+// TURNSTILE_SECRET_KEY isn't configured (e.g. local dev), this is skipped
+// entirely rather than blocking signup — see api/config/turnstile-key.js,
+// which the frontend also treats as optional for the same reason.
+async function verifyTurnstileToken(token, remoteip) {
+  if (!TURNSTILE_SECRET_KEY) return true; // not configured — don't gate on it
+  if (!token) return false;
+  try {
+    const body = new URLSearchParams({ secret: TURNSTILE_SECRET_KEY, response: token });
+    if (remoteip) body.set('remoteip', remoteip);
+    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const result = await verifyRes.json();
+    return result.success === true;
+  } catch (err) {
+    console.error('Turnstile verification request failed:', err.message);
+    return false; // fail closed — a network hiccup shouldn't let a bot through
+  }
+}
 
 async function sendConfirmationEmail(email, verifyToken, subdomain) {
   const confirmUrl = `https://${ROOT_DOMAIN}/api/auth/verify-email?token=${verifyToken}`;
@@ -62,7 +88,14 @@ export default async function handler(req, res) {
   if (!stripe) return;
   if (!PRICE_ID) return res.status(500).json({ error: 'STRIPE_PRICE_ID not configured' });
 
-  const { subdomain, orgName, name, email, password } = req.body || {};
+  const { subdomain, orgName, name, email, password, turnstileToken } = req.body || {};
+
+  // Bot check first — fail fast before touching the database or Stripe.
+  const remoteip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress;
+  const turnstileOk = await verifyTurnstileToken(turnstileToken, remoteip);
+  if (!turnstileOk) {
+    return res.status(400).json({ error: 'Security check failed — please try again' });
+  }
 
   if (!subdomain || !orgName || !email || !password) {
     return res.status(400).json({ error: 'Subdomain, organisation name, email, and password are all required' });
