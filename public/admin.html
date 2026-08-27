@@ -528,6 +528,28 @@
   }
   .form-input:focus { border-color: var(--sage); }
 
+  /* ── ADDRESS AUTOCOMPLETE STYLING ──
+     Google's PlaceAutocompleteElement (<gmp-place-autocomplete>) renders its
+     own input inside a shadow root with its own default look. These rules
+     target its exposed shadow parts so the widget matches .form-input
+     exactly instead of looking like a foreign element dropped into the
+     form. !important is needed throughout — Google's own shadow styles
+     otherwise take precedence over a plain selector. */
+  .address-autocomplete-el { display: block; width: 100%; }
+  .address-autocomplete-el::part(input-container) {
+    border: none !important; box-shadow: none !important; background: transparent !important;
+    padding: 0 !important; min-height: 0 !important;
+  }
+  .address-autocomplete-el::part(input) {
+    width: 100% !important; box-sizing: border-box !important;
+    padding: 9px 12px !important; border: 1px solid var(--border) !important;
+    border-radius: 8px !important; font-family: inherit !important; font-size: 13px !important;
+    line-height: normal !important; color: var(--ink) !important; background: var(--white) !important;
+    box-shadow: none !important; height: auto !important; outline: none !important;
+    transition: border-color .15s !important;
+  }
+  .address-autocomplete-el::part(input):focus { border-color: var(--sage) !important; }
+
   /* ── CLIENT AUTOSUGGEST ── */
   .autosuggest-wrap { position: relative; }
   .autosuggest-list {
@@ -3558,6 +3580,7 @@
         <div class="form-group">
           <label class="form-label">Location</label>
           <input class="form-input" id="bm-location" placeholder="Clinic address or online meeting link">
+          <div id="bm-location-autocomplete-wrap" style="display:none"></div>
         </div>
       </div>
       <div class="form-row full">
@@ -3650,6 +3673,7 @@
         <div class="form-group">
           <label class="form-label">Default Location</label>
           <input class="form-input" id="sm-location" placeholder="Clinic address or online">
+          <div id="sm-location-autocomplete-wrap" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -4063,7 +4087,7 @@
         <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="cm-phone" placeholder="+61 4xx xxx xxx"></div>
       </div>
       <div class="form-row full">
-        <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="cm-address" placeholder="Street, suburb, state"></div>
+        <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="cm-address" placeholder="Street, suburb, state"><div id="cm-address-autocomplete-wrap" style="display:none"></div></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Date of birth</label><input class="form-input" id="cm-dob" type="date"></div>
@@ -5865,23 +5889,49 @@ function setSidebarAvatar(url) {
   }
 }
 
-// Address autocomplete for the Business Info field — uses Google's
-// current PlaceAutocompleteElement (their older Autocomplete widget class
-// stopped being available to new API keys as of March 2025, so this isn't
-// a style choice, it's the only option for a freshly-created key). This
-// is enhancement-only: the plain #s-address input is always fully
-// functional on its own, and stays that way if the Maps key isn't
-// configured yet, or if anything here fails for any reason.
+// Address autocomplete — uses Google's current PlaceAutocompleteElement
+// (their older Autocomplete widget class stopped being available to new
+// API keys as of March 2025, so this isn't a style choice, it's the only
+// option for a freshly-created key). This is enhancement-only: every plain
+// address input it enhances is always fully functional on its own, and
+// stays that way if the Maps key isn't configured yet, or if anything
+// here fails for any reason. Called once per field at page load, and safe
+// to call again later (e.g. after settings/data reload) — it just
+// re-syncs values rather than recreating the element.
+const ADDRESS_AUTOCOMPLETE_FIELDS = [
+  { inputId: 's-address',  wrapId: 's-address-autocomplete-wrap'  }, // Business Info
+  { inputId: 'bm-location', wrapId: 'bm-location-autocomplete-wrap' }, // Manual booking modal
+  { inputId: 'sm-location', wrapId: 'sm-location-autocomplete-wrap' }, // Service modal — default location
+  { inputId: 'cm-address',  wrapId: 'cm-address-autocomplete-wrap'  }, // Client modal
+];
+let _addressAutocompleteErrorShown = false;
+
+function initAllAddressAutocompletes() {
+  ADDRESS_AUTOCOMPLETE_FIELDS.forEach(f => initAddressAutocompleteField(f.inputId, f.wrapId));
+}
+
+// Kept as a thin wrapper so the one pre-existing call site (and anything
+// else referencing it by this name) still works unchanged.
 async function initAddressAutocomplete() {
-  const plainInput = document.getElementById('s-address');
+  return initAddressAutocompleteField('s-address', 's-address-autocomplete-wrap');
+}
+
+async function initAddressAutocompleteField(inputId, wrapId) {
+  const plainInput = document.getElementById(inputId);
   if (!plainInput) return;
 
+  const autocompleteId = inputId + '-autocomplete';
+
   // Already set up — just keep its value in sync with whatever the plain
-  // input currently holds (e.g. settings reloaded with a saved address)
+  // input currently holds (e.g. a modal reopened with different data)
   // rather than recreating the element from scratch.
-  const existing = document.getElementById('s-address-autocomplete');
+  const existing = document.getElementById(autocompleteId);
   if (existing) {
-    if (plainInput.value) existing.value = plainInput.value;
+    // Always resync, including to empty — these fields live in modals that
+    // get reused across multiple open/edit sessions (e.g. New Booking after
+    // Edit Booking), so a stale value from last time must be cleared too,
+    // not just overwritten when the new value happens to be non-empty.
+    existing.value = plainInput.value || '';
     return;
   }
 
@@ -5919,7 +5969,7 @@ async function initAddressAutocomplete() {
     }
 
     const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
-    const wrap = document.getElementById('s-address-autocomplete-wrap');
+    const wrap = document.getElementById(wrapId);
     if (!wrap) return;
 
     // No options passed — Google's own docs are inconsistent across
@@ -5928,8 +5978,10 @@ async function initAddressAutocomplete() {
     // The bare constructor is the form shown in every one of Google's own
     // current examples, which eliminates that as a variable entirely.
     const autocomplete = new PlaceAutocompleteElement();
-    autocomplete.id = 's-address-autocomplete';
-    autocomplete.style.width = '100%';
+    autocomplete.id = autocompleteId;
+    // Shared class the CSS below styles to match .form-input — see
+    // "ADDRESS AUTOCOMPLETE STYLING" in <style>.
+    autocomplete.className = 'address-autocomplete-el';
     if (plainInput.value) autocomplete.value = plainInput.value;
 
     autocomplete.addEventListener('gmp-select', async (e) => {
@@ -5948,8 +6000,13 @@ async function initAddressAutocomplete() {
   } catch (err) {
     // Surfaced visibly now rather than only logged — this has failed
     // silently twice before, so the actual error needs to be reportable.
-    console.warn('Address autocomplete unavailable, using plain input:', err);
-    toast('Address autocomplete failed to load: ' + (err?.message || err), 'error');
+    // Only shown once per page load even though this runs once per field,
+    // so a systemic failure (e.g. bad key) doesn't spam four toasts.
+    console.warn('Address autocomplete unavailable for', inputId, '— using plain input:', err);
+    if (!_addressAutocompleteErrorShown) {
+      _addressAutocompleteErrorShown = true;
+      toast('Address autocomplete failed to load: ' + (err?.message || err), 'error');
+    }
   }
 }
 
@@ -7505,6 +7562,7 @@ function openNewBookingModal() {
   populateServiceDropdown('bm-service');
   document.getElementById('booking-modal-backdrop').classList.add('open');
   refreshAdminSlots();
+  initAddressAutocompleteField('bm-location', 'bm-location-autocomplete-wrap');
 }
 
 function openEditBooking(id) {
@@ -7525,6 +7583,7 @@ function openEditBooking(id) {
   closeSlideout();
   document.getElementById('booking-modal-backdrop').classList.add('open');
   refreshAdminSlots();
+  initAddressAutocompleteField('bm-location', 'bm-location-autocomplete-wrap');
 }
 
 function openNewBookingFromCal(date, time) {
@@ -7657,6 +7716,13 @@ function closeBookingModal() { document.getElementById('booking-modal-backdrop')
 function closeBookingModalIfBg(e) { if (e.target === e.currentTarget) closeBookingModal(); }
 
 async function saveBooking() {
+  // The address widget's own current text is the source of truth — someone
+  // may have typed a full address without ever selecting a dropdown
+  // suggestion (or typed a meeting link, which never produces one).
+  const bmLocationAutocomplete = document.getElementById('bm-location-autocomplete');
+  if (bmLocationAutocomplete) {
+    document.getElementById('bm-location').value = bmLocationAutocomplete.value;
+  }
   const name = document.getElementById('bm-name').value.trim();
   const email = document.getElementById('bm-email').value.trim();
   const serviceId = document.getElementById('bm-service').value;
@@ -8331,6 +8397,7 @@ function openServiceModal(id) {
     document.getElementById('sm-category').value = 'initial';
   }
   document.getElementById('service-modal-backdrop').classList.add('open');
+  initAddressAutocompleteField('sm-location', 'sm-location-autocomplete-wrap');
 }
 
 function setImagePreview(src) {
@@ -8416,6 +8483,11 @@ function closeServiceModal() {
 function closeServiceModalIfBg(e) { if (e.target === e.currentTarget) closeServiceModal(); }
 
 async function saveService() {
+  // Same source-of-truth sync as saveBooking() — see comment there.
+  const smLocationAutocomplete = document.getElementById('sm-location-autocomplete');
+  if (smLocationAutocomplete) {
+    document.getElementById('sm-location').value = smLocationAutocomplete.value;
+  }
   const name = document.getElementById('sm-name').value.trim();
   if (!name) { toast('Service name is required', 'error'); return; }
   const services = getServices();
@@ -10033,7 +10105,7 @@ function loadSettingsUI() {
   updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
-  initAddressAutocomplete();
+  initAllAddressAutocompletes();
   setLogoPreview(s.logoUrl || null);
   if (s.buffer) document.getElementById('s-buffer').value = s.buffer;
   if (s.cancelPolicy) document.getElementById('s-cancel-policy').value = s.cancelPolicy;
@@ -13120,9 +13192,15 @@ function openClientModal(id) {
   document.getElementById('cm-referral').value = c ? (c.referral || '') : '';
   document.getElementById('cm-tags').value = c ? (c.tags || '') : '';
   document.getElementById('client-modal-backdrop').classList.add('open');
+  initAddressAutocompleteField('cm-address', 'cm-address-autocomplete-wrap');
 }
 
 function saveClient() {
+  // Same source-of-truth sync as saveBooking() — see comment there.
+  const cmAddressAutocomplete = document.getElementById('cm-address-autocomplete');
+  if (cmAddressAutocomplete) {
+    document.getElementById('cm-address').value = cmAddressAutocomplete.value;
+  }
   const first = document.getElementById('cm-first').value.trim();
   const last  = document.getElementById('cm-last').value.trim();
   if (!first) { toast('Please enter a first name', 'error'); return; }
