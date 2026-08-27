@@ -530,25 +530,35 @@
 
   /* ── ADDRESS AUTOCOMPLETE STYLING ──
      Google's PlaceAutocompleteElement (<gmp-place-autocomplete>) renders its
-     own input inside a shadow root with its own default look. These rules
-     target its exposed shadow parts so the widget matches .form-input
-     exactly instead of looking like a foreign element dropped into the
-     form. !important is needed throughout — Google's own shadow styles
-     otherwise take precedence over a plain selector. */
-  .address-autocomplete-el { display: block; width: 100%; }
+     own input inside a shadow root with its own default look — including
+     color-scheme: light dark, which silently switches the widget to a dark
+     surface if the browser/OS is in dark mode. Google now officially
+     supports background-color / border / border-radius / color-scheme as
+     properties set directly on the host element itself (not just via
+     ::part()), so the host carries the actual visible border/background,
+     and ::part(input) is only used for text-level styling (padding, font,
+     color) with its own border/background suppressed so there's no double
+     border. */
+  .address-autocomplete-el {
+    display: block; width: 100%;
+    color-scheme: light; /* stops it following OS/browser dark mode */
+    background-color: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color .15s;
+  }
+  .address-autocomplete-el:focus-within { border-color: var(--sage); }
   .address-autocomplete-el::part(input-container) {
     border: none !important; box-shadow: none !important; background: transparent !important;
     padding: 0 !important; min-height: 0 !important;
   }
   .address-autocomplete-el::part(input) {
     width: 100% !important; box-sizing: border-box !important;
-    padding: 9px 12px !important; border: 1px solid var(--border) !important;
-    border-radius: 8px !important; font-family: inherit !important; font-size: 13px !important;
-    line-height: normal !important; color: var(--ink) !important; background: var(--white) !important;
+    padding: 9px 12px !important; border: none !important; border-radius: 8px !important;
+    font-family: inherit !important; font-size: 13px !important;
+    line-height: normal !important; color: var(--ink) !important; background: transparent !important;
     box-shadow: none !important; height: auto !important; outline: none !important;
-    transition: border-color .15s !important;
   }
-  .address-autocomplete-el::part(input):focus { border-color: var(--sage) !important; }
 
   /* ── CLIENT AUTOSUGGEST ── */
   .autosuggest-wrap { position: relative; }
