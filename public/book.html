@@ -823,7 +823,7 @@ function getForms() {
 }
 
 function defaultSettings() {
-  return { bizName:'Your Business', pracName:'', email:'', phone:'', address:'', daySchedule:{ Mon:{active:true,start:'09:00',end:'17:00',customTimes:[]}, Tue:{active:true,start:'09:00',end:'17:00',customTimes:[]}, Wed:{active:true,start:'09:00',end:'17:00',customTimes:[]}, Thu:{active:true,start:'09:00',end:'17:00',customTimes:[]}, Fri:{active:true,start:'09:00',end:'17:00',customTimes:[]}, Sat:{active:false,start:'09:00',end:'17:00',customTimes:[]}, Sun:{active:false,start:'09:00',end:'17:00',customTimes:[]} }, buffer:15, cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.' };
+  return { bizName:'Your Business', pracName:'', email:'', phone:'', address:'', daySchedule:{ Mon:{active:true,start:'09:00',end:'17:00'}, Tue:{active:true,start:'09:00',end:'17:00'}, Wed:{active:true,start:'09:00',end:'17:00'}, Thu:{active:true,start:'09:00',end:'17:00'}, Fri:{active:true,start:'09:00',end:'17:00'}, Sat:{active:false,start:'09:00',end:'17:00'}, Sun:{active:false,start:'09:00',end:'17:00'} }, buffer:15, cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.' };
 }
 
 // ═══════════════════════════════════════
@@ -1090,25 +1090,18 @@ async function renderSlots() {
     grid.innerHTML = '<div class="no-slots" style="grid-column:1/-1">No appointments available on this day.</div>';
     return;
   }
+  const [sh, sm] = dayConfig.start.split(':').map(Number);
+  const [eh, em] = dayConfig.end.split(':').map(Number);
   const buffer = settings.buffer || 15;
   const duration = service.duration;
   const slots = [];
-  const customTimes = Array.isArray(dayConfig.customTimes) ? dayConfig.customTimes.filter(Boolean) : [];
-  if (customTimes.length > 0) {
-    // This day uses specific custom start times instead of one continuous
-    // range — offer exactly those times as candidate slots.
-    customTimes.slice().sort().forEach(t => slots.push(t));
-  } else {
-    const [sh, sm] = dayConfig.start.split(':').map(Number);
-    const [eh, em] = dayConfig.end.split(':').map(Number);
-    let cur = sh * 60 + sm;
-    const end = eh * 60 + em;
-    while (cur + duration <= end) {
-      const h = Math.floor(cur / 60);
-      const m = cur % 60;
-      slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
-      cur += duration + buffer;
-    }
+  let cur = sh * 60 + sm;
+  const end = eh * 60 + em;
+  while (cur + duration <= end) {
+    const h = Math.floor(cur / 60);
+    const m = cur % 60;
+    slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    cur += duration + buffer;
   }
 
   // Build list of blocked minute-ranges from existing bookings on this date
