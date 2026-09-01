@@ -537,9 +537,6 @@
     .footer-action { flex-direction: column; align-items: stretch; }
     .footer-action .btn { width: 100%; justify-content: center; }
     .step-label { font-size: 10px; }
-    .service-opt-img { width: 48px; height: 48px; font-size: 22px; }
-    .service-option { padding: 14px; gap: 12px; }
-    .service-opt-price { font-size: 14px; }
     .booking-card-header { flex-wrap: wrap; gap: 8px; }
     .back-btn { margin-left: auto; }
     .cal-grid { gap: 0; }
@@ -549,6 +546,65 @@
     .cal-add-links { flex-direction: column; align-items: center; }
     .summary-row { flex-direction: column; gap: 2px; }
     .summary-val { text-align: left; }
+
+    /* ── Service cards: large hero-image layout ──
+       Restructures the existing elements (image, body, price, arrow —
+       already siblings in the HTML) via grid-template-areas rather than
+       changing any markup. The price and arrow share one row via two
+       grid columns; everything else stacks in a single column above it. */
+    .service-option {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "img img" "body body" "price arrow";
+      gap: 0;
+      padding: 8px;
+      border: 1.5px solid var(--ink);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .service-opt-img {
+      grid-area: img;
+      width: 100%; height: 160px;
+      border-radius: 10px;
+      font-size: 40px;
+    }
+    /* No real photo uploaded for this service — the emoji/icon fallback
+       doesn't work as a giant hero image, so collapse the area entirely
+       rather than show an oversized icon in a huge box. */
+    .service-opt-img:not(:has(img)) { display: none; }
+    .service-opt-tag { display: none; }
+    .service-opt-body {
+      grid-area: body;
+      padding: 16px 8px 6px;
+    }
+    .service-opt-name { font-size: 17px; }
+    .service-opt-desc { font-size: 13px; -webkit-line-clamp: 3; }
+    .service-opt-meta { margin-top: 10px; font-size: 12px; }
+    .service-opt-price {
+      grid-area: price;
+      align-self: center;
+      padding: 0 8px 12px;
+      font-size: 20px;
+    }
+    .service-opt-arrow {
+      grid-area: arrow;
+      align-self: center;
+      justify-self: end;
+      padding: 0 8px 12px;
+    }
+
+    /* ── Contact us / practitioner: centered, stacked ──
+       Desktop shows these side by side (contact info left, practitioner
+       right-aligned with a small avatar). Mobile stacks everything in one
+       centered column instead, with a much larger practitioner photo —
+       order:-1 on the avatar moves it visually above the name/title text
+       without needing to reorder anything in the HTML. */
+    .info-row { flex-direction: column; align-items: center; text-align: center; gap: 32px; }
+    .contact-us-heading { text-align: center; }
+    .contact-us-row { justify-content: center; }
+    .practitioner-block { flex-direction: column; text-align: center; gap: 12px; }
+    .practitioner-avatar, .practitioner-avatar-fallback { width: 128px; height: 128px; order: -1; }
+    .practitioner-avatar-fallback svg { width: 52px; height: 52px; }
   }
 </style>
 </head>
