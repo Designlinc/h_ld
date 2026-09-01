@@ -530,17 +530,18 @@
   .progress-step.done .step-dot { cursor: pointer; }
 
   @media (max-width: 520px) {
-    .page-wrap { padding: 20px 0 100px; }
+    .page-wrap { padding: 20px 0 40px; }
     .standalone-card { max-width: calc(100% - 24px); margin: 12px auto; padding: 32px; border-radius: 18px; }
     .form-row { grid-template-columns: 1fr; }
     .slots-grid { grid-template-columns: repeat(3, 1fr); }
-    .footer-action { flex-direction: column; align-items: stretch; }
+    .footer-action { position: static; flex-direction: column; align-items: stretch; }
     .footer-action .btn { width: 100%; justify-content: center; }
     .step-label { font-size: 10px; }
     .booking-card-header { flex-wrap: wrap; gap: 8px; }
     .back-btn { margin-left: auto; }
     .cal-grid { gap: 0; }
-    .cal-day { font-size: 3.2cqi; }
+    .cal-day { font-size: 18px; font-weight: 500; }
+    .cal-day.has-slots::after { bottom: 4px; }
     .section-heading { font-size: 18px; }
     .confirm-wrap { padding: 32px 16px; }
     .cal-add-links { flex-direction: column; align-items: center; }
