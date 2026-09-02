@@ -8055,6 +8055,7 @@ const _fbPaletteTypeLabels = {
 };
 
 function _fbMakeGhost(labelText) {
+  _fbCleanupGhost(); // guarantee at most one ghost ever exists, regardless of whether the previous drag's dragend reliably fired
   const ghost = document.createElement('div');
   ghost.textContent = labelText;
   ghost.style.cssText = 'position:fixed;top:-1000px;left:-1000px;padding:10px 16px;background:var(--sage);color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none;opacity:.92;z-index:9999;white-space:nowrap;';
@@ -8093,10 +8094,24 @@ function fbPaletteDragStart(e, type) {
   e.dataTransfer.setDragImage(_fbDragGhost, 16, 16);
 }
 
+// Shared by both drag-end paths (existing-field reorder and new-field-from-palette)
+// so they can't drift out of sync with each other again — this exact gap (one
+// handler cleaning up this state, the other not) was the cause of state
+// accumulating across repeated drags whenever a drag ended without a
+// successful drop (released outside a valid target, which is a common,
+// ordinary thing to happen while dragging, not an edge case).
+function _fbClearDropLineState() {
+  if (_fbActiveDropLineEl) _fbActiveDropLineEl.classList.remove('active');
+  _fbActiveDropLineIndex = null;
+  _fbActiveDropLineEl = null;
+  if (_fbDragOverRaf) { cancelAnimationFrame(_fbDragOverRaf); _fbDragOverRaf = null; }
+}
+
 function fbPaletteDragEnd(e) {
   const btn = e.currentTarget;
   if (btn) btn.classList.remove('fb-palette-item-dragging');
   _fbCleanupGhost();
+  _fbClearDropLineState();
   // Don't clear _fbDragNewType here — the drop handler needs it; it's cleared after use
 }
 
@@ -8203,9 +8218,7 @@ function fbFieldDragEnd(e) {
   document.querySelectorAll('.fb-field').forEach(el => el.classList.remove('fb-field-dragging'));
   document.querySelectorAll('.fb-drop-line').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.fb-palette-item').forEach(el => el.classList.remove('fb-palette-item-dragging'));
-  _fbActiveDropLineIndex = null;
-  _fbActiveDropLineEl = null;
-  if (_fbDragOverRaf) { cancelAnimationFrame(_fbDragOverRaf); _fbDragOverRaf = null; }
+  _fbClearDropLineState();
 }
 
 // Shared default-field factory, used both by clicking a palette item and dragging one in
