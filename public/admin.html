@@ -528,38 +528,6 @@
   }
   .form-input:focus { border-color: var(--sage); }
 
-  /* ── ADDRESS AUTOCOMPLETE STYLING ──
-     Google's PlaceAutocompleteElement (<gmp-place-autocomplete>) renders its
-     own input inside a shadow root with its own default look — including
-     color-scheme: light dark, which silently switches the widget to a dark
-     surface if the browser/OS is in dark mode. Google now officially
-     supports background-color / border / border-radius / color-scheme as
-     properties set directly on the host element itself (not just via
-     ::part()), so the host carries the actual visible border/background,
-     and ::part(input) is only used for text-level styling (padding, font,
-     color) with its own border/background suppressed so there's no double
-     border. */
-  .address-autocomplete-el {
-    display: block; width: 100%;
-    color-scheme: light; /* stops it following OS/browser dark mode */
-    background-color: var(--white);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    transition: border-color .15s;
-  }
-  .address-autocomplete-el:focus-within { border-color: var(--sage); }
-  .address-autocomplete-el::part(input-container) {
-    border: none !important; box-shadow: none !important; background: transparent !important;
-    padding: 0 !important; min-height: 0 !important;
-  }
-  .address-autocomplete-el::part(input) {
-    width: 100% !important; box-sizing: border-box !important;
-    padding: 9px 12px !important; border: none !important; border-radius: 8px !important;
-    font-family: inherit !important; font-size: 13px !important;
-    line-height: normal !important; color: var(--ink) !important; background: transparent !important;
-    box-shadow: none !important; height: auto !important; outline: none !important;
-  }
-
   /* ── CLIENT AUTOSUGGEST ── */
   .autosuggest-wrap { position: relative; }
   .autosuggest-list {
@@ -952,7 +920,6 @@
     display: none; pointer-events: none;
   }
   .note-editor-overlay.open { display: block; }
-  #mic-permission-modal-backdrop { z-index: 350; } /* above the note editor (300), which is where this modal is always opened from */
   .note-editor-modal {
     position: absolute;
     left: calc(var(--sidebar-w) + 12px); /* sits clear of the sidebar, never overlaps */
@@ -1017,30 +984,6 @@
   .ne-autosave { font-size: 11px; color: var(--sage); opacity: 0; transition: opacity .3s; flex-shrink: 0; }
   .ne-autosave.show { opacity: 1; }
   .note-editor-header .btn { flex-shrink: 0; }
-
-  /* ── Voice note record button — deliberately larger and more visually
-     distinct than the small toolbar icon buttons, since this needs to
-     read as an obvious, standalone action rather than blend in with
-     formatting controls. ── */
-  .ne-record-btn {
-    display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-    padding: 8px 16px 8px 14px; border-radius: 999px; border: 1.5px solid var(--cal-green);
-    background: var(--cal-green-pale); color: var(--cal-green);
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    transition: background .15s, border-color .15s, transform .1s, box-shadow .15s;
-  }
-  .ne-record-btn:hover { filter: brightness(0.96); box-shadow: 0 2px 8px rgba(30,74,48,.15); }
-  .ne-record-btn:active { transform: scale(.96); }
-  .ne-record-btn.recording {
-    background: #FBE9E7; border-color: var(--red); color: var(--red);
-    animation: neRecordPulse 1.6s ease-in-out infinite;
-  }
-  .ne-record-btn.recording:hover { filter: brightness(0.97); }
-  .ne-record-btn.processing { background: var(--border); border-color: var(--border); color: var(--ink-soft); cursor: wait; animation: none; }
-  @keyframes neRecordPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(168,51,46,.35); }
-    50%      { box-shadow: 0 0 0 6px rgba(168,51,46,0); }
-  }
   .ne-close-btn {
     width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
     border: 1px solid var(--border); background: var(--white);
@@ -1108,7 +1051,6 @@
   .note-editor-content ul, .note-editor-content ol { padding-left: 24px; margin: 6px 0 10px; }
   .note-editor-content li { margin-bottom: 4px; }
   .note-editor-content hr { border: none; border-top: 2px solid var(--border); margin: 20px 0; }
-  .note-editor-content blockquote { margin: 8px 0 10px; padding: 2px 0 2px 14px; border-left: 3px solid var(--border); color: var(--ink-mid); font-style: italic; }
   .note-editor-content img { max-width: 100%; border-radius: 8px; display: block; }
   .ne-img-wrap {
     position: relative; display: inline-block;
@@ -1378,23 +1320,19 @@
 
   .day-schedule-grid { display: flex; flex-direction: column; gap: 6px; }
   .day-schedule-header {
-    display: grid; grid-template-columns: 1fr 120px 120px 30px;
+    display: grid; grid-template-columns: 1fr 120px 120px;
     gap: 10px; padding: 0 12px 4px;
   }
   .day-schedule-col-label {
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: .5px; color: var(--ink-soft); text-align: center;
   }
-  .day-schedule-day { display: flex; flex-direction: column; }
   .day-schedule-row {
-    display: grid; grid-template-columns: 1fr 120px 120px 30px;
+    display: grid; grid-template-columns: 1fr 120px 120px;
     gap: 10px; align-items: center;
     padding: 8px 12px; border-radius: 10px;
     border: 1px solid var(--border); background: var(--white);
     transition: background .15s, border-color .15s;
-  }
-  .day-schedule-day:has(.day-custom-times[style*="flex"]) .day-schedule-row {
-    border-radius: 10px 10px 0 0; border-bottom-color: transparent;
   }
   .day-schedule-row.inactive { background: var(--bg); }
   .day-schedule-toggle {
@@ -1418,253 +1356,7 @@
   .day-schedule-row.inactive .day-schedule-name { color: var(--ink-soft); }
   .day-time-input { text-align: center; padding: 7px 8px !important; font-size: 13px !important; }
   .day-time-input.disabled { background: var(--bg) !important; color: var(--border) !important; cursor: not-allowed; }
-  .day-custom-btn {
-    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border); background: var(--white);
-    color: var(--ink-soft); cursor: pointer; transition: all .15s; padding: 0;
-  }
-  .day-custom-btn svg { width: 15px; height: 15px; }
-  .day-custom-btn:hover:not(:disabled) { border-color: var(--sage); color: var(--sage); background: var(--sage-pale); }
-  .day-custom-btn.has-times { border-color: var(--sage); color: var(--sage); background: var(--sage-pale); }
-  .day-custom-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .day-custom-times {
-    display: none; flex-wrap: wrap; align-items: center; gap: 6px;
-    padding: 10px 12px; margin-top: -1px;
-    border: 1px solid var(--border); border-top: none;
-    border-radius: 0 0 10px 10px; background: rgba(0,0,0,.012);
-  }
-  .day-time-pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 6px 5px 12px; border-radius: 999px;
-    background: var(--sage-pale); border: 1px solid var(--sage-light);
-    color: var(--sage); font-size: 12px; font-weight: 600;
-  }
-  .day-time-pill-remove {
-    display: flex; align-items: center; justify-content: center;
-    width: 16px; height: 16px; border-radius: 50%; padding: 0;
-    border: none; background: rgba(0,0,0,.06); color: var(--sage);
-    font-size: 13px; line-height: 1; cursor: pointer; transition: background .15s;
-  }
-  .day-time-pill-remove:hover { background: var(--red-pale); color: var(--red); }
-  .day-time-adder { display: inline-flex; align-items: center; gap: 6px; }
-  .day-time-adder-input {
-    padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border);
-    font-size: 12px; background: var(--white); color: var(--ink);
-  }
-  .day-time-adder-add {
-    padding: 5px 12px; border-radius: 8px; border: none;
-    background: var(--sage); color: #fff; font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: opacity .15s;
-  }
-  .day-time-adder-add:hover { opacity: .88; }
-  .day-time-adder-cancel {
-    display: flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%; padding: 0;
-    border: none; background: transparent; color: var(--ink-soft);
-    font-size: 15px; cursor: pointer;
-  }
-  .day-time-adder-cancel:hover { background: var(--bg); }
-  .day-custom-hint { font-size: 11px; color: var(--ink-soft); width: 100%; margin-top: 2px; }
   .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
-
-  /* ── ONBOARDING SPOTLIGHT ──
-     Highlights a real section of the actual app (Settings, Services, etc.)
-     by blurring/dimming everything except a cutout around it, computed from
-     that element's real position on screen — rather than a separate wizard
-     UI, this teaches the practitioner where things actually live, and
-     anything they fill in here is the real field, already saved in place.
-     Dimming is applied directly to the real surrounding elements' own
-     opacity (see obDimAllExcept) rather than a separate covering layer —
-     no cutout geometry to compute, no click-through concerns, since the
-     target is never covered by anything in the first place. Two rings: a
-     subtle one around the whole section for context, and a bright one
-     that walks field-by-field within it for actual guidance. */
-  #ob-spotlight-ring {
-    position: fixed; z-index: 151; border-radius: 16px;
-    box-shadow: 0 0 0 2px rgba(255,255,255,.5);
-    pointer-events: none; opacity: 0; transition: opacity .25s, top .35s ease, left .35s ease, width .35s ease, height .35s ease;
-  }
-  #ob-spotlight-ring.open { opacity: 1; }
-  #ob-field-ring {
-    position: fixed; z-index: 155; border-radius: 10px;
-    box-shadow: 0 0 0 3px #2563EB, 0 0 0 7px rgba(37,99,235,.25), 0 4px 16px rgba(37,99,235,.3);
-    pointer-events: none; opacity: 0;
-    transition: opacity .2s, top .25s cubic-bezier(.4,0,.2,1), left .25s cubic-bezier(.4,0,.2,1), width .25s cubic-bezier(.4,0,.2,1), height .25s cubic-bezier(.4,0,.2,1);
-    animation: obFieldPulse 1.8s ease-in-out infinite;
-  }
-  #ob-field-ring.open { opacity: 1; }
-  @keyframes obFieldPulse {
-    0%, 100% { box-shadow: 0 0 0 3px #2563EB, 0 0 0 7px rgba(37,99,235,.25), 0 4px 16px rgba(37,99,235,.3); }
-    50%      { box-shadow: 0 0 0 3px #2563EB, 0 0 0 10px rgba(37,99,235,.15), 0 4px 20px rgba(37,99,235,.4); }
-  }
-  #ob-bar {
-    position: fixed; z-index: 152;
-    bottom: 32px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 22px;
-    background: var(--glass-bg-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-    border: var(--glass-border); border-radius: 999px; box-shadow: var(--glass-shadow);
-    padding: 16px 20px 16px 32px;
-    opacity: 0; pointer-events: none; transition: opacity .2s;
-  }
-  #ob-bar.open { opacity: 1; pointer-events: all; }
-  .ob-bar-left { display: flex; flex-direction: column; }
-  .ob-bar-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #2563EB; }
-  .ob-bar-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -.2px; }
-  .ob-bar-dots { display: flex; gap: 7px; }
-  .ob-bar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  .ob-bar-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
-  .ob-bar-dot.done { background: var(--sage); }
-  .ob-bar-dot.current { background: #2563EB; }
-  #ob-tip {
-    position: fixed; z-index: 153; max-width: 280px;
-    background: var(--ink); color: #fff; font-size: 13px; line-height: 1.5;
-    padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-md);
-    opacity: 0; pointer-events: none; transition: opacity .2s;
-  }
-  #ob-tip.open { opacity: 1; }
-  #ob-tip::after { content: ''; position: absolute; width: 12px; height: 12px; background: var(--ink); transform: rotate(45deg); }
-  /* Default: arrow at top-left, pointing up — tip sits below its target */
-  #ob-tip.arrow-top::after { top: -6px; left: 24px; }
-  /* Arrow at bottom, pointing down — tip sits above its target */
-  #ob-tip.arrow-bottom::after { bottom: -6px; left: 24px; }
-  /* Arrow on the right edge, pointing right — tip sits to the left of its target */
-  #ob-tip.arrow-right::after { top: 20px; right: -6px; left: auto; }
-
-  /* ── Booking Page onboarding: choice cards ── */
-  .ob-bp-choice-card {
-    background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius-lg);
-    padding: 22px 18px; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
-  }
-  .ob-bp-choice-card:hover { border-color: var(--sage-mid); box-shadow: 0 4px 16px rgba(0,0,0,.06); }
-  .ob-bp-choice-card:active { transform: scale(.98); }
-
-  /* ── Booking Page onboarding: large, detailed animated demo ──
-     A realistic recreation of the actual app UI (not abstract shapes),
-     shown at a large, easily-readable size, cycling through two scenes
-     like a genuine screen recording: the real Booking Page panel, then
-     the practitioner's own website with the widget embedded. One
-     self-contained looping timeline via percentage keyframes. */
-  .ob-demo-viewport {
-    position: relative; width: 100%; height: 560px; overflow: hidden;
-    background: var(--bg); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  }
-  .ob-demo-scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; }
-  .ob-demo-scene-a { animation: obDemoSceneA 9s ease infinite; }
-  .ob-demo-scene-b { animation: obDemoSceneB 9s ease infinite; }
-
-  /* Scene A — the real Booking Page panel */
-  .ob-demo-mock-panel {
-    width: 620px; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-    border: var(--glass-border); box-shadow: var(--glass-shadow); border-radius: var(--radius-lg); overflow: hidden;
-  }
-  .ob-demo-mock-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-  .ob-demo-mock-panel-title { font-size: 15px; font-weight: 500; color: var(--ink); }
-  .ob-demo-mock-btn-row { display: flex; gap: 8px; }
-  .ob-demo-mock-btn {
-    font-size: 12px; font-weight: 500; color: var(--ink-mid); background: rgba(255,255,255,.6);
-    border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
-  }
-  .ob-demo-mock-btn-target { position: relative; animation: obDemoBtnPress 9s ease infinite; }
-  .ob-demo-mock-panel-body { padding: 20px; }
-  .ob-demo-mock-url-box { background: var(--sage-pale); border: 1px solid var(--sage-light); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 18px; }
-  .ob-demo-mock-url-label { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
-  .ob-demo-mock-url-row { display: flex; gap: 8px; align-items: center; }
-  .ob-demo-mock-url-input { flex: 1; font-size: 12px; color: var(--ink-mid); background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
-  .ob-demo-mock-btn-primary { font-size: 12px; font-weight: 600; color: #fff; background: var(--ink); border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
-  .ob-demo-mock-service-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .ob-demo-mock-service-row:last-child { border-bottom: none; }
-  .ob-demo-mock-service-name { font-size: 13px; font-weight: 600; color: var(--ink); }
-  .ob-demo-mock-service-sub { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
-  .ob-demo-mock-toggle { width: 34px; height: 20px; border-radius: 999px; background: var(--border); position: relative; flex-shrink: 0; }
-  .ob-demo-mock-toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .15s; }
-  .ob-demo-mock-toggle.on { background: var(--cal-green); }
-  .ob-demo-mock-toggle.on::after { left: 16px; }
-
-  .ob-demo-mock-cursor {
-    position: absolute; width: 0; height: 0;
-    border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 15px solid var(--ink);
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,.3));
-    transform: rotate(-45deg);
-    animation: obDemoCursorMove 9s ease infinite;
-  }
-  .ob-demo-mock-toast {
-    position: absolute; bottom: 40px; right: 40px;
-    display: flex; align-items: center; gap: 8px;
-    background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-    border: var(--glass-border); box-shadow: var(--glass-shadow); border-left: 4px solid var(--cal-green);
-    border-radius: 12px; padding: 12px 18px; font-size: 13px; font-weight: 500; color: var(--ink);
-    opacity: 0; transform: translateY(8px);
-    animation: obDemoToast 9s ease infinite;
-  }
-
-  /* Scene B — their website with the widget embedded */
-  .ob-demo-mock-website { width: 700px; background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; }
-  .ob-demo-mock-website-nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--border); }
-  .ob-demo-mock-website-logo { font-family: "quincy-cf", serif; font-size: 18px; font-weight: 700; color: var(--ink); }
-  .ob-demo-mock-website-menu { display: flex; gap: 22px; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
-  .ob-demo-mock-website-hero { text-align: center; padding: 32px 28px 24px; }
-  .ob-demo-mock-website-heading { font-family: "quincy-cf", serif; font-size: 26px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
-  .ob-demo-mock-website-sub { font-size: 13px; color: var(--ink-soft); }
-  .ob-demo-mock-widget {
-    width: 380px; margin: 0 auto 32px; background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-    border: var(--glass-border); box-shadow: var(--glass-shadow); border-radius: var(--radius-lg); padding: 20px;
-    opacity: 0; transform: scale(.92) translateY(10px);
-    animation: obDemoWidgetAppear 9s ease infinite;
-  }
-  .ob-demo-mock-widget-header { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; }
-  .ob-demo-mock-widget-service { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-mid); background: var(--sage-pale); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
-  .ob-demo-mock-widget-service-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cal-green); flex-shrink: 0; }
-  .ob-demo-mock-widget-calendar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
-  .ob-demo-mock-cal-day { font-size: 10px; color: var(--ink-soft); text-align: center; font-weight: 600; }
-  .ob-demo-mock-cal-num { font-size: 12px; color: var(--ink); text-align: center; padding: 6px 0; border-radius: 6px; }
-  .ob-demo-mock-cal-num.selected { background: var(--ink); color: #fff; font-weight: 700; }
-  .ob-demo-mock-widget-btn { text-align: center; font-size: 13px; font-weight: 600; color: #fff; background: var(--ink); border-radius: 999px; padding: 10px; }
-
-  @keyframes obDemoSceneA {
-    0%, 42%    { opacity: 1; }
-    50%, 100%  { opacity: 0; }
-  }
-  @keyframes obDemoSceneB {
-    0%, 48%    { opacity: 0; }
-    56%, 92%   { opacity: 1; }
-    100%       { opacity: 0; }
-  }
-  @keyframes obDemoCursorMove {
-    0%          { opacity: 0; top: 260px; left: 700px; }
-    10%         { opacity: 1; top: 260px; left: 700px; }
-    28%         { opacity: 1; top: 113px; left: 615px; }
-    33%, 40%    { opacity: 1; top: 113px; left: 615px; transform: rotate(-45deg) scale(.85); }
-    44%, 100%   { opacity: 0; top: 113px; left: 615px; }
-  }
-  @keyframes obDemoBtnPress {
-    0%, 27%    { background: rgba(255,255,255,.6); color: var(--ink-mid); border-color: var(--border); }
-    30%, 40%   { background: var(--sage); color: #fff; border-color: var(--sage); }
-    44%, 100%  { background: rgba(255,255,255,.6); color: var(--ink-mid); border-color: var(--border); }
-  }
-  @keyframes obDemoToast {
-    0%, 32%    { opacity: 0; transform: translateY(8px); }
-    36%, 46%   { opacity: 1; transform: translateY(0); }
-    50%, 100%  { opacity: 0; transform: translateY(8px); }
-  }
-  @keyframes obDemoWidgetAppear {
-    0%, 60%    { opacity: 0; transform: scale(.92) translateY(10px); }
-    72%, 90%   { opacity: 1; transform: scale(1) translateY(0); }
-    100%       { opacity: 0; transform: scale(.92) translateY(10px); }
-  }
-
-  .ob-check-badge {
-    position: absolute; z-index: 5;
-    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-    animation: obCheckPop .3s cubic-bezier(.34,1.56,.64,1);
-  }
-  .ob-check-badge svg { stroke-dasharray: 23; stroke-dashoffset: 23; animation: obCheckDraw .25s ease .15s forwards; }
-  @keyframes obCheckPop { from { transform: scale(0); } to { transform: scale(1); } }
-  @keyframes obCheckDraw { to { stroke-dashoffset: 0; } }
-
-  .ne-live-preview { color: var(--ink-soft); font-style: italic; }
-  .ne-live-preview::after { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--ink-soft); margin-left: 4px; vertical-align: middle; animation: neLivePulse 1s ease-in-out infinite; }
-  @keyframes neLivePulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
   .toggle-row:last-child { border-bottom: none; }
   .toggle-label { font-size: 13px; font-weight: 500; color: var(--ink); }
   .toggle-sub { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
@@ -1811,7 +1503,7 @@
   .modal-footer { padding: 16px 24px; border-top: 1px solid rgba(255,255,255,.4); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
 
   /* ── TOAST ── */
-  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 10px; }
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
 
   /* ── LOGIN SCREEN ── */
   .login-overlay {
@@ -1861,30 +1553,16 @@
     font-size: 12px; text-align: left;
   }
   .toast {
-    position: relative;
-    background: var(--glass-bg);
-    -webkit-backdrop-filter: var(--glass-blur);
-    backdrop-filter: var(--glass-blur);
-    border: var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    border-left: 4px solid var(--ink-soft);
-    color: var(--ink);
-    padding: 14px 18px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1.45;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    background: var(--ink); color: #fff;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 11px; font-weight: 500;
+    box-shadow: var(--shadow-md);
+    display: flex; align-items: center; gap: 8px;
     animation: toastIn .2s ease;
-    max-width: 380px;
+    max-width: 300px;
   }
-  .toast svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
-  .toast.success { border-left-color: var(--sage); }
-  .toast.success svg { color: var(--sage); }
-  .toast.error { border-left-color: var(--red); }
-  .toast.error svg { color: var(--red); }
+  .toast.success { background: var(--sage); }
+  .toast.error { background: var(--red); }
   @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ── EMPTY STATE ── */
@@ -2353,19 +2031,12 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
   </button>
   <button class="nav-btn" onclick="showPage('invoices')" title="Invoices" id="nav-invoices">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M6 3h12a2 2 0 0 1 2 2v14l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V5a2 2 0 0 1 2-2z"/>
-      <path d="M8.5 7v9"/>
-      <path d="M10.3 8.3c0-.7-.8-1.1-1.8-1.1s-1.8.4-1.8 1.1.8 1 1.8 1 1.8.4 1.8 1.1-.8 1.1-1.8 1.1-1.8-.4-1.8-1.1"/>
-      <line x1="13" y1="8" x2="17" y2="8"/>
-      <line x1="13" y1="11" x2="17" y2="11"/>
-      <line x1="13" y1="14" x2="17" y2="14"/>
-    </svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg>
   </button>
   <div class="sidebar-spacer"></div>
-  <!-- AI Assistant nav entry point removed for now — pulled from reach
-       until there's a real LLM backend behind it, rather than a keyword
-       matcher. Underlying ai-command-bar system left intact below. -->
+  <button class="nav-btn" onclick="toggleAiPanel()" title="Assistant" id="nav-ai">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/><path d="M19 16l.75 2.25L22 19l-2.25.75L19 22l-.75-2.25L16 19l2.25-.75z"/><path d="M5 18l.5 1.5L7 20l-1.5.5L5 22l-.5-1.5L3 20l1.5-.5z"/></svg>
+  </button>
   <button class="nav-btn" onclick="showPage('settings')" title="Settings" id="nav-settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
@@ -2547,7 +2218,7 @@
           <div class="page-title">Services</div>
           <div class="page-subtitle">Manage the services you offer</div>
         </div>
-        <button class="btn btn-primary" id="ob-target-add-service" onclick="openServiceModal()">
+        <button class="btn btn-primary" onclick="openServiceModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Service
         </button>
@@ -2555,7 +2226,7 @@
       <div class="services-grid" id="services-grid"></div>
 
       <!-- Booking Page panel -->
-      <div class="panel" style="margin-top:28px" id="ob-target-booking-page">
+      <div class="panel" style="margin-top:28px">
         <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <span class="panel-title" style="display:flex;align-items:center;gap:8px">
             Booking Page
@@ -2712,7 +2383,7 @@
           <div class="page-subtitle">Build custom forms to collect client information before appointments</div>
         </div>
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost" id="ob-target-use-template" onclick="openTemplatePickerModal()">
+          <button class="btn btn-ghost" onclick="openTemplatePickerModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Use a template
           </button>
@@ -2762,7 +2433,7 @@
             <tbody id="invoices-tbody"></tbody>
           </table>
           <div class="empty-state" id="invoices-empty" style="display:none">
-            <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><path d="M6 3h12a2 2 0 0 1 2 2v14l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V5a2 2 0 0 1 2-2z"/><path d="M8.5 7v9"/><path d="M10.3 8.3c0-.7-.8-1.1-1.8-1.1s-1.8.4-1.8 1.1.8 1 1.8 1 1.8.4 1.8 1.1-.8 1.1-1.8 1.1-1.8-.4-1.8-1.1"/><line x1="13" y1="8" x2="17" y2="8"/><line x1="13" y1="11" x2="17" y2="11"/><line x1="13" y1="14" x2="17" y2="14"/></svg></div>
+            <div class="empty-state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg></div>
             <div class="empty-state-title">No invoices yet</div>
             <div class="empty-state-sub">One is generated automatically the first time a booking is marked as paid</div>
           </div>
@@ -2830,7 +2501,7 @@
         </button>
       </div>
 
-      <div class="settings-section" id="ob-target-business">
+      <div class="settings-section">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
           <span class="settings-section-title">Business Information</span>
@@ -2867,171 +2538,102 @@
             <div class="form-group"><label class="form-label">Practitioner Title</label><input class="form-input" id="s-prac-title" placeholder="Kinesiologist" value=""></div>
           </div>
           <div class="form-row full">
-            <div class="form-group">
-              <label class="form-label">Address</label>
-              <input class="form-input" id="s-address" value="">
-              <div id="s-address-autocomplete-wrap" style="display:none"></div>
-            </div>
+            <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="s-address" value=""></div>
           </div>
           <div class="form-row">
             <div class="form-group" style="position:relative">
               <label class="form-label">ABN</label>
-              <input class="form-input" id="s-abn" placeholder="Enter your business name to search for your ABN, or enter your ABN if you know it" oninput="onAbnSearchInput()" autocomplete="off">
+              <input class="form-input" id="s-abn" placeholder="Search by business name to find your ABN" oninput="onAbnSearchInput()" autocomplete="off">
               <div id="abn-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>
               <div class="field-hint" id="abn-search-hint" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div>
             </div>
             <div class="form-group">
               <label class="form-label">GST</label>
               <div style="display:flex;align-items:center;gap:10px;height:38px">
-                <button type="button" class="toggle" id="s-gst-registered" onclick="toggleGstRegistered(this)"></button>
+                <button type="button" class="toggle" id="s-gst-registered" onclick="this.classList.toggle('on')"></button>
                 <span style="font-size:13px;color:var(--ink-mid)">Registered for GST</span>
               </div>
-              <div id="gst-registered-note" style="display:none;font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5">GST is automatically included in your total amount on invoices.</div>
-            </div>
-          </div>
-          <div class="form-row full">
-            <div class="form-group">
-              <label class="form-label">SMS Sender Name</label>
-              <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;line-height:1.5">This is the name your clients see as the sender on text messages — not your phone number. SMS sender names are limited to <strong>11 characters</strong>, letters and numbers only (no spaces or punctuation). If left blank, your business name will be shortened automatically to fit.</div>
-              <input class="form-input" id="s-sms-sender" maxlength="11" placeholder="e.g. YourBiz" oninput="onSmsSenderInput()" style="max-width:200px">
-              <div id="sms-sender-count" style="font-size:11px;color:var(--ink-soft);margin-top:4px">0 / 11</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="settings-section" id="ob-target-hours">
+      <div class="settings-section">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
           <span class="settings-section-title">Working Hours</span>
         </div>
         <div class="settings-body">
-          <div class="field-hint" style="font-size:12px;color:var(--ink-soft);margin:-6px 0 12px">Use the clock button to set specific custom start times for a day instead of one continuous range — handy for split shifts or irregular availability.</div>
           <div class="day-schedule-grid">
             <div class="day-schedule-header">
               <span></span>
               <span class="day-schedule-col-label">Start</span>
               <span class="day-schedule-col-label">End</span>
-              <span></span>
             </div>
-            <div class="day-schedule-day" id="dsd-Mon">
-              <div class="day-schedule-row" id="dsr-Mon">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Mon')">
-                  <div class="day-toggle-dot active" id="dtd-Mon"></div>
-                  <span class="day-schedule-name">Monday</span>
-                </label>
-                <input class="form-input day-time-input" id="s-start-Mon" type="time" value="09:00">
-                <input class="form-input day-time-input" id="s-end-Mon" type="time" value="17:00">
-                <button type="button" class="day-custom-btn" id="dcb-Mon" title="Add a custom time for Monday" onclick="toggleCustomTimeAdder('Mon')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Mon" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Mon">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Mon')">
+                <div class="day-toggle-dot active" id="dtd-Mon"></div>
+                <span class="day-schedule-name">Monday</span>
+              </label>
+              <input class="form-input day-time-input" id="s-start-Mon" type="time" value="09:00">
+              <input class="form-input day-time-input" id="s-end-Mon" type="time" value="17:00">
             </div>
-            <div class="day-schedule-day" id="dsd-Tue">
-              <div class="day-schedule-row" id="dsr-Tue">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Tue')">
-                  <div class="day-toggle-dot active" id="dtd-Tue"></div>
-                  <span class="day-schedule-name">Tuesday</span>
-                </label>
-                <input class="form-input day-time-input" id="s-start-Tue" type="time" value="09:00">
-                <input class="form-input day-time-input" id="s-end-Tue" type="time" value="17:00">
-                <button type="button" class="day-custom-btn" id="dcb-Tue" title="Add a custom time for Tuesday" onclick="toggleCustomTimeAdder('Tue')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Tue" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Tue">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Tue')">
+                <div class="day-toggle-dot active" id="dtd-Tue"></div>
+                <span class="day-schedule-name">Tuesday</span>
+              </label>
+              <input class="form-input day-time-input" id="s-start-Tue" type="time" value="09:00">
+              <input class="form-input day-time-input" id="s-end-Tue" type="time" value="17:00">
             </div>
-            <div class="day-schedule-day" id="dsd-Wed">
-              <div class="day-schedule-row" id="dsr-Wed">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Wed')">
-                  <div class="day-toggle-dot active" id="dtd-Wed"></div>
-                  <span class="day-schedule-name">Wednesday</span>
-                </label>
-                <input class="form-input day-time-input" id="s-start-Wed" type="time" value="09:00">
-                <input class="form-input day-time-input" id="s-end-Wed" type="time" value="17:00">
-                <button type="button" class="day-custom-btn" id="dcb-Wed" title="Add a custom time for Wednesday" onclick="toggleCustomTimeAdder('Wed')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Wed" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Wed">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Wed')">
+                <div class="day-toggle-dot active" id="dtd-Wed"></div>
+                <span class="day-schedule-name">Wednesday</span>
+              </label>
+              <input class="form-input day-time-input" id="s-start-Wed" type="time" value="09:00">
+              <input class="form-input day-time-input" id="s-end-Wed" type="time" value="17:00">
             </div>
-            <div class="day-schedule-day" id="dsd-Thu">
-              <div class="day-schedule-row" id="dsr-Thu">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Thu')">
-                  <div class="day-toggle-dot active" id="dtd-Thu"></div>
-                  <span class="day-schedule-name">Thursday</span>
-                </label>
-                <input class="form-input day-time-input" id="s-start-Thu" type="time" value="09:00">
-                <input class="form-input day-time-input" id="s-end-Thu" type="time" value="17:00">
-                <button type="button" class="day-custom-btn" id="dcb-Thu" title="Add a custom time for Thursday" onclick="toggleCustomTimeAdder('Thu')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Thu" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Thu">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Thu')">
+                <div class="day-toggle-dot active" id="dtd-Thu"></div>
+                <span class="day-schedule-name">Thursday</span>
+              </label>
+              <input class="form-input day-time-input" id="s-start-Thu" type="time" value="09:00">
+              <input class="form-input day-time-input" id="s-end-Thu" type="time" value="17:00">
             </div>
-            <div class="day-schedule-day" id="dsd-Fri">
-              <div class="day-schedule-row" id="dsr-Fri">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Fri')">
-                  <div class="day-toggle-dot active" id="dtd-Fri"></div>
-                  <span class="day-schedule-name">Friday</span>
-                </label>
-                <input class="form-input day-time-input" id="s-start-Fri" type="time" value="09:00">
-                <input class="form-input day-time-input" id="s-end-Fri" type="time" value="17:00">
-                <button type="button" class="day-custom-btn" id="dcb-Fri" title="Add a custom time for Friday" onclick="toggleCustomTimeAdder('Fri')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Fri" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Fri">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Fri')">
+                <div class="day-toggle-dot active" id="dtd-Fri"></div>
+                <span class="day-schedule-name">Friday</span>
+              </label>
+              <input class="form-input day-time-input" id="s-start-Fri" type="time" value="09:00">
+              <input class="form-input day-time-input" id="s-end-Fri" type="time" value="17:00">
             </div>
-            <div class="day-schedule-day" id="dsd-Sat">
-              <div class="day-schedule-row" id="dsr-Sat">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Sat')">
-                  <div class="day-toggle-dot" id="dtd-Sat"></div>
-                  <span class="day-schedule-name">Saturday</span>
-                </label>
-                <input class="form-input day-time-input disabled" id="s-start-Sat" type="time" value="09:00" disabled>
-                <input class="form-input day-time-input disabled" id="s-end-Sat" type="time" value="17:00" disabled>
-                <button type="button" class="day-custom-btn" id="dcb-Sat" title="Add a custom time for Saturday" onclick="toggleCustomTimeAdder('Sat')" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Sat" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Sat">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Sat')">
+                <div class="day-toggle-dot" id="dtd-Sat"></div>
+                <span class="day-schedule-name">Saturday</span>
+              </label>
+              <input class="form-input day-time-input disabled" id="s-start-Sat" type="time" value="09:00" disabled>
+              <input class="form-input day-time-input disabled" id="s-end-Sat" type="time" value="17:00" disabled>
             </div>
-            <div class="day-schedule-day" id="dsd-Sun">
-              <div class="day-schedule-row" id="dsr-Sun">
-                <label class="day-schedule-toggle" onclick="toggleDayRow('Sun')">
-                  <div class="day-toggle-dot" id="dtd-Sun"></div>
-                  <span class="day-schedule-name">Sunday</span>
-                </label>
-                <input class="form-input day-time-input disabled" id="s-start-Sun" type="time" value="09:00" disabled>
-                <input class="form-input day-time-input disabled" id="s-end-Sun" type="time" value="17:00" disabled>
-                <button type="button" class="day-custom-btn" id="dcb-Sun" title="Add a custom time for Sunday" onclick="toggleCustomTimeAdder('Sun')" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 13.5"/></svg></button>
-              </div>
-              <div class="day-custom-times" id="dct-Sun" style="display:none"></div>
+            <div class="day-schedule-row" id="dsr-Sun">
+              <label class="day-schedule-toggle" onclick="toggleDayRow('Sun')">
+                <div class="day-toggle-dot" id="dtd-Sun"></div>
+                <span class="day-schedule-name">Sunday</span>
+              </label>
+              <input class="form-input day-time-input disabled" id="s-start-Sun" type="time" value="09:00" disabled>
+              <input class="form-input day-time-input disabled" id="s-end-Sun" type="time" value="17:00" disabled>
             </div>
           </div>
           <div class="form-row" style="margin-top:16px">
             <div class="form-group"><label class="form-label">Buffer Between Appointments (minutes)</label><input class="form-input" id="s-buffer" type="number" value="15" min="0" max="60"></div>
           </div>
-
-          <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:600;color:var(--ink)">Holidays &amp; Time Off</div>
-              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="openHolidayForm()">+ Add holiday</button>
-            </div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">Block out dates you're away — clients won't be able to book during this time. Past holidays are removed automatically.</div>
-            <div id="holidays-list"></div>
-            <div id="holiday-form" style="display:none;margin-top:12px;padding:14px;background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:var(--radius)">
-              <div class="form-row full">
-                <div class="form-group"><label class="form-label">Label (optional)</label><input class="form-input" id="hol-label" placeholder="e.g. Christmas break"></div>
-              </div>
-              <div class="form-row">
-                <div class="form-group"><label class="form-label">From</label><input class="form-input" id="hol-start-date" type="date"></div>
-                <div class="form-group"><label class="form-label">From time (optional)</label><input class="form-input" id="hol-start-time" type="time"></div>
-              </div>
-              <div class="form-row">
-                <div class="form-group"><label class="form-label">To</label><input class="form-input" id="hol-end-date" type="date"></div>
-                <div class="form-group"><label class="form-label">To time (optional)</label><input class="form-input" id="hol-end-time" type="time"></div>
-              </div>
-              <div style="display:flex;gap:8px;margin-top:8px">
-                <button class="btn btn-primary" style="font-size:12px;padding:8px 16px" id="holiday-save-btn" onclick="saveHoliday()">Save holiday</button>
-                <button class="btn btn-ghost" style="font-size:12px;padding:8px 16px" onclick="closeHolidayForm()">Cancel</button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      <div class="settings-section" id="ob-target-notifications">
+      <div class="settings-section">
         <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between">
           <div style="display:flex;align-items:center;gap:12px">
             <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
@@ -3138,7 +2740,7 @@
         </div>
       </div>
 
-      <div class="settings-section" id="ob-target-connections">
+      <div class="settings-section">
         <div class="settings-section-header">
           <div class="settings-section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
           <span class="settings-section-title">Connected Accounts</span>
@@ -3179,20 +2781,6 @@
                 <div class="cal-provider-info">
                   <div class="cal-provider-name">Square</div>
                   <div class="cal-provider-desc">Take card payments &amp; send payment links to clients</div>
-                </div>
-                <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            </div>
-            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:10px;margin-top:20px">Accounting</div>
-            <div id="accounting-gateway-connected"></div>
-            <div id="accounting-gateway-picker" style="display:flex;flex-direction:column;gap:8px">
-              <button class="cal-provider-btn" onclick="startCalConnect('xero')">
-                <div class="cal-provider-icon" style="background:#E8F1FF">
-                  <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="cal-provider-info">
-                  <div class="cal-provider-name">Xero</div>
-                  <div class="cal-provider-desc">Automatically send paid invoices to your Xero account</div>
                 </div>
                 <svg class="cal-provider-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
@@ -3370,7 +2958,7 @@
 
 <!-- ═══ FORM TEMPLATE PICKER MODAL ═══ -->
 <div class="modal-backdrop" id="template-picker-modal-backdrop" onclick="closeTemplatePickerModalIfBg(event)">
-  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title">Use a template</span>
       <button class="modal-close" onclick="closeTemplatePickerModal()">
@@ -3386,7 +2974,7 @@
 
 <!-- ═══ CALENDAR CONNECT MODAL ═══ -->
 <div class="modal-backdrop" id="cal-modal-backdrop" onclick="closeCalModalIfBg(event)">
-  <div class="modal" style="width:500px" onclick="event.stopPropagation()">
+  <div class="modal" style="width:500px">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px">
         <div class="cal-modal-icon" id="cal-modal-icon"></div>
@@ -3537,7 +3125,7 @@
 
 <!-- ═══ NEW BOOKING MODAL ═══ -->
 <div class="modal-backdrop" id="booking-modal-backdrop" onclick="closeBookingModalIfBg(event)">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="booking-modal-title">New Booking</span>
       <button class="modal-close" onclick="closeBookingModal()">
@@ -3590,7 +3178,6 @@
         <div class="form-group">
           <label class="form-label">Location</label>
           <input class="form-input" id="bm-location" placeholder="Clinic address or online meeting link">
-          <div id="bm-location-autocomplete-wrap" style="display:none"></div>
         </div>
       </div>
       <div class="form-row full">
@@ -3609,7 +3196,7 @@
 
 <!-- ═══ SERVICE MODAL ═══ -->
 <div class="modal-backdrop" id="service-modal-backdrop" onclick="closeServiceModalIfBg(event)">
-  <div class="modal" onclick="event.stopPropagation()">
+  <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="service-modal-title">New Service</span>
       <button class="modal-close" onclick="closeServiceModal()">
@@ -3683,7 +3270,6 @@
         <div class="form-group">
           <label class="form-label">Default Location</label>
           <input class="form-input" id="sm-location" placeholder="Clinic address or online">
-          <div id="sm-location-autocomplete-wrap" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -3696,7 +3282,7 @@
 
 <!-- ═══ FORM BUILDER MODAL ═══ -->
 <div class="modal-backdrop" id="form-modal-backdrop" onclick="closeFormModalIfBg(event)">
-  <div class="modal" style="width:860px;max-width:96vw" onclick="event.stopPropagation()">
+  <div class="modal" style="width:860px;max-width:96vw">
     <div class="modal-header">
       <span class="modal-title" id="form-modal-title">New Intake Form</span>
       <div style="display:flex;align-items:center;gap:8px">
@@ -3795,7 +3381,7 @@
 
 <!-- ═══ FORM PREVIEW MODAL ═══ -->
 <div class="modal-backdrop" id="form-preview-modal-backdrop" onclick="closeFormPreviewModalIfBg(event)">
-  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title">Preview</span>
       <button class="modal-close" onclick="closeFormPreviewModal()">
@@ -3811,7 +3397,7 @@
 
 <!-- ═══ PAYMENT MODAL ═══ -->
 <div class="modal-backdrop" id="payment-modal-backdrop" onclick="closePaymentModalIfBg(event)">
-  <div class="modal" style="width:440px" onclick="event.stopPropagation()">
+  <div class="modal" style="width:440px">
     <div class="modal-header">
       <span class="modal-title">Record Payment</span>
       <button class="modal-close" onclick="closePaymentModal()">
@@ -3830,7 +3416,6 @@
             oninput="onPaymentAmountChange()">
           <span id="payment-amount-diff" style="font-size:12px;font-weight:500"></span>
         </div>
-        <div id="payment-gst-breakdown" style="font-size:12px;color:var(--ink-soft);margin-top:5px"></div>
         <div style="font-size:11px;color:var(--ink-soft);margin-top:5px">Adjust if the session ran over or for any other reason</div>
       </div>
 
@@ -3916,7 +3501,7 @@
 
 <!-- ═══ MESSAGE TEMPLATE MODAL ═══ -->
 <div class="modal-backdrop" id="tmpl-modal-backdrop" onclick="closeTmplModalIfBg(event)">
-  <div class="modal" style="width:600px;max-height:90vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+  <div class="modal" style="width:600px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <div>
         <span class="modal-title" id="tmpl-modal-title">Edit Message Template</span>
@@ -4079,7 +3664,7 @@
 
 <!-- ═══ CLIENT MODAL ═══ -->
 <div class="modal-backdrop" id="client-modal-backdrop" onclick="closeClientModalIfBg(event)">
-  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
+  <div class="modal" style="width:480px">
     <div class="modal-header">
       <span class="modal-title" id="client-modal-title">New Client</span>
       <button class="modal-close" onclick="closeClientModal()">
@@ -4097,7 +3682,7 @@
         <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="cm-phone" placeholder="+61 4xx xxx xxx"></div>
       </div>
       <div class="form-row full">
-        <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="cm-address" placeholder="Street, suburb, state"><div id="cm-address-autocomplete-wrap" style="display:none"></div></div>
+        <div class="form-group"><label class="form-label">Address</label><input class="form-input" id="cm-address" placeholder="Street, suburb, state"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Date of birth</label><input class="form-input" id="cm-dob" type="date"></div>
@@ -4179,231 +3764,6 @@
     </div>
 
 
-<!-- ═══ ONBOARDING WELCOME MODAL ═══ -->
-<div class="modal-backdrop" id="ob-welcome-modal-backdrop" style="z-index:360">
-  <div class="modal" style="width:400px" onclick="event.stopPropagation()">
-    <div class="modal-body" style="text-align:center;padding:36px 32px">
-      <svg viewBox="0 0 155.78 70.61" style="width:64px;height:auto;margin:0 auto 24px;display:block" xmlns="http://www.w3.org/2000/svg">
-        <g fill="#231f20">
-          <path d="M29.71,47.43v-11.65c0-4.34-2.17-7.86-6.03-7.86-4.07,0-6.17,3.52-6.17,7.86v11.11c0,3.39,1.15,4.4,4.2,4.61v2.37H4.03v-2.37c3.19-.2,4.34-1.22,4.34-4.61v-29.54c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v12.81c0,2.44,1.22,2.91,2.1,1.9,1.56-2.03,4-4.34,9.21-4.34s10.03,2.17,10.03,11.72v13.21c0,2.3,1.02,3.52,2.98,2.78v1.42c-.88,1.97-3.25,2.64-5.35,2.64-3.93,0-6.77-2.17-6.77-6.84Z"/>
-          <path d="M87.48,47.43v-30.08c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.42,2.64-3.86,0-6.7-2.17-6.7-6.84Z"/>
-          <path d="M102.13,38.96c0-10.64,7.32-16.26,14.64-16.26s9.42,5.42,9.42-.74v-4.61c0-3.19-1.56-3.8-4.34-3.59v-2.37l10.23-1.83c2.17-.34,3.25.61,3.25,2.57v35.3c0,2.3,1.02,3.52,2.98,2.78v1.42c-.95,1.97-3.32,2.64-5.35,2.64-2.23,0-4.81-.81-5.62-2.84-.47-1.15-1.09-1.76-1.96-1.76-1.49,0-4.07,4.61-10.23,4.61-6.64,0-13.01-5.42-13.01-15.31ZM120.01,49.13c2.71,0,6.17-1.83,6.17-7.59v-4.2c0-8.47-4.47-11.86-8.06-11.86-3.93,0-6.31,4.34-6.31,10.23,0,6.98,3.32,13.42,8.2,13.42Z"/>
-          <path d="M141.85,49.26c0-2.78,2.23-5.01,4.94-5.01s4.95,2.24,4.95,5.01-2.24,5.01-4.95,5.01-4.94-2.23-4.94-5.01Z"/>
-        </g>
-        <path fill="#231f20" d="M79.16,48.65v5.71h-27.31v-5.71h-3.99v13.69h31.33c2.18,0,3.95-1.77,3.95-3.95v-9.73h-3.99Z"/>
-      </svg>
-      <div style="font-size:19px;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:24px">Welcome to h_ld, let's get you set up</div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="obStartSetup()">Start set up</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ ONBOARDING RESUME MODAL ═══ -->
-<div class="modal-backdrop" id="ob-resume-modal-backdrop" style="z-index:350">
-  <div class="modal" style="width:380px">
-    <div class="modal-body" style="text-align:center;padding:32px 28px">
-      <div style="width:52px;height:52px;border-radius:50%;background:#EFF4FE;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      </div>
-      <div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:20px">Let’s complete your set up.</div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="continueObResume()">Continue</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ BOOKING PAGE ONBOARDING — CHOICE MODAL ═══ -->
-<div class="modal-backdrop" id="ob-bp-choice-backdrop" style="z-index:360" onclick="if(event.target===event.currentTarget)obCloseBookingChoice()">
-  <div class="modal" style="width:540px" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <span class="modal-title">How do you want clients to book with you?</span>
-      <button class="modal-close" onclick="obCloseBookingChoice()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body" style="padding:24px">
-      <div style="font-size:13px;color:var(--ink-soft);margin-bottom:18px">Either option works — plenty of practitioners use both.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <button class="ob-bp-choice-card" onclick="obShowBookingLinkPreview()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <div style="font-weight:600;font-size:14px;color:var(--ink);margin-top:10px">Use the public booking page</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">A standalone link — share it anywhere, no website needed</div>
-        </button>
-        <button class="ob-bp-choice-card" onclick="obShowEmbedInstructions()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          <div style="font-weight:600;font-size:14px;color:var(--ink);margin-top:10px">Embed it in your website</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Adds the booking form directly into your own site</div>
-        </button>
-      </div>
-      <div style="margin-top:20px;text-align:center">
-        <button class="btn btn-ghost" onclick="obCloseBookingChoice()">I'll set this up later</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ BOOKING PAGE ONBOARDING — 1440px BROWSER WINDOW PREVIEW ═══ -->
-<div class="modal-backdrop" id="ob-browser-preview-backdrop" style="z-index:370;background:rgba(20,26,28,.55)" onclick="if(event.target===event.currentTarget)obCloseBrowserPreview()">
-  <div style="width:1440px;max-width:96vw;max-height:90vh;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35);display:flex;flex-direction:column" onclick="event.stopPropagation()">
-    <div style="background:#EDEBE9;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0">
-      <div style="display:flex;gap:7px">
-        <div style="width:11px;height:11px;border-radius:50%;background:#E5675A"></div>
-        <div style="width:11px;height:11px;border-radius:50%;background:#E5B85A"></div>
-        <div style="width:11px;height:11px;border-radius:50%;background:#6FB582"></div>
-      </div>
-      <div style="flex:1;background:#fff;border-radius:7px;padding:7px 14px;font-size:12px;color:var(--ink-soft);border:1px solid var(--border)" id="ob-browser-url-bar"></div>
-      <button onclick="obCloseBrowserPreview()" style="background:none;border:none;cursor:pointer;color:var(--ink-soft);padding:4px;display:flex" title="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <iframe id="ob-browser-preview-frame" src="" style="width:100%;height:800px;max-height:80vh;border:none;flex:1"></iframe>
-  </div>
-</div>
-
-<!-- ═══ BOOKING PAGE ONBOARDING — EMBED INSTRUCTIONS ═══ -->
-<div class="modal-backdrop" id="ob-embed-instructions-backdrop" style="z-index:370" onclick="if(event.target===event.currentTarget)obCloseEmbedInstructions()">
-  <div class="modal" style="width:480px" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <span class="modal-title">Embed your booking form</span>
-      <button class="modal-close" onclick="obCloseEmbedInstructions()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body" style="padding:24px">
-      <p style="font-size:14px;color:var(--ink);line-height:1.6;margin:0 0 20px">You can embed your booking form into your website with:</p>
-      <div style="display:flex;gap:12px;margin-bottom:10px">
-        <div style="width:22px;height:22px;border-radius:50%;background:var(--sage-pale);color:var(--sage);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
-        <div style="font-size:13px;color:var(--ink);line-height:1.6">Simply copy the <strong>Styled embed code</strong> — full branding, ready to paste in as-is.</div>
-      </div>
-      <div style="display:flex;gap:12px;margin-bottom:20px">
-        <div style="width:22px;height:22px;border-radius:50%;background:var(--sage-pale);color:var(--sage);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
-        <div style="font-size:13px;color:var(--ink);line-height:1.6">Or create a <strong>Custom embed code</strong>, which simply lets you add your website's own font.</div>
-      </div>
-      <button class="btn btn-ghost" style="width:100%;margin-bottom:16px;justify-content:center" onclick="obShowEmbedDemo()">Watch a quick demo</button>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="copyEmbedCode('styled')">Copy Styled embed code</button>
-        <button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="obCloseEmbedInstructions(); copyEmbedCode('custom')">Create Custom embed code</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ BOOKING PAGE ONBOARDING — ANIMATED EMBED DEMO ═══ -->
-<div class="modal-backdrop" id="ob-embed-demo-backdrop" style="z-index:380" onclick="if(event.target===event.currentTarget)obCloseEmbedDemo()">
-  <div class="modal" style="width:960px;max-width:96vw" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <span class="modal-title">How embedding works</span>
-      <button class="modal-close" onclick="obCloseEmbedDemo()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body" style="padding:0">
-      <div class="ob-demo-viewport">
-
-        <!-- Scene A: the real Booking Page panel, recreated -->
-        <div class="ob-demo-scene ob-demo-scene-a">
-          <div class="ob-demo-mock-panel">
-            <div class="ob-demo-mock-panel-header">
-              <span class="ob-demo-mock-panel-title">Booking Page</span>
-              <div class="ob-demo-mock-btn-row">
-                <span class="ob-demo-mock-btn">View</span>
-                <span class="ob-demo-mock-btn ob-demo-mock-btn-target" id="ob-demo-styled-btn">Styled embed</span>
-                <span class="ob-demo-mock-btn">Custom embed</span>
-              </div>
-            </div>
-            <div class="ob-demo-mock-panel-body">
-              <div class="ob-demo-mock-url-box">
-                <div class="ob-demo-mock-url-label">Your public booking page</div>
-                <div class="ob-demo-mock-url-row">
-                  <div class="ob-demo-mock-url-input">https://willow-wellness.h-ld.com/book</div>
-                  <span class="ob-demo-mock-btn-primary">Copy link</span>
-                </div>
-              </div>
-              <div class="ob-demo-mock-service-row">
-                <div class="ob-demo-mock-service-text">
-                  <div class="ob-demo-mock-service-name">Initial Consultation</div>
-                  <div class="ob-demo-mock-service-sub">60 min &middot; $120</div>
-                </div>
-                <div class="ob-demo-mock-toggle on"></div>
-              </div>
-              <div class="ob-demo-mock-service-row">
-                <div class="ob-demo-mock-service-text">
-                  <div class="ob-demo-mock-service-name">Follow-Up Session</div>
-                  <div class="ob-demo-mock-service-sub">45 min &middot; $95</div>
-                </div>
-                <div class="ob-demo-mock-toggle on"></div>
-              </div>
-              <div class="ob-demo-mock-service-row">
-                <div class="ob-demo-mock-service-text">
-                  <div class="ob-demo-mock-service-name">Remedial Massage</div>
-                  <div class="ob-demo-mock-service-sub">90 min &middot; $165</div>
-                </div>
-                <div class="ob-demo-mock-toggle on"></div>
-              </div>
-            </div>
-          </div>
-          <div class="ob-demo-mock-toast">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--cal-green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-            Styled embed code copied
-          </div>
-          <div class="ob-demo-mock-cursor"></div>
-        </div>
-
-        <!-- Scene B: their own website, with the widget now embedded -->
-        <div class="ob-demo-scene ob-demo-scene-b">
-          <div class="ob-demo-mock-website">
-            <div class="ob-demo-mock-website-nav">
-              <div class="ob-demo-mock-website-logo">Willow Wellness</div>
-              <div class="ob-demo-mock-website-menu">
-                <span>Home</span><span>About</span><span>Services</span><span>Contact</span>
-              </div>
-            </div>
-            <div class="ob-demo-mock-website-hero">
-              <div class="ob-demo-mock-website-heading">Book Your Session</div>
-              <div class="ob-demo-mock-website-sub">Choose a time that works for you — takes less than a minute.</div>
-            </div>
-            <div class="ob-demo-mock-widget">
-              <div class="ob-demo-mock-widget-header">Book an appointment</div>
-              <div class="ob-demo-mock-widget-service">
-                <div class="ob-demo-mock-widget-service-dot"></div>
-                <span>Initial Consultation — 60 min, $120</span>
-              </div>
-              <div class="ob-demo-mock-widget-calendar">
-                <div class="ob-demo-mock-cal-day">M</div><div class="ob-demo-mock-cal-day">T</div><div class="ob-demo-mock-cal-day">W</div><div class="ob-demo-mock-cal-day">T</div><div class="ob-demo-mock-cal-day">F</div>
-                <div class="ob-demo-mock-cal-num">12</div><div class="ob-demo-mock-cal-num">13</div><div class="ob-demo-mock-cal-num selected">14</div><div class="ob-demo-mock-cal-num">15</div><div class="ob-demo-mock-cal-num">16</div>
-              </div>
-              <div class="ob-demo-mock-widget-btn">Continue</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      <p style="font-size:12px;color:var(--ink-soft);text-align:center;padding:16px 0">Copy the code, paste it into your site's HTML — the booking form appears right where you put it.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ MIC PERMISSION MODAL ═══ -->
-<div class="modal-backdrop" id="mic-permission-modal-backdrop">
-  <div class="modal" style="width:420px">
-    <div class="modal-header">
-      <span class="modal-title">Microphone Access</span>
-      <button class="modal-close" onclick="closeMicPermissionModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div style="text-align:center;padding:4px 0 20px">
-        <div style="width:56px;height:56px;border-radius:50%;background:var(--cal-green-pale);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--cal-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-        </div>
-        <div style="font-size:14px;color:var(--ink-mid);line-height:1.6">h_ld needs access to your microphone to record voice notes. Nothing is recorded until you press Record, and you can stop at any time. Your browser will ask you to confirm this next.</div>
-      </div>
-      <button class="btn btn-primary" style="width:100%" onclick="confirmMicPermission()">Allow microphone access</button>
-      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="closeMicPermissionModal()">Not now</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══ NOTE EDITOR MODAL ═══ -->
 <div class="note-editor-overlay" id="note-editor-overlay">
   <div class="note-editor-modal">
@@ -4420,12 +3780,6 @@
         <div class="note-editor-session" id="ne-session-info"></div>
         <input id="ne-template-name" class="form-input" placeholder="Template name…"
           style="display:none;max-width:220px;font-size:13px;padding:6px 10px;margin-left:8px">
-        <div style="flex:1"></div>
-        <button class="ne-record-btn" id="ne-record-btn" onclick="toggleNoteRecording()" title="Record voice note">
-          <svg id="ne-record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-          <canvas id="ne-record-wave" width="60" height="18" style="display:none"></canvas>
-          <span id="ne-record-label">Record</span>
-        </button>
         <div style="flex:1"></div>
         <div id="ne-autosave-indicator" class="ne-autosave"></div>
         <button class="btn btn-ghost" style="margin-right:8px" onclick="discardNote()">Discard</button>
@@ -4768,25 +4122,6 @@
   </div>
 </div>
 
-<!-- ═══ ONBOARDING SPOTLIGHT ═══ -->
-<div id="ob-spotlight-ring"></div>
-<div id="ob-field-ring"></div>
-<div id="ob-tip"></div>
-<div id="ob-bar">
-  <button class="btn btn-ghost" id="ob-back-btn" onclick="obBack()" style="font-size:16px;padding:14px 16px" title="Back">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
-  </button>
-  <div class="ob-bar-left">
-    <div class="ob-bar-label">Getting set up</div>
-    <div class="ob-bar-title" id="ob-bar-title">Step 1</div>
-  </div>
-  <div class="ob-bar-dots" id="ob-bar-dots"></div>
-  <div class="ob-bar-actions">
-    <button class="btn btn-ghost" id="ob-skip-btn" onclick="obSkip()" style="font-size:16px;padding:14px 22px">Skip</button>
-    <button class="btn btn-primary" id="ob-next-btn" onclick="obNext()" style="font-size:16px;padding:14px 26px">Next</button>
-  </div>
-</div>
-
 <!-- ═══ TOAST ═══ -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -4852,72 +4187,6 @@ function showActivationPendingScreen() {
   setTimeout(() => { window.location.reload(); }, 2000);
 }
 
-// Decodes a JWT's payload client-side (base64, no signature verification
-// needed here — this is purely to read the email out for display/resend
-// purposes, the server independently verifies the token on every real
-// request regardless of what this reads).
-function decodeJwtPayload(token) {
-  try {
-    return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-  } catch { return null; }
-}
-
-function showEmailVerificationPendingScreen(knownEmail) {
-  const token = getAuthToken();
-  const payload = token ? decodeJwtPayload(token) : null;
-  const email = knownEmail || payload?.email || '';
-
-  let el = document.getElementById('verify-pending-overlay');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'verify-pending-overlay';
-    el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#FEEEE1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-    el.innerHTML = `
-      <div style="width:52px;height:52px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#231F20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
-      </div>
-      <div style="font-size:16px;font-weight:600;color:#231F20">Confirm your email to continue</div>
-      <div style="font-size:13px;color:#8A868A;max-width:340px;line-height:1.6">We sent a confirmation link to <strong id="verify-pending-email" style="color:#231F20"></strong>. Click it to activate your account and get started.</div>
-      <button id="verify-resend-btn" class="btn btn-primary" style="margin-top:4px" onclick="resendVerificationEmail()">Resend confirmation email</button>
-      <div id="verify-resend-status" style="font-size:12px;color:#8A868A;height:16px"></div>
-      <button class="btn btn-ghost" style="font-size:12px" onclick="clearAuthToken(); showLogin();">Sign out</button>
-    `;
-    document.body.appendChild(el);
-  }
-  el.dataset.email = email;
-  document.getElementById('verify-pending-email').textContent = email || 'your email address';
-}
-
-async function resendVerificationEmail() {
-  const el = document.getElementById('verify-pending-overlay');
-  const email = el?.dataset.email;
-  const btn = document.getElementById('verify-resend-btn');
-  const statusEl = document.getElementById('verify-resend-status');
-  if (!email) return;
-  btn.disabled = true;
-  try {
-    const res = await fetch(API_BASE + '/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, resendVerification: true }),
-    });
-    if (!res.ok) throw new Error();
-    statusEl.textContent = 'Sent — check your inbox.';
-  } catch {
-    statusEl.textContent = 'Could not resend right now — please try again shortly.';
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-// True the moment any API call reveals the account isn't email-verified
-// yet — checked by bootApp() to stop it from continuing on to show the
-// onboarding welcome modal (or anything else) on top of the verification
-// screen, regardless of which of the several parallel data-loading calls
-// happened to be the one that hit it, or whether that specific call
-// swallowed the error internally rather than letting it propagate.
-let _emailVerificationBlocking = false;
-
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -4943,16 +4212,6 @@ async function apiFetch(path, options = {}) {
       // still a successful payment in progress.
       showActivationPendingScreen();
       throw new Error('payment_pending');
-    }
-  }
-
-  if (res.status === 403) {
-    let data = {};
-    try { data = await res.json(); } catch {}
-    if (data.error === 'email_not_verified') {
-      _emailVerificationBlocking = true;
-      showEmailVerificationPendingScreen();
-      throw new Error('email_not_verified');
     }
   }
 
@@ -5009,13 +4268,7 @@ async function handleLogin(e) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) {
-      if (data.error === 'email_not_verified') {
-        showEmailVerificationPendingScreen(email);
-        return;
-      }
-      throw new Error(data.error || 'Login failed');
-    }
+    if (!res.ok) throw new Error(data.error || 'Login failed');
 
     if (data.mfaRequired) {
       _mfaEmail = email;
@@ -5320,17 +4573,6 @@ async function handleResetPassword(e) {
 }
 
 function showLogin() {
-  // Defensive cleanup — every sign-out path converges on this function,
-  // so this is the one place that guarantees no residual onboarding
-  // state (dimmed elements, an open field-walk ring, a lingering modal)
-  // can ever bleed into a login screen or a future session. Dimming in
-  // particular is applied as inline styles directly on real page
-  // elements — without this, signing out mid-onboarding would leave
-  // those specific elements dimmed indefinitely, until some future
-  // onboarding session happened to touch the exact same elements again.
-  obClearDimming();
-  obClearFieldWalk();
-  obCloseAnyOpenModal();
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('app-root').style.display = 'none';
 }
@@ -5585,7 +4827,6 @@ function normalizeBooking(row) {
     practitionerNotes: row.practitioner_notes,
     intakeSubmitted: row.intake_submitted,
     googleEventId: row.google_event_id,
-    microsoftEventId: row.microsoft_event_id,
     homeworkReminder: row.homework_reminder || null,
   };
 }
@@ -5609,10 +4850,7 @@ function flushServicesSync() {
     _servicesSyncPromise = apiFetch('/services', {
       method: 'PUT',
       body: JSON.stringify(denormalizeServicesForSync(_cache.services || [])),
-    }).catch(err => {
-      toast('Could not save service changes: ' + err.message, 'error');
-      throw err; // re-thrown so a caller that awaits this can actually detect the failure, not just fire-and-forget callers relying on the toast alone
-    });
+    }).catch(err => toast('Could not save service changes: ' + err.message, 'error'));
   }
   return _servicesSyncPromise;
 }
@@ -5685,7 +4923,6 @@ async function loadSettings() {
     if (data && data._connected) {
       _cache.settings._connected = data._connected;
     }
-    _cache.onboardingCompleted = data ? (data._onboardingCompleted !== false) : true; // default true — never trap someone if this field is ever missing
     if (data && data.msg_templates) {
       // Sync DB templates to localStorage so getTemplates() finds them
       DB.set('msg_templates', data.msg_templates);
@@ -5702,13 +4939,13 @@ function defaultSettings() {
     email:'', phone:'',
     address:'',
     daySchedule: {
-      Mon: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
-      Tue: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
-      Wed: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
-      Thu: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
-      Fri: { active:true,  start:'09:00', end:'17:00', customTimes:[] },
-      Sat: { active:false, start:'09:00', end:'17:00', customTimes:[] },
-      Sun: { active:false, start:'09:00', end:'17:00', customTimes:[] },
+      Mon: { active:true,  start:'09:00', end:'17:00' },
+      Tue: { active:true,  start:'09:00', end:'17:00' },
+      Wed: { active:true,  start:'09:00', end:'17:00' },
+      Thu: { active:true,  start:'09:00', end:'17:00' },
+      Fri: { active:true,  start:'09:00', end:'17:00' },
+      Sat: { active:false, start:'09:00', end:'17:00' },
+      Sun: { active:false, start:'09:00', end:'17:00' },
     },
     buffer:15,
     cancelPolicy:'24 hours notice required for cancellations. Late cancellations may incur a 50% fee.',
@@ -5722,7 +4959,6 @@ let currentPage = 'dashboard';
 let currentBookingTab = 'upcoming';
 let selectedBookingId = null;
 let editingServiceId = null;
-let _serviceDraft = null; // remembers unsaved "New Service" content if the modal gets closed without saving — not used when editing an existing service, since that data is already safely saved server-side regardless
 let editingBookingId = null;
 let currentServiceImage = null; // base64 string or null
 
@@ -5749,12 +4985,11 @@ function closeAiPanel() {
 
 // Logo shown at the top of client-facing emails (booking confirmations,
 // session notes, etc). Uses the business logo uploaded in Settings when
-// there is one, falling back to a generic placeholder graphic — never a
-// specific business's own branding. Always an absolute URL — a relative
-// path only resolves while viewing the page itself, not once this HTML is
-// sitting in someone's inbox.
+// there is one, falling back to the default h_ld mark. Always an absolute
+// URL — a relative "logo.png" only resolves while viewing the page itself,
+// not once this HTML is sitting in someone's inbox.
 function getEmailLogoSrc(settings) {
-  return settings?.logoUrl || (location.origin + '/logo-placeholder.svg');
+  return settings?.logoUrl || (location.origin + '/logo.png');
 }
 
 // Build HTML email from plain text template
@@ -5850,7 +5085,7 @@ function showPage(name) {
   if (name === 'communications') { loadComms().then(renderComms).catch(err => toast('Could not load communications: ' + err.message, 'error')); }
   if (name === 'forms') renderForms();
   if (name === 'clients') renderClients();
-  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); renderAccountingStatus(); loadNotifIcons(); renderCustomNotifs(); }
+  if (name === 'settings') { loadSettingsUI(); renderCalConnectedList(); renderPaymentGatewayStatus(); loadNotifIcons(); renderCustomNotifs(); }
   if (name === 'invoices') { renderInvoicesPage(); }
   if (name === 'account') { loadAccountPage(); }
 }
@@ -5896,127 +5131,6 @@ function setSidebarAvatar(url) {
     img.src = '';
     img.style.display = 'none';
     icon.style.display = 'block';
-  }
-}
-
-// Address autocomplete — uses Google's current PlaceAutocompleteElement
-// (their older Autocomplete widget class stopped being available to new
-// API keys as of March 2025, so this isn't a style choice, it's the only
-// option for a freshly-created key). This is enhancement-only: every plain
-// address input it enhances is always fully functional on its own, and
-// stays that way if the Maps key isn't configured yet, or if anything
-// here fails for any reason. Called once per field at page load, and safe
-// to call again later (e.g. after settings/data reload) — it just
-// re-syncs values rather than recreating the element.
-const ADDRESS_AUTOCOMPLETE_FIELDS = [
-  { inputId: 's-address',  wrapId: 's-address-autocomplete-wrap'  }, // Business Info
-  { inputId: 'bm-location', wrapId: 'bm-location-autocomplete-wrap' }, // Manual booking modal
-  { inputId: 'sm-location', wrapId: 'sm-location-autocomplete-wrap' }, // Service modal — default location
-  { inputId: 'cm-address',  wrapId: 'cm-address-autocomplete-wrap'  }, // Client modal
-];
-let _addressAutocompleteErrorShown = false;
-
-function initAllAddressAutocompletes() {
-  ADDRESS_AUTOCOMPLETE_FIELDS.forEach(f => initAddressAutocompleteField(f.inputId, f.wrapId));
-}
-
-// Kept as a thin wrapper so the one pre-existing call site (and anything
-// else referencing it by this name) still works unchanged.
-async function initAddressAutocomplete() {
-  return initAddressAutocompleteField('s-address', 's-address-autocomplete-wrap');
-}
-
-async function initAddressAutocompleteField(inputId, wrapId) {
-  const plainInput = document.getElementById(inputId);
-  if (!plainInput) return;
-
-  const autocompleteId = inputId + '-autocomplete';
-
-  // Already set up — just keep its value in sync with whatever the plain
-  // input currently holds (e.g. a modal reopened with different data)
-  // rather than recreating the element from scratch.
-  const existing = document.getElementById(autocompleteId);
-  if (existing) {
-    // Always resync, including to empty — these fields live in modals that
-    // get reused across multiple open/edit sessions (e.g. New Booking after
-    // Edit Booking), so a stale value from last time must be cleared too,
-    // not just overwritten when the new value happens to be non-empty.
-    existing.value = plainInput.value || '';
-    return;
-  }
-
-  try {
-    const res = await fetch(API_BASE + '/config/maps-key');
-    const data = await res.json();
-    if (!data.key) return; // not configured — plain input stays as-is, no error shown
-
-    // Google's own documented inline bootstrap loader (de-minified from
-    // their published snippet) — a plain <script src="...maps/api/js?key=...">
-    // tag alone does NOT make google.maps.importLibrary available at all;
-    // this is what actually defines it as a real function that lazily
-    // loads whichever library is requested. Without this specific setup,
-    // every importLibrary() call below would throw immediately.
-    if (!window.google?.maps?.importLibrary) {
-      (function (g) {
-        let h, a, k;
-        const p = 'The Google Maps JavaScript API', c = 'google', l = 'importLibrary', q = '__ib__', m = document, b = window;
-        const bb = b[c] || (b[c] = {});
-        const d = bb.maps || (bb.maps = {});
-        const r = new Set(), e = new URLSearchParams();
-        const u = () => h || (h = new Promise(async (f, n) => {
-          await (a = m.createElement('script'));
-          e.set('libraries', [...r] + '');
-          for (k in g) e.set(k.replace(/[A-Z]/g, t => '_' + t[0].toLowerCase()), g[k]);
-          e.set('callback', c + '.maps.' + q);
-          a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
-          d[q] = f;
-          a.onerror = () => h = n(Error(p + ' could not load.'));
-          a.nonce = m.querySelector('script[nonce]')?.nonce || '';
-          m.head.append(a);
-        }));
-        d[l] ? console.warn(p + ' only loads once. Ignoring:', g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n));
-      })({ key: data.key, v: 'weekly' });
-    }
-
-    const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
-    const wrap = document.getElementById(wrapId);
-    if (!wrap) return;
-
-    // No options passed — Google's own docs are inconsistent across
-    // versions about which PlaceAutocompleteElementOptions properties
-    // (like includedRegionCodes) require a non-default release channel.
-    // The bare constructor is the form shown in every one of Google's own
-    // current examples, which eliminates that as a variable entirely.
-    const autocomplete = new PlaceAutocompleteElement();
-    autocomplete.id = autocompleteId;
-    // Shared class the CSS below styles to match .form-input — see
-    // "ADDRESS AUTOCOMPLETE STYLING" in <style>.
-    autocomplete.className = 'address-autocomplete-el';
-    if (plainInput.value) autocomplete.value = plainInput.value;
-
-    autocomplete.addEventListener('gmp-select', async (e) => {
-      try {
-        const place = e.placePrediction.toPlace();
-        await place.fetchFields({ fields: ['formattedAddress'] });
-        plainInput.value = place.formattedAddress || '';
-      } catch (err) {
-        console.warn('Could not fetch selected address details:', err);
-      }
-    });
-
-    wrap.appendChild(autocomplete);
-    wrap.style.display = 'block';
-    plainInput.style.display = 'none';
-  } catch (err) {
-    // Surfaced visibly now rather than only logged — this has failed
-    // silently twice before, so the actual error needs to be reportable.
-    // Only shown once per page load even though this runs once per field,
-    // so a systemic failure (e.g. bad key) doesn't spam four toasts.
-    console.warn('Address autocomplete unavailable for', inputId, '— using plain input:', err);
-    if (!_addressAutocompleteErrorShown) {
-      _addressAutocompleteErrorShown = true;
-      toast('Address autocomplete failed to load: ' + (err?.message || err), 'error');
-    }
   }
 }
 
@@ -6786,19 +5900,11 @@ function updateStatus(id, status) {
       // row itself (and its google_event_id) is about to be deleted below,
       // not just marked cancelled.
       if (b.googleEventId && getConnected().google) {
-        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId, provider: 'google' }) })
+        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId }) })
           .then(() => toast('Removed from Google Calendar', 'success'))
           .catch(err => {
             console.warn('Calendar delete failed:', err.message);
             toast('Booking cancelled, but could not remove it from Google Calendar: ' + err.message, 'error');
-          });
-      }
-      if (b.microsoftEventId && getConnected().microsoft) {
-        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.microsoftEventId, practitionerId: b.practitionerId, provider: 'microsoft' }) })
-          .then(() => toast('Removed from Microsoft Calendar', 'success'))
-          .catch(err => {
-            console.warn('Calendar delete failed:', err.message);
-            toast('Booking cancelled, but could not remove it from Microsoft Calendar: ' + err.message, 'error');
           });
       }
       // Remove from bookings entirely rather than just marking cancelled
@@ -7276,7 +6382,7 @@ function openOngoingIssuesNote() {
     // Find the ongoing issues note template to pre-fill if new
     const ongoingNote = (c.notes || []).find(n => n.templateId === 'ongoing-issues' || (n.title||'').toLowerCase().includes('ongoing'));
     if (ongoingNote) {
-      editor.innerHTML = stripLivePreviewArtifacts(ongoingNote.html || (ongoingNote.text ? ongoingNote.text.replace(/\n/g,'<br>') : ''));
+      editor.innerHTML = ongoingNote.html || (ongoingNote.text ? ongoingNote.text.replace(/\n/g,'<br>') : '');
     } else {
       // Pre-fill from template
       const noteTemplates = getNoteTemplates();
@@ -7360,7 +6466,7 @@ function openBookingNoteEditor() {
   const editor = document.getElementById('ne-editor');
   if (b.practitionerNotes) {
     const isHtml = /<[a-z][\s\S]*>/i.test(b.practitionerNotes);
-    editor.innerHTML = stripLivePreviewArtifacts(isHtml ? b.practitionerNotes : b.practitionerNotes.replace(/\n/g,'<br>'));
+    editor.innerHTML = isHtml ? b.practitionerNotes : b.practitionerNotes.replace(/\n/g,'<br>');
   } else {
     // No notes yet for this appointment — start from the default note template
     const defaultTmpl = getDefaultNoteTemplate();
@@ -7572,7 +6678,6 @@ function openNewBookingModal() {
   populateServiceDropdown('bm-service');
   document.getElementById('booking-modal-backdrop').classList.add('open');
   refreshAdminSlots();
-  initAddressAutocompleteField('bm-location', 'bm-location-autocomplete-wrap');
 }
 
 function openEditBooking(id) {
@@ -7593,7 +6698,6 @@ function openEditBooking(id) {
   closeSlideout();
   document.getElementById('booking-modal-backdrop').classList.add('open');
   refreshAdminSlots();
-  initAddressAutocompleteField('bm-location', 'bm-location-autocomplete-wrap');
 }
 
 function openNewBookingFromCal(date, time) {
@@ -7639,32 +6743,14 @@ function refreshAdminSlots() {
   }
 
   // Generate slots
+  const [sh, sm] = dayConfig.start.split(':').map(Number);
+  const [eh, em] = dayConfig.end.split(':').map(Number);
   const slots = [];
-  const customTimes = Array.isArray(dayConfig.customTimes) ? dayConfig.customTimes.filter(Boolean) : [];
-  if (customTimes.length > 0) {
-    customTimes.slice().sort().forEach(t => slots.push(t));
-  } else {
-    const [sh, sm] = dayConfig.start.split(':').map(Number);
-    const [eh, em] = dayConfig.end.split(':').map(Number);
-    let cur = sh * 60 + sm;
-    const end = eh * 60 + em;
-    while (cur + duration <= end) {
-      slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
-      cur += duration + buffer;
-    }
-  }
-
-  // A time may already be selected before this renders — either the exact
-  // slot clicked on the calendar (openNewBookingFromCal) or the original
-  // time of a booking being edited. The generated grid above only lands on
-  // times spaced by duration+buffer from the start of the day, so a
-  // clicked/edited time frequently doesn't coincide with any of them —
-  // without this, that time would have no pill at all to show as selected,
-  // even though it's still what's actually stored in #bm-time.
-  const preselectedTime = document.getElementById('bm-time').value;
-  if (preselectedTime && !slots.includes(preselectedTime)) {
-    slots.push(preselectedTime);
-    slots.sort();
+  let cur = sh * 60 + sm;
+  const end = eh * 60 + em;
+  while (cur + duration <= end) {
+    slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
+    cur += duration + buffer;
   }
 
   // Get existing bookings for this date from cache
@@ -7698,7 +6784,7 @@ function refreshAdminSlots() {
     });
   }
 
-  const selectedTime = preselectedTime;
+  const selectedTime = document.getElementById('bm-time').value;
 
   if (!slots.length) {
     grid.innerHTML = '<div style="color:var(--ink-soft);font-size:12px;grid-column:1/-1">No slots available for this service duration</div>';
@@ -7739,13 +6825,6 @@ function closeBookingModal() { document.getElementById('booking-modal-backdrop')
 function closeBookingModalIfBg(e) { if (e.target === e.currentTarget) closeBookingModal(); }
 
 async function saveBooking() {
-  // The address widget's own current text is the source of truth — someone
-  // may have typed a full address without ever selecting a dropdown
-  // suggestion (or typed a meeting link, which never produces one).
-  const bmLocationAutocomplete = document.getElementById('bm-location-autocomplete');
-  if (bmLocationAutocomplete) {
-    document.getElementById('bm-location').value = bmLocationAutocomplete.value;
-  }
   const name = document.getElementById('bm-name').value.trim();
   const email = document.getElementById('bm-email').value.trim();
   const serviceId = document.getElementById('bm-service').value;
@@ -7954,34 +7033,6 @@ function closeBookingPreview() {
 // authoritative detail record for that one entity. ──
 let _abnSearchTimer = null;
 
-function toggleGstRegistered(btn) {
-  btn.classList.toggle('on');
-  updateGstNote();
-}
-
-function updateGstNote() {
-  const on = document.getElementById('s-gst-registered').classList.contains('on');
-  document.getElementById('gst-registered-note').style.display = on ? 'block' : 'none';
-}
-
-// Strips anything that isn't a letter or number as the practitioner types —
-// matches exactly what the SMS network actually allows in a sender name,
-// so what they see here always matches what a client will actually see
-// rather than finding out later that spaces/punctuation get silently
-// stripped by ClickSend anyway.
-function onSmsSenderInput() {
-  const input = document.getElementById('s-sms-sender');
-  const cleaned = input.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 11);
-  if (cleaned !== input.value) input.value = cleaned;
-  updateSmsSenderCount();
-}
-
-function updateSmsSenderCount() {
-  const input = document.getElementById('s-sms-sender');
-  const countEl = document.getElementById('sms-sender-count');
-  if (input && countEl) countEl.textContent = input.value.length + ' / 11';
-}
-
 function onAbnSearchInput() {
   clearTimeout(_abnSearchTimer);
   const query = document.getElementById('s-abn').value.trim();
@@ -7989,18 +7040,10 @@ function onAbnSearchInput() {
   const hintEl = document.getElementById('abn-search-hint');
   hintEl.textContent = '';
 
-  // An 11-digit number typed directly is the ABN itself, not a name to
-  // search for — verify it against the ABR directly (same lookup used
-  // once a name-search candidate is picked) rather than searching by name.
+  // An 11-digit number typed directly is treated as the ABN itself, not a
+  // name search — no need to look anything up.
   if (/^\d[\d\s]{9,}\d$/.test(query)) {
     resultsEl.style.display = 'none';
-    const cleanAbn = query.replace(/\s+/g, '');
-    if (cleanAbn.length !== 11) {
-      hintEl.style.color = 'var(--red)';
-      hintEl.textContent = 'An ABN is 11 digits';
-      return;
-    }
-    _abnSearchTimer = setTimeout(() => verifyAbnDirectEntry(cleanAbn), 400);
     return;
   }
   if (query.length < 3) {
@@ -8030,34 +7073,6 @@ function onAbnSearchInput() {
   }, 400);
 }
 
-// Verifies an ABN the practitioner typed directly (rather than found via
-// name search) and, if valid, auto-fills GST status the same way picking
-// a name-search candidate does. Doesn't reformat/overwrite what they typed
-// mid-keystroke — only touches the field once verification succeeds.
-async function verifyAbnDirectEntry(cleanAbn) {
-  const hintEl = document.getElementById('abn-search-hint');
-  hintEl.style.color = 'var(--ink-soft)';
-  hintEl.textContent = 'Verifying…';
-  try {
-    const data = await apiFetch('/settings/abn-search?abn=' + cleanAbn);
-    // Only apply the formatted value if the field still holds what we
-    // verified — the practitioner may have kept typing while this was
-    // in flight.
-    const stillCurrent = document.getElementById('s-abn').value.replace(/\s+/g, '') === cleanAbn;
-    if (stillCurrent) {
-      const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
-      document.getElementById('s-abn').value = formatted;
-      document.getElementById('s-gst-registered').classList.toggle('on', data.gstRegistered);
-      updateGstNote();
-    }
-    hintEl.style.color = '#3D7A5C';
-    hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
-  } catch (err) {
-    hintEl.style.color = 'var(--red)';
-    hintEl.textContent = 'Could not verify — ' + err.message;
-  }
-}
-
 async function selectAbnCandidate(abn) {
   const resultsEl = document.getElementById('abn-search-results');
   const hintEl = document.getElementById('abn-search-hint');
@@ -8071,7 +7086,6 @@ async function selectAbnCandidate(abn) {
     const formatted = data.abn.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
     document.getElementById('s-abn').value = formatted;
     document.getElementById('s-gst-registered').classList.toggle('on', data.gstRegistered);
-    updateGstNote();
     hintEl.style.color = '#3D7A5C';
     hintEl.textContent = `${data.entityName} — ${data.gstRegistered ? 'registered for GST' : 'not currently registered for GST'}`;
     saveSettings();
@@ -8103,41 +7117,11 @@ async function renderInvoicesPage() {
         <td style="padding:12px 20px;font-size:13px;color:var(--ink-mid)">${dateStr}</td>
         <td style="padding:12px 20px;font-size:13px;text-align:right;font-weight:600">$${Number(inv.total).toFixed(2)}</td>
         <td style="padding:12px 20px;font-size:12px;color:${statusColor};text-transform:capitalize">${inv.status}</td>
-        <td style="padding:12px 20px;text-align:right;white-space:nowrap">
-          <a href="/api/invoices/${inv.id}" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">View</a>
-          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;margin-left:6px" onclick="syncInvoiceToXeroManual('${inv.id}', this)">Sync to Xero</button>
-        </td>
+        <td style="padding:12px 20px;text-align:right"><a href="/api/invoices/${inv.id}" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:12px;padding:6px 12px">View</a></td>
       </tr>`;
     }).join('');
   } catch (err) {
     toast('Could not load invoices: ' + err.message, 'error');
-  }
-}
-
-async function syncInvoiceToXeroManual(invoiceId, btn, force = false, originalLabel = null) {
-  const prevLabel = originalLabel !== null ? originalLabel : btn.textContent;
-  btn.disabled = true;
-  btn.textContent = force ? 'Resyncing…' : 'Syncing…';
-  try {
-    await apiFetch(`/invoices/${invoiceId}/sync-xero`, { method: 'POST', body: JSON.stringify({ force }) });
-    toast(force ? 'Resynced to Xero as a new invoice' : 'Synced to Xero', 'success');
-    btn.disabled = false;
-    btn.textContent = prevLabel;
-  } catch (err) {
-    // Already-synced isn't really a failure — it's the safety guard doing
-    // its job. Offer the force option right here instead of leaving the
-    // practitioner stuck with an error and no way to actually act on it.
-    if (!force && /already synced to xero/i.test(err.message)) {
-      const ok = confirm(err.message + '\n\nCreate a new Xero invoice for this anyway?');
-      if (ok) {
-        await syncInvoiceToXeroManual(invoiceId, btn, true, prevLabel); // carries the true original label through
-        return;
-      }
-    } else {
-      toast('Xero sync failed: ' + err.message, 'error');
-    }
-    btn.disabled = false;
-    btn.textContent = prevLabel;
   }
 }
 
@@ -8158,9 +7142,7 @@ function copyEmbedCode(type) {
   const bizName = settings.bizName || 'Your Business';
   // Must be absolute — this code is pasted into a third-party site's own
   // HTML, so a relative path resolves against THAT site's domain, not
-  // h_ld's. That's the actual cause of embeds failing entirely on
-  // external sites: the iframe was requesting /book.html on Wix's own
-  // domain, which doesn't exist there.
+  // h_ld's.
   const url = `https://${location.hostname}/book.html`;
 
   if (type === 'styled') {
@@ -8201,7 +7183,7 @@ let _cemEmbedCode = '';
 function applyCustomEmbedFont() {
   const settings = getSettings();
   const bizName = settings.bizName || 'Your Business';
-  // Same fix as copyEmbedCode — must be absolute for the same reason.
+  // Must be absolute — same reasoning as copyEmbedCode.
   const url = `https://${location.hostname}/book.html`;
   const font = document.getElementById('cem-font-input').value.trim();
   const fontParam = font ? '&font=' + encodeURIComponent(font) : '';
@@ -8265,7 +7247,6 @@ function renderServices() {
   el.innerHTML = addCard + services.map(s => {
     const cat = catMap[s.category] || { label: s.category, cls: 'tag-initial' };
     return `<div class="service-card${s.active === false ? ' service-card-hidden' : ''}" data-service-id="${s.id}">
-      ${(!_cache.onboardingCompleted && _obCreatedServiceIds.has(s.id)) ? `<div class="ob-check-badge" style="top:8px;right:8px"><svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg></div>` : ''}
       <div class="service-card-actions">
         <button class="icon-btn edit" onclick="openServiceModal('${s.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
         <button class="icon-btn del" onclick="deleteService('${s.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
@@ -8436,18 +7417,6 @@ function openServiceModal(id) {
       document.getElementById('sm-location').value = s.location || '';
       if (s.image) setImagePreview(s.image);
     }
-  } else if (_serviceDraft) {
-    // Picking back up where they left off after an accidental close —
-    // standard click-off-to-close UX stays intact, nothing typed is lost.
-    document.getElementById('sm-name').value = _serviceDraft.name || '';
-    document.getElementById('sm-desc').value = _serviceDraft.desc || '';
-    document.getElementById('sm-duration').value = _serviceDraft.duration ?? 60;
-    document.getElementById('sm-price').value = _serviceDraft.price ?? 0;
-    document.getElementById('sm-deposit').value = _serviceDraft.deposit ?? 0;
-    document.getElementById('sm-category').value = _serviceDraft.category || 'initial';
-    document.getElementById('sm-location').value = _serviceDraft.location || '';
-    if (_serviceDraft.image) setImagePreview(_serviceDraft.image);
-    toast('Restored what you had entered previously', '');
   } else {
     ['sm-name','sm-desc','sm-location'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('sm-duration').value = 60;
@@ -8456,7 +7425,6 @@ function openServiceModal(id) {
     document.getElementById('sm-category').value = 'initial';
   }
   document.getElementById('service-modal-backdrop').classList.add('open');
-  initAddressAutocompleteField('sm-location', 'sm-location-autocomplete-wrap');
 }
 
 function setImagePreview(src) {
@@ -8516,80 +7484,25 @@ function handleImageUpload(e) {
 
 function removeServiceImage() { setImagePreview(null); }
 
-function closeServiceModal() {
-  // Remembers what was typed if this was a brand-new (not editing) service
-  // with any real content — covers all three ways of closing without
-  // saving (X, Cancel, clicking the backdrop), since they all call this
-  // same function. saveService()'s own success path clears this right
-  // after, since there's nothing left to remember once it's actually saved.
-  if (!editingServiceId) {
-    const name = document.getElementById('sm-name').value.trim();
-    const desc = document.getElementById('sm-desc').value.trim();
-    const location = document.getElementById('sm-location').value.trim();
-    if (name || desc || location) {
-      _serviceDraft = {
-        name, desc, location,
-        duration: document.getElementById('sm-duration').value,
-        price: document.getElementById('sm-price').value,
-        deposit: document.getElementById('sm-deposit').value,
-        category: document.getElementById('sm-category').value,
-        image: currentServiceImage,
-      };
-    }
-  }
-  document.getElementById('service-modal-backdrop').classList.remove('open');
-}
+function closeServiceModal() { document.getElementById('service-modal-backdrop').classList.remove('open'); }
 function closeServiceModalIfBg(e) { if (e.target === e.currentTarget) closeServiceModal(); }
 
-async function saveService() {
-  // Same source-of-truth sync as saveBooking() — see comment there.
-  const smLocationAutocomplete = document.getElementById('sm-location-autocomplete');
-  if (smLocationAutocomplete) {
-    document.getElementById('sm-location').value = smLocationAutocomplete.value;
-  }
+function saveService() {
   const name = document.getElementById('sm-name').value.trim();
   if (!name) { toast('Service name is required', 'error'); return; }
   const services = getServices();
   const data = { name, image: currentServiceImage || null, icon: null, desc: document.getElementById('sm-desc').value, duration: parseInt(document.getElementById('sm-duration').value) || 60, price: parseFloat(document.getElementById('sm-price').value) || 0, deposit: parseFloat(document.getElementById('sm-deposit').value) || 0, category: document.getElementById('sm-category').value, location: document.getElementById('sm-location').value, active: true };
-  const isNew = !editingServiceId;
-  let newServiceId = null;
   if (editingServiceId) {
     const idx = services.findIndex(s => s.id === editingServiceId);
     if (idx >= 0) services[idx] = { ...services[idx], ...data };
+    toast('Service updated', 'success');
   } else {
-    newServiceId = 's' + Date.now();
-    services.push({ id: newServiceId, ...data });
-    _obCreatedServiceIds.add(newServiceId);
+    services.push({ id: 's' + Date.now(), ...data });
+    toast('Service created', 'success');
   }
   setServices(services);
-
-  // Waits for the actual server write to confirm before closing the modal
-  // or declaring success — this used to close immediately and rely on a
-  // background save that could silently fail with only an easily-missed
-  // toast as the only sign, which is exactly what "pressed save, it
-  // closed, but nothing was actually saved" looks like from the outside.
-  const btn = document.getElementById('service-save-btn');
-  const prevLabel = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    await flushServicesSync();
-    toast(isNew ? 'Service created' : 'Service updated', 'success');
-    closeServiceModal();
-    _serviceDraft = null;
-    renderServices();
-
-    const count = getServices().length;
-    obRefreshTip('services', `${count} service${count === 1 ? '' : 's'} added. Add another, or click Next to continue.`);
-    obPositionSpotlight();
-  } catch (err) {
-    // flushServicesSync already shows its own error toast — leaving the
-    // modal open here (rather than closing it as if this succeeded) so
-    // there's a clear chance to retry instead of silently losing it.
-  } finally {
-    btn.disabled = false;
-    btn.textContent = prevLabel;
-  }
+  closeServiceModal();
+  renderServices();
 }
 
 function deleteService(id) {
@@ -8642,128 +7555,24 @@ function renderComms() {
 function toggleDayRow(day) {
   const dot = document.getElementById('dtd-' + day);
   const row = document.getElementById('dsr-' + day);
+  const startInput = document.getElementById('s-start-' + day);
+  const endInput = document.getElementById('s-end-' + day);
   const isActive = dot.classList.contains('active');
   if (isActive) {
     dot.classList.remove('active');
     row.classList.add('inactive');
-    _openCustomTimeAdder.delete(day);
+    startInput.disabled = true;
+    startInput.classList.add('disabled');
+    endInput.disabled = true;
+    endInput.classList.add('disabled');
   } else {
     dot.classList.add('active');
     row.classList.remove('inactive');
+    startInput.disabled = false;
+    startInput.classList.remove('disabled');
+    endInput.disabled = false;
+    endInput.classList.remove('disabled');
   }
-  renderCustomTimesRow(day);
-}
-
-// ── CUSTOM (SPLIT-SHIFT) WORKING TIMES ──
-// A day can either use one continuous Start–End range, or a set of specific
-// custom start times (e.g. 8:00am and 4:00pm for a split shift). Adding at
-// least one custom time greys out the Start/End inputs for that day; removing
-// the last custom time hands control back to Start/End automatically.
-const _openCustomTimeAdder = new Set(); // days currently showing the "add time" input
-
-function formatTimeLabel(t) {
-  if (!t || typeof t !== 'string' || !t.includes(':')) return t;
-  const [h, m] = t.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
-}
-
-// Longest configured service duration — used only as a helpful hint so a
-// practitioner spaces custom times sensibly; it doesn't restrict what they
-// can add. Actual availability is still enforced by existing bookings.
-function getMaxServiceDurationMinutes() {
-  const services = getServices() || [];
-  let max = 0;
-  services.forEach(sv => { if (sv && sv.duration && sv.duration > max) max = sv.duration; });
-  return max || 60;
-}
-
-function getDaySchedule(day) {
-  const s = getSettings();
-  if (!s.daySchedule) s.daySchedule = {};
-  if (!s.daySchedule[day]) s.daySchedule[day] = { active: true, start: '09:00', end: '17:00', customTimes: [] };
-  if (!Array.isArray(s.daySchedule[day].customTimes)) s.daySchedule[day].customTimes = [];
-  return s.daySchedule[day];
-}
-
-function toggleCustomTimeAdder(day) {
-  const btn = document.getElementById('dcb-' + day);
-  if (btn && btn.disabled) return;
-  if (_openCustomTimeAdder.has(day)) _openCustomTimeAdder.delete(day);
-  else _openCustomTimeAdder.add(day);
-  renderCustomTimesRow(day);
-  if (_openCustomTimeAdder.has(day)) {
-    const input = document.getElementById('dcta-input-' + day);
-    if (input) input.focus();
-  }
-}
-
-function confirmAddCustomTime(day) {
-  const input = document.getElementById('dcta-input-' + day);
-  if (!input || !input.value) return;
-  addCustomTime(day, input.value);
-}
-
-function addCustomTime(day, timeValue) {
-  if (!timeValue) return;
-  const dayCfg = getDaySchedule(day);
-  if (!dayCfg.customTimes.includes(timeValue)) {
-    dayCfg.customTimes.push(timeValue);
-    dayCfg.customTimes.sort();
-  }
-  // Keep the adder open so multiple times can be added quickly in a row.
-  renderCustomTimesRow(day);
-}
-
-function removeCustomTime(day, timeValue) {
-  const dayCfg = getDaySchedule(day);
-  dayCfg.customTimes = dayCfg.customTimes.filter(t => t !== timeValue);
-  renderCustomTimesRow(day);
-}
-
-// Centralizes the greyed-out logic for Start/End: disabled if the day is
-// off, OR if the day has one or more custom times set.
-function updateDayInputsState(day) {
-  const dot = document.getElementById('dtd-' + day);
-  const startInput = document.getElementById('s-start-' + day);
-  const endInput = document.getElementById('s-end-' + day);
-  const customBtn = document.getElementById('dcb-' + day);
-  if (!startInput || !endInput) return;
-  const dayCfg = getDaySchedule(day);
-  const dayActive = dot && dot.classList.contains('active');
-  const hasCustomTimes = dayCfg.customTimes.length > 0;
-  const disableRange = !dayActive || hasCustomTimes;
-  startInput.disabled = disableRange;
-  endInput.disabled = disableRange;
-  startInput.classList.toggle('disabled', disableRange);
-  endInput.classList.toggle('disabled', disableRange);
-  if (customBtn) {
-    customBtn.disabled = !dayActive;
-    customBtn.classList.toggle('has-times', hasCustomTimes);
-  }
-}
-
-function renderCustomTimesRow(day) {
-  const dayCfg = getDaySchedule(day);
-  const times = dayCfg.customTimes.slice().sort();
-  const wrap = document.getElementById('dct-' + day);
-  if (!wrap) return;
-  let html = times.map(t => `<span class="day-time-pill">${formatTimeLabel(t)}<button type="button" class="day-time-pill-remove" onclick="removeCustomTime('${day}','${t}')" title="Remove this time">&times;</button></span>`).join('');
-  if (_openCustomTimeAdder.has(day)) {
-    html += `<span class="day-time-adder">
-      <input type="time" class="day-time-adder-input" id="dcta-input-${day}" value="09:00">
-      <button type="button" class="day-time-adder-add" onclick="confirmAddCustomTime('${day}')">Add</button>
-      <button type="button" class="day-time-adder-cancel" onclick="_openCustomTimeAdder.delete('${day}'); renderCustomTimesRow('${day}')" title="Close">&times;</button>
-    </span>`;
-    const maxDur = getMaxServiceDurationMinutes();
-    const hrs = Math.floor(maxDur / 60), mins = maxDur % 60;
-    const durLabel = hrs > 0 ? `${hrs}h${mins ? ' ' + mins + 'm' : ''}` : `${mins}m`;
-    html += `<span class="day-custom-hint">Your longest service is ${durLabel} — space custom times accordingly.</span>`;
-  }
-  wrap.innerHTML = html;
-  wrap.style.display = (times.length > 0 || _openCustomTimeAdder.has(day)) ? 'flex' : 'none';
-  updateDayInputsState(day);
 }
 
 function setLogoPreview(url) {
@@ -8811,139 +7620,15 @@ function removeLogo() {
   toast('Logo removed', 'success');
 }
 
-// ═══════════════════════════════════════════════════════════
-// HOLIDAYS / TIME OFF
-// "Automatically removed once passed" is handled by always filtering to
-// upcoming/current holidays wherever they're displayed or checked, rather
-// than needing a scheduled cleanup job that could fail silently — a past
-// holiday simply stops being shown or blocking anything, with nothing
-// extra to maintain.
-// ═══════════════════════════════════════════════════════════
-
-// Only holidays that haven't fully ended yet — this one filter is what
-// makes past holidays disappear automatically, everywhere this is used.
-function getActiveHolidays(settings) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return (settings.holidays || []).filter(h => new Date(h.end + 'T23:59:59') >= today);
-}
-
-function renderHolidaysList() {
-  const el = document.getElementById('holidays-list');
-  if (!el) return;
-  const holidays = getActiveHolidays(getSettings()).sort((a, b) => a.start.localeCompare(b.start));
-  if (!holidays.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0">No upcoming holidays scheduled.</div>';
-    return;
-  }
-  const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
-  el.innerHTML = holidays.map(h => {
-    const range = h.start === h.end ? fmt(h.start) : `${fmt(h.start)} – ${fmt(h.end)}`;
-    const times = (h.startTime || h.endTime) ? ` (${h.startTime || 'start of day'} – ${h.endTime || 'end of day'})` : '';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">${h.label || 'Time off'}</div>
-        <div style="font-size:12px;color:var(--ink-soft)">${range}${times}</div>
-      </div>
-      <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;color:var(--red)" onclick="deleteHoliday('${h.id}')">Remove</button>
-    </div>`;
-  }).join('');
-}
-
-function openHolidayForm() {
-  document.getElementById('holiday-form').style.display = 'block';
-  document.getElementById('hol-label').value = '';
-  document.getElementById('hol-start-date').value = '';
-  document.getElementById('hol-start-time').value = '';
-  document.getElementById('hol-end-date').value = '';
-  document.getElementById('hol-end-time').value = '';
-}
-
-function closeHolidayForm() {
-  document.getElementById('holiday-form').style.display = 'none';
-}
-
-// A dedicated, awaited save rather than routing through the page-wide
-// debounced settings sync — add/remove here should confirm immediately,
-// the same reliability fix already applied to services and forms earlier.
-async function saveHolidaysToServer() {
-  const settings = getSettings();
-  try {
-    await apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'app_settings', value: settings }) });
-  } catch (err) {
-    toast('Could not save holiday: ' + err.message, 'error');
-    throw err;
-  }
-}
-
-async function saveHoliday() {
-  const startDate = document.getElementById('hol-start-date').value;
-  const endDate = document.getElementById('hol-end-date').value || startDate;
-  if (!startDate) { toast('Please choose a start date', 'error'); return; }
-  if (endDate < startDate) { toast('End date can\'t be before the start date', 'error'); return; }
-
-  const holiday = {
-    id: 'hol' + Date.now(),
-    label: document.getElementById('hol-label').value.trim(),
-    start: startDate,
-    end: endDate,
-    startTime: document.getElementById('hol-start-time').value || null,
-    endTime: document.getElementById('hol-end-time').value || null,
-  };
-
-  const settings = getSettings();
-  const holidays = [...(settings.holidays || []), holiday];
-  _cache.settings.holidays = holidays;
-
-  const btn = document.getElementById('holiday-save-btn');
-  const prevLabel = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    await saveHolidaysToServer();
-    toast('Holiday added', 'success');
-    closeHolidayForm();
-    renderHolidaysList();
-  } catch (err) {
-    _cache.settings.holidays = settings.holidays || []; // roll back — the save didn't actually succeed
-  } finally {
-    btn.disabled = false;
-    btn.textContent = prevLabel;
-  }
-}
-
-async function deleteHoliday(id) {
-  const settings = getSettings();
-  const before = settings.holidays || [];
-  _cache.settings.holidays = before.filter(h => h.id !== id);
-  renderHolidaysList();
-  try {
-    await saveHolidaysToServer();
-  } catch (err) {
-    _cache.settings.holidays = before; // roll back and re-render if the removal didn't actually save
-    renderHolidaysList();
-  }
-}
-
 function saveSettings() {
-  // If the address autocomplete element is active, its own current text
-  // is the source of truth — someone may have typed a full address
-  // without ever selecting a dropdown suggestion, which the gmp-select
-  // listener alone wouldn't catch.
-  const addressAutocomplete = document.getElementById('s-address-autocomplete');
-  if (addressAutocomplete && addressAutocomplete.value) {
-    document.getElementById('s-address').value = addressAutocomplete.value;
-  }
-
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const daySchedule = {};
   days.forEach(d => {
     const active = document.getElementById('dtd-' + d).classList.contains('active');
-    const existing = (_cache.settings.daySchedule && _cache.settings.daySchedule[d]) || {};
     daySchedule[d] = {
       active,
       start: document.getElementById('s-start-' + d).value,
       end: document.getElementById('s-end-' + d).value,
-      customTimes: Array.isArray(existing.customTimes) ? existing.customTimes.slice() : [],
     };
   });
   const s = {
@@ -8954,14 +7639,12 @@ function saveSettings() {
     website: document.getElementById('s-website').value,
     pracTitle: document.getElementById('s-prac-title').value,
     abn: document.getElementById('s-abn').value,
-    clickSendSender: document.getElementById('s-sms-sender').value,
     gstRegistered: document.getElementById('s-gst-registered').classList.contains('on'),
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
     buffer: parseInt(document.getElementById('s-buffer').value) || 15,
     cancelPolicy: document.getElementById('s-cancel-policy').value,
-    holidays: _cache.settings.holidays || [], // carried forward explicitly — setSettings replaces the whole object, this isn't gathered from a form field on this page
   };
   setSettings(s);
   updateBusinessNameBar();
@@ -8971,495 +7654,10 @@ function saveSettings() {
 // ═══════════════════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════
-// ONBOARDING SPOTLIGHT
-// Highlights real sections of the actual app rather than a separate
-// wizard UI — the practitioner fills in the real field, in its real
-// location, already saved in place, and learns where things live for
-// when they come back to edit something later.
-// ═══════════════════════════════════════════════════════════
-// Tracks which specific services/forms were actually created during this
-// onboarding session — the checkmark badge should only ever appear on
-// something the practitioner just did, never on pre-existing content (a
-// fresh account already has a default seed form via defaultForms(), which
-// was incorrectly showing a tick nobody had earned yet).
-const _obCreatedServiceIds = new Set();
-const _obCreatedFormIds = new Set();
-
-const OB_STEPS = [
-  { key: 'business',      page: 'settings', target: 'ob-target-business',      title: 'Business info',     skippable: false,
-    tip: 'Fill in your business details — clients will see these on your booking page and in emails.',
-    fields: ['s-biz-name', 's-prac-name', 's-email', 's-phone'] },
-  { key: 'connections',   page: 'settings', target: 'ob-target-connections',   title: 'Connections',       skippable: true,
-    tip: 'Connecting your calendar and payment provider gives you a smoother booking and payment process — optional, and you can always come back to this later.' },
-  { key: 'hours',         page: 'settings', target: 'ob-target-hours',         title: 'Working hours',     skippable: false,
-    tip: 'Set the hours you\u2019re available for bookings. Toggle a day off entirely if you don\u2019t work that day.',
-    tipPlacement: 'above-right' },
-  { key: 'services',      page: 'services', target: 'ob-target-add-service',   title: 'Add a service',     skippable: false,
-    tip: 'Add at least one service so clients have something to actually book.',
-    tipPlacement: 'left' },
-  { key: 'booking-page',  page: 'services', target: 'ob-target-booking-page',  title: 'Your booking page', skippable: true,
-    tip: 'This is how clients actually reach you — share the link directly, or embed the form on your own website.',
-    onEnter: obOpenBookingPageChoice },
-  { key: 'forms',         page: 'forms',    target: 'ob-target-use-template',  title: 'Intake forms',      skippable: true,
-    tip: 'Pick a starting template, or skip this and build your own intake form later.' },
-  { key: 'notifications', page: 'settings', target: 'ob-target-notifications', title: 'Notifications',     skippable: false,
-    tip: 'You can select which messages you want to send and even select how you want it to go "Email", "SMS" or both. You can even customise the message. You can also create other custom messages for your own purposes. Edit your messages now.' },
-];
-
-let obCurrentStep = 1;
-let _obResizeTimer = null;
-
-let _obPendingResumeStep = null;
-
-function openObResumeModal(step) {
-  _obPendingResumeStep = step;
-  document.getElementById('ob-resume-modal-backdrop').classList.add('open');
-}
-
-function continueObResume() {
-  document.getElementById('ob-resume-modal-backdrop').classList.remove('open');
-  obOpen(_obPendingResumeStep || 1);
-  _obPendingResumeStep = null;
-}
-
-function obOpen(startStep) {
-  obCurrentStep = Math.min(Math.max(startStep || 1, 1), OB_STEPS.length);
-  document.getElementById('ob-spotlight-ring').classList.add('open');
-  document.getElementById('ob-bar').classList.add('open');
-  window.addEventListener('resize', obRepositionDebounced);
-  obGoToStep(obCurrentStep);
-}
-
-function obRepositionDebounced() {
-  clearTimeout(_obResizeTimer);
-  _obResizeTimer = setTimeout(() => { obPositionSpotlight(); }, 120);
-}
-
-function obRenderDots() {
-  document.getElementById('ob-bar-dots').innerHTML = OB_STEPS.map((s, i) => {
-    const n = i + 1;
-    const cls = n < obCurrentStep ? 'done' : (n === obCurrentStep ? 'current' : '');
-    return `<div class="ob-bar-dot ${cls}"></div>`;
-  }).join('');
-}
-
-// Onboarding steps can trigger real modals (service creation, template
-// picker, connection wizard) — if the practitioner navigates away via
-// Back/Skip/Next instead of closing one themselves, it would otherwise be
-// left open and orphaned behind the next step's spotlight. Closes anything
-// currently open rather than tracking each specific modal individually.
-// Updates the tip bubble's text and makes sure it's showing — used right
-// after an action succeeds (a service created, a form template applied)
-// to confirm it worked and say what to do next. The real page is still
-// blurred out behind the spotlight at this point, so a toast alone isn't
-// enough — it's the only easily-missed sign, and disappears in a couple
-// of seconds. The tip bubble is the one piece of onboarding UI that
-// stays visible, so it needs to carry the confirmation itself.
-function obRefreshTip(stepKey, message) {
-  if (!document.getElementById('ob-bar')?.classList.contains('open')) return;
-  const step = OB_STEPS[obCurrentStep - 1];
-  if (!step || step.key !== stepKey) return;
-  const tip = document.getElementById('ob-tip');
-  tip.textContent = message;
-  tip.classList.add('open');
-}
-
-// ── Booking Page onboarding step ──
-function openObWelcomeModal() {
-  document.getElementById('ob-welcome-modal-backdrop').classList.add('open');
-}
-
-function obStartSetup() {
-  document.getElementById('ob-welcome-modal-backdrop').classList.remove('open');
-  obOpen(1);
-}
-
-function obOpenBookingPageChoice() {
-  document.getElementById('ob-bp-choice-backdrop').classList.add('open');
-}
-function obCloseBookingChoice() {
-  document.getElementById('ob-bp-choice-backdrop').classList.remove('open');
-}
-
-function obShowBookingLinkPreview() {
-  obCloseBookingChoice();
-  const url = `https://${location.hostname}/book`;
-  document.getElementById('ob-browser-url-bar').textContent = url;
-  document.getElementById('ob-browser-preview-frame').src = '/book.html';
-  document.getElementById('ob-browser-preview-backdrop').classList.add('open');
-}
-function obCloseBrowserPreview() {
-  document.getElementById('ob-browser-preview-backdrop').classList.remove('open');
-  setTimeout(() => { document.getElementById('ob-browser-preview-frame').src = ''; }, 300);
-}
-
-function obShowEmbedInstructions() {
-  obCloseBookingChoice();
-  document.getElementById('ob-embed-instructions-backdrop').classList.add('open');
-}
-function obCloseEmbedInstructions() {
-  document.getElementById('ob-embed-instructions-backdrop').classList.remove('open');
-}
-
-function obShowEmbedDemo() {
-  document.getElementById('ob-embed-demo-backdrop').classList.add('open');
-}
-function obCloseEmbedDemo() {
-  document.getElementById('ob-embed-demo-backdrop').classList.remove('open');
-}
-
-function obCloseAnyOpenModal() {
-  document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open'));
-}
-
-function obGoToStep(n) {
-  if (n > OB_STEPS.length) return obFinish();
-  if (n < 1) n = 1;
-  obCurrentStep = n;
-  DB.set('ob_resume_step', n); // survives a full page reload/redirect (e.g. connecting Google/Square/Xero)
-  obClearFieldWalk();
-  obCloseAnyOpenModal();
-
-  const step = OB_STEPS[n - 1];
-  document.getElementById('ob-bar-title').textContent = step.title;
-  document.getElementById('ob-skip-btn').style.display = step.skippable ? 'inline-flex' : 'none';
-  document.getElementById('ob-back-btn').style.visibility = n === 1 ? 'hidden' : 'visible';
-  document.getElementById('ob-next-btn').textContent = n === OB_STEPS.length ? 'Finish' : 'Next';
-  obRenderDots();
-  document.getElementById('ob-tip').classList.remove('open');
-
-  if (currentPage !== step.page) showPage(step.page);
-
-  // Two rAFs: one for the page-switch DOM to settle, one for layout to
-  // actually reflow before measuring the target's real position.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    obPositionSpotlight();
-    if (step.onEnter) step.onEnter();
-  }));
-}
-
-// ── Opacity-based dimming ──
-// Walks up from each element that should stay bright, all the way to
-// #app-root, marking every node on that path as protected. Then dims
-// every child of every protected node that isn't itself protected — this
-// naturally handles multiple kept-bright elements (e.g. a page header
-// plus a content grid below it) without needing to compute any bounding
-// geometry, and never covers the target with anything, so there's no
-// click-through question to get wrong. Real onboarding UI (bar, tip,
-// rings), modals, toasts, and the note editor are never touched — they
-// live outside #app-root entirely, so the walk never reaches them.
-let _obDimmedElements = [];
-
-function obDimAllExcept(keepBrightElements) {
-  obClearDimming();
-  const root = document.getElementById('app-root');
-  if (!root) return;
-
-  const protectedSet = new Set([root]);
-
-  // Protects the element itself, everything inside it, AND the path up
-  // to root — not just the path. The earlier version only walked
-  // upward, so a protected container's own contents (anything that
-  // wasn't itself an ancestor of some other protected element, like a
-  // label sitting next to an ID'd sibling, or a service card inside a
-  // protected grid) fell straight through and got dimmed anyway, even
-  // though the container wrapping them was correctly left alone.
-  const protectFully = (el) => {
-    protectedSet.add(el);
-    el.querySelectorAll('*').forEach(d => protectedSet.add(d));
-    let node = el.parentElement;
-    while (node && node !== root) {
-      protectedSet.add(node);
-      node = node.parentElement;
-    }
-  };
-
-  keepBrightElements.forEach(protectFully);
-
-  // Every modal and every piece of onboarding's own UI is always
-  // protected, at whatever depth it actually lives — confirmed by
-  // checking directly that these are nested inside wrapper elements
-  // within #app-root, not direct children of it.
-  document.querySelectorAll('.modal-backdrop, .toast-container, #note-editor-overlay, [id^="ob-"]').forEach(protectFully);
-
-  protectedSet.forEach(node => {
-    Array.from(node.children || []).forEach(child => {
-      if (protectedSet.has(child)) return;
-      child.style.transition = 'opacity .3s ease';
-      child.style.opacity = '0.15';
-      child.style.pointerEvents = 'none';
-      _obDimmedElements.push(child);
-    });
-  });
-}
-
-function obClearDimming() {
-  _obDimmedElements.forEach(el => {
-    el.style.opacity = '';
-    el.style.pointerEvents = '';
-  });
-  _obDimmedElements = [];
-}
-
-// Used when a step's target genuinely can't be found/measured after
-// retrying — dims everything within app-root with nothing kept bright,
-// which is a real, visible state rather than leaving nothing positioned
-// at all (the old failure mode that made this look like a random bug).
-function obDimFullScreen() {
-  obDimAllExcept([]);
-  document.getElementById('ob-spotlight-ring').classList.remove('open');
-}
-
-function obPositionSpotlight(attempt = 0) {
-  const step = OB_STEPS[obCurrentStep - 1];
-  if (!step) return;
-  const target = document.getElementById(step.target);
-  const rectNow = target ? target.getBoundingClientRect() : null;
-
-  // Retries if the target doesn't exist yet OR exists but hasn't actually
-  // been laid out yet (zero size — the most likely cause of the ring
-  // silently landing in the wrong place, since a 0×0 rect still "measures"
-  // successfully, it's just meaningless).
-  if (!target || (rectNow.width === 0 && rectNow.height === 0)) {
-    if (attempt < 12) {
-      setTimeout(() => obPositionSpotlight(attempt + 1), 150);
-    } else {
-      // Never found a valid target to measure — dim the whole screen
-      // rather than leaving the four panels with no position ever set,
-      // which left them at zero size and therefore invisible despite
-      // technically being "open". A full dim with no cutout is a worse
-      // experience than a working spotlight, but it's a real, visible
-      // state instead of a silent failure that looks like a random bug.
-      obDimFullScreen();
-    }
-    return;
-  }
-
-  target.scrollIntoView({ block: 'center', behavior: attempt === 0 ? 'auto' : 'smooth' });
-
-  setTimeout(() => {
-    let rects = [{ el: target, rect: target.getBoundingClientRect() }];
-
-    // Once something's actually been created, keep it bright too —
-    // otherwise the button stays visible but whatever was just added
-    // remains dimmed just beyond it, which defeats the point of showing a
-    // confirmation at all.
-    if (step.key === 'services' && getServices().length) {
-      const grid = document.getElementById('services-grid');
-      const header = target.closest('.page-header');
-      if (grid && header) rects = [{ el: header, rect: header.getBoundingClientRect() }, { el: grid, rect: grid.getBoundingClientRect() }];
-    } else if (step.key === 'forms' && getForms().length) {
-      const list = document.getElementById('forms-list') || document.getElementById('forms-grid');
-      const header = target.closest('.page-header');
-      if (list && header) rects = [{ el: header, rect: header.getBoundingClientRect() }, { el: list, rect: list.getBoundingClientRect() }];
-    }
-
-    obDimAllExcept(rects.map(r => r.el));
-
-    // Ring/tip position around the overall bounding box of everything
-    // being kept bright, for cases with more than one (services/forms
-    // once something exists).
-    const x = Math.min(...rects.map(r => Math.max(r.rect.left, 0)));
-    const y = Math.min(...rects.map(r => Math.max(r.rect.top, 0)));
-    const right = Math.max(...rects.map(r => r.rect.right));
-    const bottom = Math.max(...rects.map(r => r.rect.bottom));
-    const w = right - x;
-    const h = bottom - y;
-    const vw = window.innerWidth, vh = window.innerHeight;
-
-    const targetRadius = rects.length > 1 ? 16 : (parseFloat(getComputedStyle(target).borderRadius) || 0);
-    const ring = document.getElementById('ob-spotlight-ring');
-    ring.style.left = x + 'px';
-    ring.style.top = y + 'px';
-    ring.style.width = w + 'px';
-    ring.style.height = h + 'px';
-    ring.style.borderRadius = targetRadius + 'px';
-
-    // Tip bubble placement — explicit per-step placement (used when the
-    // default "just below, or above if no room" doesn't point at the
-    // right part of a large section) falls back to that default otherwise.
-    // Suppressed for steps with a field walk — the bright blue ring on the
-    // actual field is the guidance there, a tip bubble at the same time
-    // is redundant.
-    const tip = document.getElementById('ob-tip');
-    if (step.tip && !step.fields) {
-      tip.textContent = step.tip;
-      tip.classList.remove('arrow-top', 'arrow-bottom', 'arrow-right');
-
-      if (step.tipPlacement === 'above-right') {
-        // Sits above the target, right-aligned — arrow points down at the
-        // time fields on the right side of the Working Hours section.
-        const tipWidth = 280;
-        tip.style.left = Math.min(x + w - tipWidth - 20, vw - tipWidth - 20) + 'px';
-        tip.style.top = Math.max(y - 100, 70) + 'px';
-        tip.classList.add('arrow-bottom');
-      } else if (step.tipPlacement === 'left') {
-        // Sits to the left of the target — arrow points right at the
-        // Add Service button rather than the default up/down placement.
-        const tipWidth = 280;
-        tip.style.left = Math.max(x - tipWidth - 24, 16) + 'px';
-        tip.style.top = y + 'px';
-        tip.classList.add('arrow-right');
-      } else {
-        const showBelow = y + h + 90 < vh;
-        tip.style.left = Math.min(x, vw - 300) + 'px';
-        tip.style.top = showBelow ? (y + h + 16) + 'px' : Math.max(y - 90, 70) + 'px';
-        tip.classList.add('arrow-top');
-      }
-      tip.classList.add('open');
-    } else {
-      tip.classList.remove('open');
-    }
-
-    if (step.fields) obWalkFields(step);
-  }, attempt === 0 ? 80 : 380);
-}
-
-// ── Field-by-field walk within a step ──
-// Highlights the first incomplete field in the step's list with the bright
-// blue ring, listens for it to actually be filled in, then automatically
-// advances to the next one — repeats until every field in the list is done.
-let _obFieldListener = null;
-let _obFieldListenerEl = null;
-
-function obClearFieldWalk() {
-  document.getElementById('ob-field-ring').classList.remove('open');
-  if (_obFieldListenerEl && _obFieldListener) {
-    _obFieldListenerEl.removeEventListener('input', _obFieldListener);
-    _obFieldListenerEl.removeEventListener('focus', _obFieldListener);
-  }
-  _obFieldListener = null;
-  _obFieldListenerEl = null;
-}
-
-function obIsFieldFilled(fieldId) {
-  const el = document.getElementById(fieldId);
-  if (!el) return true; // missing field can't block progress
-  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-    return el.value.trim().length > 0;
-  }
-  if (el.classList.contains('toggle')) return true; // toggles always have a valid state
-  return true;
-}
-
-function obWalkFields(step, index = 0) {
-  obClearFieldWalk();
-  const fields = step.fields || [];
-  if (index >= fields.length) return; // walked every field in this step — done
-
-  const fieldId = fields[index];
-  const el = document.getElementById(fieldId);
-  if (!el) { obWalkFields(step, index + 1); return; }
-
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  setTimeout(() => {
-    const rect = el.getBoundingClientRect();
-    const pad = 6;
-    const ring = document.getElementById('ob-field-ring');
-    ring.style.left = (rect.left - pad) + 'px';
-    ring.style.top = (rect.top - pad) + 'px';
-    ring.style.width = (rect.width + pad * 2) + 'px';
-    ring.style.height = (rect.height + pad * 2) + 'px';
-    ring.classList.add('open');
-  }, 200);
-
-  const advance = () => obWalkFields(step, index + 1);
-  _obFieldListenerEl = el;
-  if (obIsFieldFilled(fieldId)) {
-    // Already has a value (e.g. pre-filled from signup) — just reviewing it
-    // is enough to move on, a single click/focus counts as "seen it".
-    _obFieldListener = advance;
-    el.addEventListener('focus', _obFieldListener);
-  } else {
-    // Genuinely empty — has to wait for actual content, otherwise clicking
-    // into the field would jump the ring away before anything's been typed.
-    _obFieldListener = advance;
-    el.addEventListener('input', _obFieldListener);
-  }
-}
-
-function obSaveCurrentStepIfNeeded() {
-  const step = OB_STEPS[obCurrentStep - 1];
-  // Settings-page steps share one real save function that reads every
-  // field on the page at once — no need for step-specific save logic,
-  // this is the exact same call the practitioner's own Save button uses.
-  if (step.page === 'settings' && typeof saveSettings === 'function') {
-    try { saveSettings(); } catch (err) { console.error('Onboarding save failed:', err); }
-  }
-}
-
-function obValidateCurrentStep() {
-  const step = OB_STEPS[obCurrentStep - 1];
-  if (step.key === 'business') {
-    const bizName = document.getElementById('s-biz-name')?.value.trim();
-    const pracName = document.getElementById('s-prac-name')?.value.trim();
-    const email = document.getElementById('s-email')?.value.trim();
-    if (!bizName || !pracName || !email) {
-      toast('Please fill in your business name, your name, and an email before continuing', 'error');
-      return false;
-    }
-  }
-  if (step.key === 'services') {
-    if (!getServices().length) {
-      toast('Add at least one service before continuing', 'error');
-      return false;
-    }
-  }
-  return true;
-}
-
-function obNext() {
-  if (!obValidateCurrentStep()) return;
-  obSaveCurrentStepIfNeeded();
-  obGoToStep(obCurrentStep + 1);
-}
-
-function obBack() {
-  if (obCurrentStep <= 1) return;
-  obSaveCurrentStepIfNeeded();
-  obGoToStep(obCurrentStep - 1);
-}
-
-function obSkip() {
-  const step = OB_STEPS[obCurrentStep - 1];
-  if (!step.skippable) return;
-  obGoToStep(obCurrentStep + 1);
-}
-
-async function obFinish() {
-  obSaveCurrentStepIfNeeded();
-  obClearFieldWalk();
-  obClearDimming();
-  document.getElementById('ob-spotlight-ring').classList.remove('open');
-  document.getElementById('ob-bar').classList.remove('open');
-  document.getElementById('ob-tip').classList.remove('open');
-  window.removeEventListener('resize', obRepositionDebounced);
-  DB.set('ob_resume_step', null);
-  _cache.onboardingCompleted = true;
-  try {
-    await apiFetch('/onboarding/complete', { method: 'POST' });
-  } catch (err) {
-    console.error('Could not mark onboarding complete:', err);
-  }
-  showPage('dashboard');
-  toast('You\u2019re all set up', 'success');
-}
-
-function escapeHtmlForToast(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 function toast(msg, type = '') {
-  const icons = {
-    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-  };
   const el = document.createElement('div');
   el.className = 'toast ' + type;
-  el.innerHTML = (icons[type] || '') + '<span>' + escapeHtmlForToast(msg) + '</span>';
+  el.textContent = msg;
   document.getElementById('toast-container').appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
@@ -9475,11 +7673,8 @@ async function loadForms() {
 }
 function setForms(f) {
   _cache.forms = f;
-  return apiFetch('/forms', { method: 'PUT', body: JSON.stringify(f) })
-    .catch(err => {
-      toast('Could not save form changes: ' + err.message, 'error');
-      throw err; // re-thrown so a caller that awaits this can detect the failure, not just silently logging it
-    });
+  apiFetch('/forms', { method: 'PUT', body: JSON.stringify(f) })
+    .catch(err => console.warn('Forms sync failed:', err.message));
 }
 
 function defaultForms() {
@@ -9524,7 +7719,7 @@ function openTemplatePickerModal() {
 function closeTemplatePickerModal() { document.getElementById('template-picker-modal-backdrop').classList.remove('open'); }
 function closeTemplatePickerModalIfBg(e) { if (e.target === e.currentTarget) closeTemplatePickerModal(); }
 
-async function applyFormTemplate(templateKey) {
+function applyFormTemplate(templateKey) {
   const template = (INTAKE_FORM_TEMPLATES || []).find(t => t.key === templateKey);
   if (!template) return;
 
@@ -9534,26 +7729,11 @@ async function applyFormTemplate(templateKey) {
   const fields = template.fields.map(f => ({ ...f, id: 'fld' + Date.now() + Math.random().toString(36).slice(2, 7) }));
 
   const forms = getForms();
-  const newFormId = 'f' + Date.now();
-  forms.push({ id: newFormId, name: template.name + ' Intake', serviceId: null, active: true, fields });
-  _obCreatedFormIds.add(newFormId);
-
-  try {
-    await setForms(forms);
-  } catch (err) {
-    return; // setForms already showed the error — leave the picker open so they can retry rather than closing on an unconfirmed save
-  }
-
+  forms.push({ id: 'f' + Date.now(), name: template.name + ' Intake', serviceId: null, active: true, fields });
+  setForms(forms);
   closeTemplatePickerModal();
   renderForms();
   toast(template.name + ' template added — customise it, then save', 'success');
-
-  // The real Forms page is still blurred out behind the onboarding
-  // spotlight at this point, so there's no way to actually see that this
-  // worked — the tip bubble is the only onboarding-visible confirmation,
-  // and it needs to say so explicitly rather than just going quiet.
-  obRefreshTip('forms', `"${template.name}" added — click Next to continue, or pick a different template.`);
-  obPositionSpotlight();
 }
 let fbFields = []; // working copy of fields being edited
 
@@ -9570,7 +7750,6 @@ function renderForms() {
     const svc = services.find(s => s.id === f.serviceId);
     const fieldCount = f.fields ? f.fields.filter(x => !['section','paragraph','divider'].includes(x.type)).length : 0;
     return `<div class="form-card">
-      ${(!_cache.onboardingCompleted && _obCreatedFormIds.has(f.id)) ? `<div class="ob-check-badge" style="position:static;margin-right:6px;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg></div>` : ''}
       <div class="form-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
       <div style="flex:1;min-width:0">
         <div class="form-card-name">${f.name}</div>
@@ -9864,6 +8043,9 @@ function renderFbFields() {
 let _fbDragFieldId = null;   // set when dragging an existing field card to reorder
 let _fbDragNewType = null;   // set when dragging a new field type in from the left palette
 let _fbDragGhost = null;     // the custom ghost element shown under the cursor
+let _fbActiveDropLineIndex = null; // currently-highlighted drop-line index, so repeat calls for the same index are a no-op instead of re-querying and re-toggling classes every time
+let _fbActiveDropLineEl = null;    // direct reference to the currently-active element, avoiding a full querySelectorAll sweep to find and clear it
+let _fbDragOverRaf = null;         // rAF handle used to collapse dragover's high-frequency firing down to at most once per animation frame
 
 const _fbPaletteTypeLabels = {
   section: 'Section Title', paragraph: 'General Text', divider: 'Divider Line',
@@ -9924,9 +8106,12 @@ function _fbCleanupGhost() {
 }
 
 function _fbActivateDropLine(index) {
-  document.querySelectorAll('.fb-drop-line').forEach(el => el.classList.remove('active'));
+  if (index === _fbActiveDropLineIndex) return; // nothing actually changed — skip the DOM work entirely
+  if (_fbActiveDropLineEl) _fbActiveDropLineEl.classList.remove('active');
   const line = document.getElementById('fb-dropline-' + index);
   if (line) line.classList.add('active');
+  _fbActiveDropLineIndex = index;
+  _fbActiveDropLineEl = line || null;
 }
 
 function fbFieldDragOver(e) {
@@ -9934,10 +8119,15 @@ function fbFieldDragOver(e) {
   e.dataTransfer.dropEffect = _fbDragNewType ? 'copy' : 'move';
   const card = e.currentTarget;
   if (_fbDragFieldId && card.dataset.fieldId === _fbDragFieldId) return;
-  const rect = card.getBoundingClientRect();
-  const isAfter = (e.clientY - rect.top) > rect.height / 2;
-  const cardIdx = parseInt(card.dataset.index, 10);
-  _fbActivateDropLine(isAfter ? cardIdx + 1 : cardIdx);
+  const clientY = e.clientY;
+  if (_fbDragOverRaf) cancelAnimationFrame(_fbDragOverRaf);
+  _fbDragOverRaf = requestAnimationFrame(() => {
+    _fbDragOverRaf = null;
+    const rect = card.getBoundingClientRect();
+    const isAfter = (clientY - rect.top) > rect.height / 2;
+    const cardIdx = parseInt(card.dataset.index, 10);
+    _fbActivateDropLine(isAfter ? cardIdx + 1 : cardIdx);
+  });
 }
 
 function fbFieldDrop(e) {
@@ -10013,6 +8203,9 @@ function fbFieldDragEnd(e) {
   document.querySelectorAll('.fb-field').forEach(el => el.classList.remove('fb-field-dragging'));
   document.querySelectorAll('.fb-drop-line').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.fb-palette-item').forEach(el => el.classList.remove('fb-palette-item-dragging'));
+  _fbActiveDropLineIndex = null;
+  _fbActiveDropLineEl = null;
+  if (_fbDragOverRaf) { cancelAnimationFrame(_fbDragOverRaf); _fbDragOverRaf = null; }
 }
 
 // Shared default-field factory, used both by clicking a palette item and dragging one in
@@ -10158,23 +8351,17 @@ function loadSettingsUI() {
   if (s.phone) document.getElementById('s-phone').value = s.phone;
   if (s.website) document.getElementById('s-website').value = s.website;
   if (s.abn) document.getElementById('s-abn').value = s.abn;
-  if (s.clickSendSender) document.getElementById('s-sms-sender').value = s.clickSendSender;
-  updateSmsSenderCount();
   document.getElementById('s-gst-registered').classList.toggle('on', !!s.gstRegistered);
-  updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;
-  initAllAddressAutocompletes();
   setLogoPreview(s.logoUrl || null);
   if (s.buffer) document.getElementById('s-buffer').value = s.buffer;
   if (s.cancelPolicy) document.getElementById('s-cancel-policy').value = s.cancelPolicy;
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const schedule = s.daySchedule || {};
-  _openCustomTimeAdder.clear();
   days.forEach(d => {
     const day = schedule[d];
     if (!day) return;
-    if (!Array.isArray(day.customTimes)) day.customTimes = [];
     const dot = document.getElementById('dtd-' + d);
     const row = document.getElementById('dsr-' + d);
     const startInput = document.getElementById('s-start-' + d);
@@ -10183,15 +8370,21 @@ function loadSettingsUI() {
     if (day.active) {
       dot.classList.add('active');
       row.classList.remove('inactive');
+      startInput.disabled = false;
+      startInput.classList.remove('disabled');
+      endInput.disabled = false;
+      endInput.classList.remove('disabled');
     } else {
       dot.classList.remove('active');
       row.classList.add('inactive');
+      startInput.disabled = true;
+      startInput.classList.add('disabled');
+      endInput.disabled = true;
+      endInput.classList.add('disabled');
     }
     startInput.value = day.start || '09:00';
     endInput.value = day.end || '17:00';
-    renderCustomTimesRow(d); // also applies the correct disabled/greyed state
   });
-  renderHolidaysList();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -10286,19 +8479,6 @@ const CAL_PROVIDERS = {
       },
     ],
   },
-  xero: {
-    name: 'Xero',
-    desc: 'Automatically send paid invoices to your Xero account',
-    iconBg: '#E8F1FF',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-    steps: [
-      {
-        title: 'Sign in with Xero',
-        desc: 'Click the button below to open Xero\'s secure sign-in page. Choose the Xero organisation you want your paid invoices sent to.',
-        action: 'xero_signin',
-      },
-    ],
-  },
 };
 
 function renderCalConnectedList() {
@@ -10375,43 +8555,6 @@ function renderPaymentGatewayStatus() {
           '<div class="cal-connected-status">Connected &middot; Ready to take payments</div>' +
         '</div>' +
         '<button class="cal-disconnect-btn" onclick="disconnectSquare()">Disconnect</button>' +
-      '</div>';
-    pickerEl.style.display = 'none';
-  } else {
-    connectedEl.innerHTML = '';
-    pickerEl.style.display = 'block';
-  }
-}
-
-async function disconnectXero() {
-  if (!confirm('Disconnect Xero? Paid invoices will stop being sent there automatically until you reconnect.')) return;
-  try {
-    await apiFetch('/settings', { method: 'DELETE', body: JSON.stringify({ provider: 'xero' }) });
-    await loadSettings();
-  } catch (err) {
-    toast('Could not disconnect: ' + err.message, 'error');
-    return;
-  }
-  renderAccountingStatus();
-  toast('Xero disconnected');
-}
-
-function renderAccountingStatus() {
-  const connected = getConnected();
-  const connectedEl = document.getElementById('accounting-gateway-connected');
-  const pickerEl = document.getElementById('accounting-gateway-picker');
-  if (!connectedEl || !pickerEl) return;
-
-  if (connected.xero) {
-    connectedEl.innerHTML =
-      '<div class="cal-connected-card">' +
-        '<div class="cal-connected-icon" style="background:#E8F1FF"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="12" fill="#13B5EA"/><path d="M7 8l5 4-5 4M12 8l5 4-5 4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
-        '<div class="cal-connected-info">' +
-          '<div class="cal-connected-name">Xero</div>' +
-          '<div class="cal-connected-email">' + (connected.xero.email || 'Connected') + '</div>' +
-          '<div class="cal-connected-status">Connected &middot; Paid invoices sync automatically</div>' +
-        '</div>' +
-        '<button class="cal-disconnect-btn" onclick="disconnectXero()">Disconnect</button>' +
       '</div>';
     pickerEl.style.display = 'none';
   } else {
@@ -10506,20 +8649,9 @@ async function calSignIn() {
     } catch (err) {
       toast('Could not start Square connection: ' + err.message, 'error');
     }
-  } else if (calConnectProvider === 'xero') {
-    try {
-      const data = await apiFetch('/auth/xero');
-      window.location.href = data.url;
-    } catch (err) {
-      toast('Could not start Xero connection: ' + err.message, 'error');
-    }
   } else if (calConnectProvider === 'microsoft') {
-    try {
-      const data = await apiFetch('/auth/microsoft');
-      window.location.href = data.url;
-    } catch (err) {
-      toast('Could not start Microsoft connection: ' + err.message, 'error');
-    }
+    // Microsoft OAuth — not yet configured, show placeholder
+    toast('Microsoft Calendar connection coming soon — contact support to set this up', '');
   } else {
     toast('Unknown provider', 'error');
   }
@@ -10769,19 +8901,6 @@ function renderWeekView() {
     var d = new Date(ws); d.setDate(ws.getDate() + di);
     var cfg = schedule[DAY_KEYS[d.getDay()]];
     if (!cfg || !cfg.active) continue;
-    var customTimes = Array.isArray(cfg.customTimes) ? cfg.customTimes.filter(Boolean) : [];
-    if (customTimes.length > 0) {
-      // Custom-times day: axis just needs to span from the earliest custom
-      // start time through a couple of hours past the latest one.
-      var earliest = timeToMins(customTimes.slice().sort()[0]);
-      var latest = timeToMins(customTimes.slice().sort().slice(-1)[0]) + 120;
-      var curCustom = Math.max(0, earliest - 30);
-      while (curCustom <= latest) {
-        allTimesSet.add(String(Math.floor(curCustom/60)).padStart(2,'0') + ':' + String(curCustom%60).padStart(2,'0'));
-        curCustom += 30;
-      }
-      continue;
-    }
     var cur = timeToMins(cfg.start);
     var endM = timeToMins(cfg.end);
     while (cur <= endM) {
@@ -10973,7 +9092,6 @@ function openPaymentModal(id) {
   document.getElementById('payment-amount').value = b.price || '';
   document.getElementById('payment-amount-diff').textContent = '';
   document.getElementById('payment-notes').value = '';
-  onPaymentAmountChange();
   closeSlideout();
   document.getElementById('payment-modal-backdrop').classList.add('open');
 }
@@ -10991,23 +9109,6 @@ function onPaymentAmountChange() {
     el.textContent = '-$' + Math.abs(diff).toFixed(2) + ' below standard';
     el.style.color = 'var(--ink-soft)';
   }
-
-  // Same GST-inclusive math as the invoice this payment will generate
-  // (computeGst in lib/invoices.js) — shown here so the practitioner sees
-  // the same breakdown their client's invoice will show, before recording
-  // the payment, not just after.
-  const gstEl = document.getElementById('payment-gst-breakdown');
-  if (gstEl) {
-    const settings = getSettings();
-    if (settings.gstRegistered && amount > 0) {
-      const gstAmount = Math.round((amount / 11) * 100) / 100;
-      const subtotal = Math.round((amount - gstAmount) * 100) / 100;
-      gstEl.textContent = `Subtotal $${subtotal.toFixed(2)} + GST $${gstAmount.toFixed(2)}`;
-    } else {
-      gstEl.textContent = '';
-    }
-  }
-
   // Update Square deep link if card is selected
   if (selectedPaymentMethod === 'card') updateSquareLink(amount);
 }
@@ -11060,45 +9161,24 @@ function updateSquareLink(amount) {
   document.getElementById('square-charge-amount').textContent = '$' + amount.toFixed(2);
 }
 
-async function recordPayment() {
+function recordPayment() {
   if (selectedPaymentMethod === 'link') { sendPaymentLinkFromModal(); return; }
   const amount = parseFloat(document.getElementById('payment-amount').value);
   if (!amount || amount <= 0) { toast('Please enter a valid amount', 'error'); return; }
   const bookings = getBookings();
   const b = bookings.find(x => x.id === paymentBookingId);
-  if (!b) return;
-
-  b.status = 'completed';
-  b.paymentMethod = selectedPaymentMethod;
-  b.paymentAmount = amount;
-  b.paymentNotes = document.getElementById('payment-notes').value;
-  b.paidAt = new Date().toISOString();
-  setBookings(bookings);
-
-  // Recording a payment now also generates and emails an invoice
-  // server-side before responding, so this genuinely takes a couple of
-  // seconds rather than being near-instant — worth a visible loading state
-  // so it doesn't look like the click did nothing, and worth actually
-  // waiting for confirmation before claiming success, since a save that
-  // silently failed shouldn't be reported as "recorded".
-  const btn = document.getElementById('record-payment-btn');
-  const label = document.getElementById('record-payment-label');
-  btn.disabled = true;
-  label.textContent = 'Recording payment…';
-
-  try {
-    await flushBookingsSync();
-    closePaymentModal();
-    if (currentPage === 'dashboard') renderDashboard();
-    if (currentPage === 'bookings') refreshBookingsView();
-    toast('Payment recorded — booking marked as completed', 'success');
-  } catch (err) {
-    // flushBookingsSync already surfaces its own error toast — leaving the
-    // modal open here (rather than closing it as if this succeeded) so the
-    // practitioner can see the failure and try again.
-    btn.disabled = false;
-    label.textContent = 'Mark as Paid';
+  if (b) {
+    b.status = 'completed';
+    b.paymentMethod = selectedPaymentMethod;
+    b.paymentAmount = amount;
+    b.paymentNotes = document.getElementById('payment-notes').value;
+    b.paidAt = new Date().toISOString();
+    setBookings(bookings);
   }
+  closePaymentModal();
+  if (currentPage === 'dashboard') renderDashboard();
+  if (currentPage === 'bookings') refreshBookingsView();
+  toast('Payment recorded — booking marked as completed', 'success');
 }
 
 async function sendPaymentLinkFromModal() {
@@ -11765,7 +9845,7 @@ function openNoteEditor(noteIndex) {
     const note = c.notes[neEditingNoteIndex];
     document.getElementById('ne-session-info').textContent = 'Editing note from '
       + new Date(note.createdAt).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
-    editor.innerHTML = stripLivePreviewArtifacts(note.html || (note.text ? note.text.replace(/\n/g,'<br>') : ''));
+    editor.innerHTML = note.html || (note.text ? note.text.replace(/\n/g,'<br>') : '');
   } else {
     // New note — pre-fill from default template if one exists
     document.getElementById('ne-session-info').textContent = sessionBook
@@ -12006,389 +10086,6 @@ function placeCursorAtEnd(el) {
   } catch(e) {}
 }
 
-// ═══════════════════════════════════════════════════════════
-// VOICE NOTES — record, transcribe, insert
-// Scoped entirely to the note editor — this is the only place any of this
-// runs, nowhere else in the app.
-// ═══════════════════════════════════════════════════════════
-let _neMediaRecorder = null;
-let _neAudioChunks = [];
-let _neRecordingActive = false;
-let _neMicPermissionGranted = false; // avoids re-showing our own explainer modal every time once they've said yes this session
-
-// Loose match from the practitioner's free-text "Practitioner Title"
-// setting to one of the known vocabulary categories — title is whatever
-// they typed (e.g. "Clinical Kinesiologist", "Naturopathic Practitioner"),
-// not a fixed enum, so this checks for a recognisable term inside it
-// rather than requiring an exact match.
-function resolveVocabCategory() {
-  const title = (getSettings().pracTitle || '').toLowerCase();
-  const synonyms = {
-    kinesiologist: ['kinesiolog'],
-    naturopath: ['naturopath'],
-    homeopath: ['homeopath'],
-    psychologist: ['psycholog'],
-    reiki: ['reiki'],
-    counsellor: ['counsell', 'counsel'],
-    'energy-worker': ['energy work', 'energy healer', 'energy healing'],
-    therapist: ['massage', 'remedial therap', 'myotherap'],
-    osteopath: ['osteopath'],
-    nutritionist: ['nutrition'],
-    reflexologist: ['reflexolog'],
-    acupuncturist: ['acupunctur'],
-    chiropractor: ['chiroprac'],
-  };
-  for (const [key, terms] of Object.entries(synonyms)) {
-    if (terms.some(t => title.includes(t))) return key;
-  }
-  return null;
-}
-
-function openMicPermissionModal() { document.getElementById('mic-permission-modal-backdrop').classList.add('open'); }
-function closeMicPermissionModal() { document.getElementById('mic-permission-modal-backdrop').classList.remove('open'); }
-
-async function confirmMicPermission() {
-  closeMicPermissionModal();
-  await startNoteRecording();
-}
-
-function toggleNoteRecording() {
-  if (_neRecordingActive) {
-    stopNoteRecording();
-  } else if (_neMicPermissionGranted) {
-    startNoteRecording();
-  } else {
-    openMicPermissionModal();
-  }
-}
-
-let _neAudioContext = null;
-let _neAnalyser = null;
-let _neWaveAnimFrame = null;
-
-// ── Live preview — the free, built-in browser speech recognition running
-// alongside the actual recording, purely so something visibly appears on
-// screen while talking for reassurance. This is NOT what ends up in the
-// note — it has no custom vocabulary and no cleanup pass, so it's
-// noticeably rougher than the real transcript. The moment Groq's accurate
-// version comes back, this placeholder gets replaced outright, never left
-// alongside it. Chrome/Edge support this well; Safari is inconsistent;
-// Firefox doesn't support it at all — recording and the waveform still
-// work perfectly fine either way, this is additive only.
-let _neSpeechRecognition = null;
-let _neLivePreviewId = null;
-let _neStopCommandTimer = null;
-
-function speechRecognitionSupported() {
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-}
-
-function startLivePreview() {
-  if (!speechRecognitionSupported()) return;
-
-  const editor = document.getElementById(_neActiveEditorId);
-  editor.focus();
-  const sel = window.getSelection();
-  const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
-  if (!hasSelectionInEditor) {
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  }
-  _neLivePreviewId = 'ne-live-preview-' + Date.now();
-  document.execCommand('insertHTML', false, `<span id="${_neLivePreviewId}" class="ne-live-preview"></span>`);
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  _neSpeechRecognition = new SR();
-  _neSpeechRecognition.continuous = true;
-  _neSpeechRecognition.interimResults = true;
-  _neSpeechRecognition.lang = 'en-AU';
-
-  _neSpeechRecognition.onresult = (event) => {
-    const span = document.getElementById(_neLivePreviewId);
-    if (!span) return;
-    let text = '';
-    for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
-    span.textContent = text;
-
-    // "Stop recording" voice command. Waits briefly for silence after the
-    // phrase rather than triggering the instant it's heard — if more
-    // speech keeps coming in, this timer keeps getting reset, so a
-    // sentence that happens to contain similar words mid-thought doesn't
-    // cut recording off early.
-    clearTimeout(_neStopCommandTimer);
-    if (/\bstop( the)? recording\b\s*$/i.test(text.trim())) {
-      _neStopCommandTimer = setTimeout(() => {
-        if (_neRecordingActive) stopNoteRecording();
-      }, 800);
-    }
-  };
-  // Deliberately quiet on error/end — this is a nice-to-have visual aid,
-  // not something that should ever interrupt or error out the actual
-  // recording/transcription flow if it stumbles.
-  _neSpeechRecognition.onerror = () => {};
-  _neSpeechRecognition.onend = () => {};
-
-  try { _neSpeechRecognition.start(); } catch { /* already running or unsupported mid-session — ignore */ }
-}
-
-function stopLivePreview() {
-  clearTimeout(_neStopCommandTimer);
-  if (_neSpeechRecognition) {
-    try { _neSpeechRecognition.stop(); } catch { /* ignore */ }
-    _neSpeechRecognition = null;
-  }
-}
-
-// Called once the real Groq transcript comes back — replaces the rough
-// placeholder outright rather than appending alongside it.
-// Converts the simple "- " bullet / blank-line-paragraph convention the
-// cleanup prompt outputs into real HTML — actual <ul><li> elements and
-// paragraph breaks, not literal dashes sitting in the note as plain text.
-function noteMarkdownLiteToFragment(text) {
-  const frag = document.createDocumentFragment();
-  const rawLines = text.split('\n');
-  let i = 0;
-  let needsBreakBefore = false; // true once a blank line has been seen, so the next content gets a paragraph break first
-
-  function addBreakIfNeeded() {
-    if (needsBreakBefore && frag.childNodes.length) {
-      frag.appendChild(document.createElement('br'));
-      frag.appendChild(document.createElement('br'));
-    }
-    needsBreakBefore = false;
-  }
-
-  while (i < rawLines.length) {
-    const line = rawLines[i].trim();
-
-    if (!line) { needsBreakBefore = true; i++; continue; }
-
-    if (line.startsWith('- ')) {
-      // No inline style here on purpose — .note-editor-content ul already
-      // defines the correct spacing/indentation, matching what the
-      // toolbar's own bullet list button produces exactly.
-      const items = [];
-      while (i < rawLines.length && rawLines[i].trim().startsWith('- ')) {
-        items.push(rawLines[i].trim().replace(/^-\s*/, ''));
-        i++;
-      }
-      addBreakIfNeeded();
-      const ul = document.createElement('ul');
-      items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
-      frag.appendChild(ul);
-      continue;
-    }
-
-    if (line.startsWith('> ')) {
-      const quoteLines = [];
-      while (i < rawLines.length && rawLines[i].trim().startsWith('> ')) {
-        quoteLines.push(rawLines[i].trim().replace(/^>\s*/, ''));
-        i++;
-      }
-      addBreakIfNeeded();
-      const bq = document.createElement('blockquote');
-      bq.textContent = '\u201C' + quoteLines.join(' ') + '\u201D';
-      frag.appendChild(bq);
-      continue;
-    }
-
-    // Plain-text run — collects consecutive ordinary lines, stopping the
-    // instant a list or quote line starts, rather than requiring an
-    // entire paragraph block to be one uniform type.
-    const plainLines = [];
-    while (i < rawLines.length) {
-      const l = rawLines[i].trim();
-      if (!l || l.startsWith('- ') || l.startsWith('> ')) break;
-      plainLines.push(l);
-      i++;
-    }
-    addBreakIfNeeded();
-    frag.appendChild(document.createTextNode(plainLines.join(' ')));
-  }
-  return frag;
-}
-
-function resolveLivePreview(finalText) {
-  const span = _neLivePreviewId ? document.getElementById(_neLivePreviewId) : null;
-  _neLivePreviewId = null;
-  const fragment = noteMarkdownLiteToFragment(finalText);
-  if (span) {
-    span.replaceWith(fragment, document.createTextNode(' '));
-    updateNEToolbar();
-  } else {
-    const editor = document.getElementById(_neActiveEditorId);
-    editor.focus();
-    const sel = window.getSelection();
-    const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
-    if (!hasSelectionInEditor) {
-      const range = document.createRange();
-      range.selectNodeContents(editor);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-    sel.getRangeAt(0).insertNode(fragment);
-    updateNEToolbar();
-  }
-}
-
-// Called if transcription fails or comes back empty — the placeholder
-// shouldn't linger with nothing to replace it.
-function clearLivePreview() {
-  const span = _neLivePreviewId ? document.getElementById(_neLivePreviewId) : null;
-  _neLivePreviewId = null;
-  if (span) span.remove();
-}
-
-function startWaveformVisualizer(stream) {
-  const canvas = document.getElementById('ne-record-wave');
-  const icon = document.getElementById('ne-record-icon');
-  const ctx = canvas.getContext('2d');
-  icon.style.display = 'none';
-  canvas.style.display = 'block';
-
-  _neAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const source = _neAudioContext.createMediaStreamSource(stream);
-  _neAnalyser = _neAudioContext.createAnalyser();
-  _neAnalyser.fftSize = 64;
-  source.connect(_neAnalyser);
-  const data = new Uint8Array(_neAnalyser.frequencyBinCount);
-
-  function draw() {
-    _neWaveAnimFrame = requestAnimationFrame(draw);
-    _neAnalyser.getByteFrequencyData(data);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const barCount = 9;
-    const barWidth = 3;
-    const gap = 3;
-    const totalWidth = barCount * barWidth + (barCount - 1) * gap;
-    let x = (canvas.width - totalWidth) / 2;
-    for (let i = 0; i < barCount; i++) {
-      // Sample across the frequency range rather than just the first few
-      // bins, so the bars reflect the actual voice rather than only bass.
-      const level = data[Math.floor((i / barCount) * data.length)] / 255;
-      const barHeight = Math.max(2, level * canvas.height);
-      ctx.fillStyle = getComputedStyle(document.getElementById('ne-record-btn')).color;
-      ctx.fillRect(x, (canvas.height - barHeight) / 2, barWidth, barHeight);
-      x += barWidth + gap;
-    }
-  }
-  draw();
-}
-
-function stopWaveformVisualizer() {
-  if (_neWaveAnimFrame) cancelAnimationFrame(_neWaveAnimFrame);
-  _neWaveAnimFrame = null;
-  if (_neAudioContext) { _neAudioContext.close().catch(() => {}); _neAudioContext = null; }
-  _neAnalyser = null;
-  const canvas = document.getElementById('ne-record-wave');
-  const icon = document.getElementById('ne-record-icon');
-  if (canvas) canvas.style.display = 'none';
-  if (icon) icon.style.display = '';
-}
-
-async function startNoteRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    _neMicPermissionGranted = true;
-    _neAudioChunks = [];
-    const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm' : '';
-    _neMediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    _neMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _neAudioChunks.push(e.data); };
-    _neMediaRecorder.onstop = () => {
-      stopWaveformVisualizer();
-      stopLivePreview();
-      stream.getTracks().forEach(t => t.stop()); // releases the mic indicator in the browser tab
-      processNoteRecording();
-    };
-    _neMediaRecorder.start();
-    _neRecordingActive = true;
-    const btn = document.getElementById('ne-record-btn');
-    btn.classList.add('recording');
-    btn.classList.remove('processing');
-    document.getElementById('ne-record-label').textContent = 'Stop';
-    startWaveformVisualizer(stream);
-    startLivePreview();
-  } catch (err) {
-    toast('Microphone access was denied or unavailable — check your browser\u2019s site settings', 'error');
-  }
-}
-
-function stopNoteRecording() {
-  if (_neMediaRecorder && _neMediaRecorder.state !== 'inactive') {
-    _neMediaRecorder.stop(); // triggers onstop -> processNoteRecording, which also stops the visualizer
-  }
-  _neRecordingActive = false;
-  const btn = document.getElementById('ne-record-btn');
-  btn.classList.remove('recording');
-  btn.classList.add('processing');
-  document.getElementById('ne-record-label').textContent = 'Processing…';
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function processNoteRecording() {
-  const btn = document.getElementById('ne-record-btn');
-  const label = document.getElementById('ne-record-label');
-  try {
-    const blob = new Blob(_neAudioChunks, { type: _neAudioChunks[0]?.type || 'audio/webm' });
-    if (blob.size < 1000) {
-      clearLivePreview();
-      toast('Recording was too short — try again', 'error');
-      return;
-    }
-    const dataUrl = await blobToDataUrl(blob);
-    const category = resolveVocabCategory();
-    const result = await apiFetch('/notes/transcribe', {
-      method: 'POST',
-      body: JSON.stringify({ audioDataUrl: dataUrl, category }),
-    });
-    if (result.text) {
-      resolveLivePreview(result.text);
-      toast('Voice note added', 'success');
-    } else {
-      clearLivePreview();
-      toast('Didn\u2019t catch anything — try again', 'error');
-    }
-  } catch (err) {
-    clearLivePreview();
-    toast('Transcription failed: ' + err.message, 'error');
-  } finally {
-    btn.classList.remove('processing');
-    label.textContent = 'Record';
-  }
-}
-
-// Inserts at the current cursor position if one exists inside the active
-// note editor; otherwise appends at the end rather than risking an
-// unpredictable insert position (e.g. if Record was clicked without
-// having clicked into the note first).
-function insertTextIntoNote(text) {
-  const editor = document.getElementById(_neActiveEditorId);
-  editor.focus();
-  const sel = window.getSelection();
-  const hasSelectionInEditor = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
-  if (!hasSelectionInEditor) {
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  }
-  document.execCommand('insertText', false, text + ' ');
-  updateNEToolbar();
-}
-
 function execNE(cmd, val) {
   const editor = document.getElementById(_neActiveEditorId);
   editor.focus();
@@ -12564,26 +10261,10 @@ function onNEInput() {
   }, 1500);
 }
 
-// Defensive cleanup — a live-preview span should never end up saved as
-// part of a note's permanent content (it's only ever meant to be a
-// temporary on-screen placeholder), but if a note gets saved while one is
-// still present — closing the editor mid-recording, an autosave firing
-// during processing — this strips it before persisting, rather than
-// baking the pulsing-dot styling permanently into the note.
-function stripLivePreviewArtifacts(html) {
-  if (!html.includes('ne-live-preview')) return html;
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  temp.querySelectorAll('.ne-live-preview').forEach(span => {
-    span.replaceWith(document.createTextNode(span.textContent || ''));
-  });
-  return temp.innerHTML;
-}
-
 function saveNoteFromEditor(silent) {
   try {
     const editor = document.getElementById('ne-editor');
-    const noteHtml = stripLivePreviewArtifacts(editor.innerHTML.trim());
+    const noteHtml = editor.innerHTML.trim();
     if (!noteHtml || noteHtml === '<br>') {
       if (!silent) toast('Nothing to save \u2014 write a note first', 'error');
       return; // silent auto-close with no content simply discards, never overwrites with blank
@@ -12648,9 +10329,6 @@ function discardNote() {
 }
 
 function closeNoteEditor(save) {
-  if (_neRecordingActive) stopNoteRecording();
-  stopWaveformVisualizer();
-  stopLivePreview();
   clearTimeout(neAutoSaveTimer);
   if (save !== false) saveNoteFromEditor(true); // flush unsaved changes unless explicitly discarding
   document.getElementById('note-editor-overlay').classList.remove('open', 'fullscreen');
@@ -13251,15 +10929,9 @@ function openClientModal(id) {
   document.getElementById('cm-referral').value = c ? (c.referral || '') : '';
   document.getElementById('cm-tags').value = c ? (c.tags || '') : '';
   document.getElementById('client-modal-backdrop').classList.add('open');
-  initAddressAutocompleteField('cm-address', 'cm-address-autocomplete-wrap');
 }
 
 function saveClient() {
-  // Same source-of-truth sync as saveBooking() — see comment there.
-  const cmAddressAutocomplete = document.getElementById('cm-address-autocomplete');
-  if (cmAddressAutocomplete) {
-    document.getElementById('cm-address').value = cmAddressAutocomplete.value;
-  }
   const first = document.getElementById('cm-first').value.trim();
   const last  = document.getElementById('cm-last').value.trim();
   if (!first) { toast('Please enter a first name', 'error'); return; }
@@ -14892,11 +12564,7 @@ async function executeAiAction() {
         if (!match) { resultMsg = 'No upcoming booking found for "' + params.client_name + '".'; break; }
         sendCancellationNotification(match);
         if (match.googleEventId && getConnected().google) {
-          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.googleEventId, practitionerId: match.practitionerId, provider: 'google' }) })
-            .catch(err => console.warn('Calendar delete failed:', err.message));
-        }
-        if (match.microsoftEventId && getConnected().microsoft) {
-          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.microsoftEventId, practitionerId: match.practitionerId, provider: 'microsoft' }) })
+          apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: match.googleEventId, practitionerId: match.practitionerId }) })
             .catch(err => console.warn('Calendar delete failed:', err.message));
         }
         const idx = bookings.indexOf(match);
@@ -15160,22 +12828,12 @@ async function bootApp() {
     _cache.forms = _cache.forms || defaultForms();
   }
 
-  if (_emailVerificationBlocking) return; // showEmailVerificationPendingScreen already took over the UI — nothing below this should run
-
   showApp();
   setGreeting();
   renderDashboard();
   updateAiLearnedCount();
   startBookingsPolling();
   loadSidebarAvatar();
-  if (!_cache.onboardingCompleted) {
-    const resumeStep = DB.get('ob_resume_step');
-    if (resumeStep && resumeStep > 1) {
-      openObResumeModal(resumeStep);
-    } else {
-      openObWelcomeModal();
-    }
-  }
   if (aiSpeakEnabled) {
     document.getElementById('ai-speak-label').textContent = 'Voice on';
     document.getElementById('ai-speak-btn').style.color = 'var(--sage)';
@@ -15194,36 +12852,26 @@ async function bootApp() {
       .catch(() => {});
   }
 
-  // Handle Google/Microsoft OAuth callback URL params
+  // Handle Google OAuth callback URL params
   const params = new URLSearchParams(window.location.search);
-  const calProviderLabel = params.get('provider') === 'microsoft' ? 'Microsoft Calendar' : 'Google Calendar';
   if (params.get('cal_connected')) {
     window.history.replaceState({}, '', window.location.pathname);
     renderCalConnectedList();
-    toast(calProviderLabel + ' connected successfully', 'success');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
+    toast('Google Calendar connected successfully', 'success');
+    setTimeout(() => showPage('settings'), 400);
   } else if (params.get('cal_error')) {
     window.history.replaceState({}, '', window.location.pathname);
-    toast(calProviderLabel + ' connection failed — please try again', 'error');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
+    toast('Google Calendar connection failed — please try again', 'error');
+    setTimeout(() => showPage('settings'), 400);
   } else if (params.get('square_connected')) {
     window.history.replaceState({}, '', window.location.pathname);
     renderPaymentGatewayStatus();
     toast('Square connected successfully', 'success');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
+    setTimeout(() => showPage('settings'), 400);
   } else if (params.get('square_error')) {
     window.history.replaceState({}, '', window.location.pathname);
     toast('Square connection failed — please try again', 'error');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
-  } else if (params.get('xero_connected')) {
-    window.history.replaceState({}, '', window.location.pathname);
-    renderAccountingStatus();
-    toast('Xero connected successfully', 'success');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
-  } else if (params.get('xero_error')) {
-    window.history.replaceState({}, '', window.location.pathname);
-    toast('Xero connection failed — please try again', 'error');
-    if (!_cache.onboardingCompleted) { setTimeout(obPositionSpotlight, 400); } else { setTimeout(() => showPage('settings'), 400); }
+    setTimeout(() => showPage('settings'), 400);
   }
 }
 
@@ -15247,47 +12895,10 @@ if (_bootResetToken) {
   setAuthToken(_bootSignupToken);
   window.history.replaceState({}, '', window.location.pathname);
   bootApp();
+} else if (getAuthToken()) {
+  bootApp();
 } else {
-  checkOrgStatusThenBoot();
-}
-
-// Suspended/cancelled/not-found accounts see a clear status screen
-// immediately, before any login form — rather than a normal-looking
-// login prompt that only reveals the actual problem after they've typed
-// in credentials and tried to sign in.
-async function checkOrgStatusThenBoot() {
-  try {
-    const res = await fetch(API_BASE + '/auth/org-status');
-    const data = await res.json();
-    if (['suspended', 'cancelled', 'not_found'].includes(data.status)) {
-      showOrgBlockedScreen(data.status, data.orgName);
-      return;
-    }
-  } catch {
-    // If the status check itself fails (network hiccup, etc.), fall
-    // through to normal boot rather than blocking access on our own error.
-  }
-  if (getAuthToken()) { bootApp(); } else { showLogin(); }
-}
-
-function showOrgBlockedScreen(status, orgName) {
-  const copy = {
-    suspended: { title: 'This account is currently suspended', body: 'Access to ' + (orgName ? '"' + orgName + '"' : 'this account') + ' has been temporarily suspended.' },
-    cancelled: { title: 'This subscription has been cancelled', body: (orgName ? '"' + orgName + '"' : 'This account') + '\u2019s subscription is no longer active.' },
-    not_found: { title: 'No account found', body: 'There\u2019s no active account at this address.' },
-  }[status] || { title: 'Account unavailable', body: 'This account can\u2019t be accessed right now.' };
-
-  document.body.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FEEEE1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:20px">
-      <div style="background:#fff;border-radius:16px;padding:40px 32px;max-width:420px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-        <div style="width:52px;height:52px;border-radius:50%;background:#FEEEE1;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#C2491D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        </div>
-        <h1 style="font-size:18px;margin:0 0 10px;color:#1A1A1A">${copy.title}</h1>
-        <p style="font-size:14px;color:#6F6F71;line-height:1.6;margin:0 0 24px">${copy.body} If you believe this is a mistake, please get in touch with h_ld support.</p>
-        <a href="mailto:support@h-ld.com" style="display:inline-block;background:#1A1A1A;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px">Contact support</a>
-      </div>
-    </div>`;
+  showLogin();
 }
 
 // Measure scrollbar width and set as CSS variable for calendar alignment
