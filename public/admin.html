@@ -1654,6 +1654,7 @@
     margin-bottom: 8px; position: relative;
   }
   .fb-field:hover { border-color: var(--sage-light); }
+  .fb-field-selected, .fb-field-selected:hover { border-color: var(--ink); border-width: 1.5px; }
   .fb-field-header {
     display: flex; align-items: center; gap: 8px;
     margin-bottom: 10px;
@@ -3368,7 +3369,7 @@
         <!-- Right: live field list -->
         <div class="fb-fields-col">
           <div class="form-label" style="margin-bottom:8px">Form fields</div>
-          <div id="fb-fields-list" ondragover="fbContainerDragOver(event)" ondrop="fbContainerDrop(event)"></div>
+          <div id="fb-fields-list" ondragover="fbContainerDragOver(event)" ondrop="fbContainerDrop(event)" onclick="if(event.target===event.currentTarget)fbDeselectField()"></div>
         </div>
       </div>
     </div>
@@ -7769,6 +7770,7 @@ function renderForms() {
 
 function openFormModal(id) {
   editingFormId = id || null;
+  _fbSelectedFieldId = null;
   document.getElementById('form-modal-title').textContent = id ? 'Edit Intake Form' : 'New Intake Form';
   document.getElementById('form-save-btn').textContent = id ? 'Save Changes' : 'Save Form';
 
@@ -7796,12 +7798,15 @@ function closeFormModal() { document.getElementById('form-modal-backdrop').class
 function closeFormModalIfBg(e) { if (e.target === e.currentTarget) closeFormModal(); }
 
 function addField(type) {
-  fbFields.push(_fbCreateFieldDefault(type));
+  const newField = _fbCreateFieldDefault(type);
+  fbFields.push(newField);
+  _fbSelectedFieldId = newField.id;
   renderFbFields();
 }
 
 function removeField(id) {
   fbFields = fbFields.filter(f => f.id !== id);
+  if (_fbSelectedFieldId === id) _fbSelectedFieldId = null;
   renderFbFields();
 }
 
@@ -8023,7 +8028,7 @@ function renderFbFields() {
 
     const dropLineBefore = `<div class="fb-drop-line" id="fb-dropline-${i}" data-index="${i}"></div>`;
 
-    return dropLineBefore + `<div class="fb-field" data-field-id="${f.id}" data-index="${i}" ondragover="fbFieldDragOver(event)" ondrop="fbFieldDrop(event)" ondragend="fbFieldDragEnd(event)">
+    return dropLineBefore + `<div class="fb-field${f.id === _fbSelectedFieldId ? ' fb-field-selected' : ''}" data-field-id="${f.id}" data-index="${i}" ondragover="fbFieldDragOver(event)" ondrop="fbFieldDrop(event)" ondragend="fbFieldDragEnd(event)" onclick="fbSelectField('${f.id}')">
       <div class="fb-field-header">
         <span class="form-drag-handle" draggable="true" ondragstart="fbFieldDragStart(event,'${f.id}')" title="Drag to reorder">\u283f</span>
         <span class="fb-field-type">${typeLabel}</span>
@@ -8046,6 +8051,7 @@ let _fbDragGhost = null;     // the custom ghost element shown under the cursor
 let _fbActiveDropLineIndex = null; // currently-highlighted drop-line index, so repeat calls for the same index are a no-op instead of re-querying and re-toggling classes every time
 let _fbActiveDropLineEl = null;    // direct reference to the currently-active element, avoiding a full querySelectorAll sweep to find and clear it
 let _fbDragOverRaf = null;         // rAF handle used to collapse dragover's high-frequency firing down to at most once per animation frame
+let _fbSelectedFieldId = null;     // the field currently highlighted as "being worked on" — set by clicking a field, or automatically after dropping a new one in
 
 const _fbPaletteTypeLabels = {
   section: 'Section Title', paragraph: 'General Text', divider: 'Divider Line',
@@ -8100,6 +8106,28 @@ function fbPaletteDragStart(e, type) {
 // accumulating across repeated drags whenever a drag ended without a
 // successful drop (released outside a valid target, which is a common,
 // ordinary thing to happen while dragging, not an edge case).
+// Selection highlight — shows which field the user is currently working
+// on. Toggles classes directly on the two elements involved (previous
+// selection, new selection) rather than a full re-render, which would be
+// unnecessary work for what's just a visual state change.
+function fbSelectField(id) {
+  if (_fbSelectedFieldId === id) return;
+  if (_fbSelectedFieldId) {
+    const prev = document.querySelector(`.fb-field[data-field-id="${_fbSelectedFieldId}"]`);
+    if (prev) prev.classList.remove('fb-field-selected');
+  }
+  _fbSelectedFieldId = id;
+  const next = document.querySelector(`.fb-field[data-field-id="${id}"]`);
+  if (next) next.classList.add('fb-field-selected');
+}
+
+function fbDeselectField() {
+  if (!_fbSelectedFieldId) return;
+  const prev = document.querySelector(`.fb-field[data-field-id="${_fbSelectedFieldId}"]`);
+  if (prev) prev.classList.remove('fb-field-selected');
+  _fbSelectedFieldId = null;
+}
+
 function _fbClearDropLineState() {
   if (_fbActiveDropLineEl) _fbActiveDropLineEl.classList.remove('active');
   _fbActiveDropLineIndex = null;
@@ -8157,6 +8185,7 @@ function fbFieldDrop(e) {
     // Inserting a brand new field dragged in from the palette
     const newField = _fbCreateFieldDefault(_fbDragNewType);
     fbFields.splice(toIdx, 0, newField);
+    _fbSelectedFieldId = newField.id;
     fbFieldDragEnd(e);
     renderFbFields();
     return;
@@ -8194,7 +8223,9 @@ function fbContainerDrop(e) {
   if (e.target.closest('.fb-field')) return;
 
   if (_fbDragNewType) {
-    fbFields.push(_fbCreateFieldDefault(_fbDragNewType));
+    const newField = _fbCreateFieldDefault(_fbDragNewType);
+    fbFields.push(newField);
+    _fbSelectedFieldId = newField.id;
     fbFieldDragEnd(e);
     renderFbFields();
     return;
