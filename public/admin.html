@@ -870,6 +870,15 @@
     transition: all .15s; font-family: inherit; flex-shrink: 0;
   }
   .cal-disconnect-btn:hover { color: var(--red); border-color: #F5C6C2; background: var(--red-pale); }
+  .cal-sync-btn {
+    font-size: 12px; font-weight: 500; color: var(--ink-soft);
+    border: 1px solid var(--border); background: var(--white);
+    border-radius: 999px; padding: 5px 15px; cursor: pointer;
+    transition: all .15s; font-family: inherit; flex-shrink: 0;
+    margin-right: 8px;
+  }
+  .cal-sync-btn:hover { color: var(--sage); border-color: var(--sage-light); background: var(--sage-pale); }
+  .cal-sync-btn:disabled { opacity: .6; cursor: default; }
 
   /* modal connect flow */
   .cal-modal-icon {
@@ -7446,9 +7455,15 @@ async function resyncBookingCalendar() {
     const results = data.results || {};
     const succeeded = Object.entries(results).filter(([, r]) => r.ok).map(([p]) => p === 'google' ? 'Google Calendar' : 'Microsoft Calendar');
     const failed = Object.entries(results).filter(([, r]) => !r.ok).map(([p, r]) => `${p === 'google' ? 'Google' : 'Microsoft'} (${r.error})`);
-    if (succeeded.length) toast('Synced to ' + succeeded.join(' and '), 'success');
+    if (succeeded.length) toast('Synced to ' + succeeded.join(' and ') + ' — direct link in console', 'success');
     if (failed.length) toast('Could not sync to ' + failed.join(', '), 'error');
     if (!succeeded.length && !failed.length) toast('No calendar connected to sync to', 'error');
+    // Direct link to the event as Microsoft/Google actually recorded it —
+    // click this to verify definitively whether/where it exists, rather
+    // than relying on what a calendar app happens to be displaying.
+    Object.entries(results).forEach(([p, r]) => {
+      if (r.ok && r.webLink) console.log(`${p === 'google' ? 'Google' : 'Microsoft'} event link:`, r.webLink);
+    });
   } catch (err) {
     toast('Sync failed: ' + err.message, 'error');
   } finally {
@@ -10032,11 +10047,44 @@ function renderCalConnectedList() {
         '<div class="cal-connected-email">' + a.email + '</div>' +
         '<div class="cal-connected-status">Connected &middot; ' + (a.calendar || 'Primary calendar') + '</div>' +
       '</div>' +
+      '<button class="cal-sync-btn" onclick="syncAllBookings(\'' + a.provider + '\')" id="cal-syncall-btn-' + a.provider + '">Sync now</button>' +
       '<button class="cal-disconnect-btn" onclick="disconnectCal(\'' + a.provider + '\')">Disconnect</button>' +
     '</div>';
   });
 
   el.innerHTML = html;
+}
+
+// Re-pushes every upcoming appointment to a specific connected provider —
+// for recovering from a calendar that's drifted out of sync more broadly
+// than one appointment (e.g. after reconnecting an account).
+async function syncAllBookings(provider) {
+  const btn = document.getElementById('cal-syncall-btn-' + provider);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  try {
+    const data = await apiFetch('/calendar/sync-all', { method: 'POST', body: JSON.stringify({ provider }) });
+    const providerName = provider === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
+    if (data.total === 0) {
+      toast('No upcoming appointments to sync', '');
+    } else if (data.failed === 0) {
+      toast(`Synced ${data.succeeded} appointment${data.succeeded === 1 ? '' : 's'} to ${providerName} — links in console`, 'success');
+    } else {
+      toast(`Synced ${data.succeeded} of ${data.total} — ${data.failed} failed (see console for details)`, 'error');
+      console.warn('Sync failures:', data.failures);
+    }
+    // Direct links to each event as recorded by the provider — click to
+    // verify definitively whether/where each one actually exists.
+    (data.successes || []).forEach(s => {
+      if (s.webLink) console.log(`${s.client}:`, s.webLink);
+    });
+  } catch (err) {
+    toast('Sync failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 async function disconnectCal(provider) {

@@ -45,11 +45,12 @@ export default async function handler(req, res) {
 
   let succeeded = 0;
   const failures = [];
+  const successes = [];
   for (const b of bookings) {
     const result = await syncBookingToProvider(b, provider, auth.practitioner_id, org);
-    if (result.ok) succeeded++;
+    if (result.ok) { succeeded++; successes.push({ id: b.id, client: b.client_name, webLink: result.webLink }); }
     else failures.push({ id: b.id, client: b.client_name, error: result.error });
   }
 
-  return res.json({ ok: true, total: bookings.length, succeeded, failed: failures.length, failures });
+  return res.json({ ok: true, total: bookings.length, succeeded, failed: failures.length, failures, successes });
 }
