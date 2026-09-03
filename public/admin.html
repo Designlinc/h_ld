@@ -686,6 +686,20 @@
     overflow-y: auto;
     max-height: 520px;
   }
+  /* Vertical-only resize handle — drag to grow/shrink how much of the day
+     is visible without scrolling. Only ever reads the pointer's Y
+     position, never X, so horizontal movement has no effect at all. */
+  .cal-resize-handle {
+    height: 10px; flex-shrink: 0; cursor: ns-resize;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg); border-top: var(--cal-line);
+    touch-action: none; user-select: none;
+  }
+  .cal-resize-handle::after {
+    content: ''; width: 32px; height: 3px; border-radius: 2px;
+    background: var(--border); transition: background .15s;
+  }
+  .cal-resize-handle:hover::after, .cal-resize-handle.dragging::after { background: var(--sage-mid); }
   .cal-time-col {
     width: 68px; flex-shrink: 0;
     padding-left: 12px;
@@ -10475,6 +10489,13 @@ function startSlideoutResize(e) {
   } catch (err) { /* ignore storage errors */ }
 })();
 
+// Set once the user manually drags the resize handle — from then on,
+// alignCalendarBottom() uses this instead of always recalculating from
+// scratch, since the whole point of dragging is to override the
+// automatic sizing. Reset to null (back to automatic) by reloading the
+// page; there was no request for this to persist across sessions.
+let _calManualHeight = null;
+
 function alignCalendarBottom() {
   var navIcon = document.getElementById('nav-settings');
   var target = document.querySelector('#bookings-cal-view .cal-week-body')
@@ -10483,7 +10504,18 @@ function alignCalendarBottom() {
   var navIconTop = navIcon.getBoundingClientRect().top;
   var targetTop = target.getBoundingClientRect().top;
   var available = navIconTop - targetTop - 16; // small breathing gap above the icon
-  target.style.maxHeight = Math.max(200, available) + 'px';
+
+  var finalHeight;
+  if (_calManualHeight != null) {
+    // Respect the manual choice, but still clamp to whatever's actually
+    // available now — otherwise a manual resize made at a taller window
+    // size could visually overflow past the sidebar icon after the
+    // window shrinks.
+    finalHeight = Math.min(_calManualHeight, Math.max(200, available));
+  } else {
+    finalHeight = Math.max(200, available);
+  }
+  target.style.maxHeight = finalHeight + 'px';
 
   // The header row reserves space to match the body's scrollbar width, but that
   // scrollbar now only appears when actually needed — so only reserve the space
@@ -10493,6 +10525,50 @@ function alignCalendarBottom() {
     var needsScroll = target.scrollHeight > target.clientHeight + 1;
     header.style.marginRight = needsScroll ? 'var(--scrollbar-w, 15px)' : '0px';
   }
+}
+
+// ── Calendar vertical resize handle ──
+// Deliberately only ever reads e.clientY, never e.clientX at any point in
+// this flow — horizontal pointer movement has no code path that could
+// affect the result, which is what guarantees this is vertical-only
+// regardless of how the pointer actually moves during the drag.
+let _calResizeStartY = null;
+let _calResizeStartHeight = null;
+
+function calStartResize(e) {
+  e.preventDefault();
+  const target = document.querySelector('#bookings-cal-view .cal-week-body');
+  const handle = document.getElementById('cal-resize-handle');
+  if (!target) return;
+  _calResizeStartY = e.clientY;
+  _calResizeStartHeight = target.getBoundingClientRect().height;
+  if (handle) handle.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+  document.addEventListener('pointermove', calDoResize);
+  document.addEventListener('pointerup', calEndResize);
+}
+
+function calDoResize(e) {
+  if (_calResizeStartY == null) return;
+  const target = document.querySelector('#bookings-cal-view .cal-week-body');
+  if (!target) return;
+  const deltaY = e.clientY - _calResizeStartY;
+  const newHeight = Math.max(200, _calResizeStartHeight + deltaY);
+  target.style.maxHeight = newHeight + 'px';
+  _calManualHeight = newHeight;
+}
+
+function calEndResize() {
+  _calResizeStartY = null;
+  _calResizeStartHeight = null;
+  const handle = document.getElementById('cal-resize-handle');
+  if (handle) handle.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  document.removeEventListener('pointermove', calDoResize);
+  document.removeEventListener('pointerup', calEndResize);
+  // Re-run the header scrollbar-gutter alignment now that the height has
+  // settled, without touching the height itself again.
+  alignCalendarBottom();
 }
 window.addEventListener('resize', function() {
   clearTimeout(window._calAlignTimer);
@@ -10627,6 +10703,7 @@ function renderWeekView() {
     body += '</div>';
   }
   body += '</div></div>';
+  body += '<div class="cal-resize-handle" id="cal-resize-handle" onpointerdown="calStartResize(event)" title="Drag to resize"></div>';
 
   var gridEl = document.getElementById('cal-admin-grid');
   gridEl.className = 'cal-admin-grid';
