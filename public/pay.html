@@ -90,7 +90,21 @@
   .amount-display {
     font-size: 28px; font-weight: 700; color: var(--ink);
     letter-spacing: -1px;
+    font-family: inherit;
+    border: none; border-bottom: 2px solid transparent;
+    background: transparent;
+    width: 110px;
+    padding: 0 0 2px;
+    transition: border-color .15s;
   }
+  .amount-display:hover { border-bottom-color: var(--border); }
+  .amount-display:focus { outline: none; border-bottom-color: var(--sage); }
+  /* Hide the native up/down spinner arrows on number inputs — this reads
+     as a price display first, editable field second, and the spinner
+     arrows undercut that at this font size. */
+  .amount-display::-webkit-outer-spin-button,
+  .amount-display::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .amount-display { -moz-appearance: textfield; }
 
   .card-footer { padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
 
@@ -223,7 +237,7 @@
     <div class="amount-label">Amount due</div>
     <div style="display:flex;align-items:baseline;gap:4px">
       <span style="font-size:18px;font-weight:600;color:var(--ink-soft)">$</span>
-      <span class="amount-display" id="amount-display"></span>
+      <input type="number" class="amount-display" id="amount-display" step="0.01" min="0" inputmode="decimal" oninput="onAmountInput()">
     </div>
   </div>
 
@@ -349,6 +363,18 @@ async function init() {
   }
   if (!booking) { showError(); return; }
 
+  // Square's Application ID was never actually being fetched anywhere on
+  // this page before — window.SQUARE_APP_ID stayed permanently undefined,
+  // so updateSquareLink() always fell through to its "not configured"
+  // branch (href="#"), which looks exactly like a page refresh when
+  // clicked. Fetched here, before any method can be selected.
+  try {
+    var squareConfig = await apiFetch('/config/square-app-id');
+    window.SQUARE_APP_ID = squareConfig.appId;
+  } catch(e) {
+    console.warn('Could not load Square configuration:', e.message);
+  }
+
   // Normalise date — Postgres returns full ISO string "2026-06-26T00:00:00.000Z"
   var rawDate = booking.date || '';
   booking.date = rawDate.slice(0, 10);
@@ -374,7 +400,7 @@ async function init() {
   document.getElementById('ph-status').textContent = statusMap[booking.status] || booking.status;
 
   // Amount
-  document.getElementById('amount-display').textContent = basePrice.toFixed(2);
+  document.getElementById('amount-display').value = basePrice.toFixed(2);
 
   // If already paid, show confirmation directly
   if (booking.paidAt) {
@@ -393,7 +419,18 @@ function formatTime(t) {
 }
 
 function getAmount() {
-  return basePrice;
+  var val = parseFloat(document.getElementById('amount-display').value);
+  return isNaN(val) ? 0 : val;
+}
+
+// Keeps the Square deep link in sync if the amount is edited after "Card"
+// was already selected — selectMethod() auto-opens Square immediately on
+// selection, so without this, editing the amount afterward would leave
+// the link pointing at the stale original figure.
+function onAmountInput() {
+  if (selectedMethod === 'card') {
+    updateSquareLink(getAmount());
+  }
 }
 
 function selectMethod(method) {
@@ -438,6 +475,7 @@ function onPrimaryAction() {
 
 async function sendPaymentLink() {
   var amount = getAmount();
+  if (amount <= 0) { alert('Enter an amount greater than $0 before sending a payment link.'); return; }
   var btn = document.getElementById('pay-btn');
   var label = document.getElementById('pay-btn-label');
   var statusEl = document.getElementById('link-status');
@@ -496,6 +534,7 @@ function updateSquareLink(amount) {
 async function markPaid() {
   if (!selectedMethod) { return; }
   var amount = getAmount();
+  if (amount <= 0) { alert('Enter an amount greater than $0 before recording payment.'); return; }
   var btn = document.getElementById('pay-btn');
   btn.disabled = true;
   btn.textContent = 'Recording…';
