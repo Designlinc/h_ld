@@ -119,13 +119,24 @@ export default async function handler(req, res) {
           start: { dateTime: fmtDt(startDt), timeZone: 'Australia/Sydney' },
           end:   { dateTime: fmtDt(endDt),   timeZone: 'Australia/Sydney' },
         };
-        const gcRes = b.google_event_id
+        let gcRes = b.google_event_id
           ? await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${b.google_event_id}`, {
               method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
             })
           : await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
               method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
             });
+        // A stored event ID pointing at something that's been manually
+        // deleted from the calendar (exactly what a "re-sync" button needs
+        // to recover from) fails the PUT with 404/410 — without this
+        // fallback, that failure was reported back as-is and the event was
+        // never actually recreated, silently defeating the whole point of
+        // re-syncing.
+        if (!gcRes.ok && (gcRes.status === 404 || gcRes.status === 410)) {
+          gcRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
+          });
+        }
         const gcData = await gcRes.json();
         if (gcData.id) {
           await sql`UPDATE bookings SET google_event_id = ${gcData.id} WHERE id = ${b.id} AND organization_id = ${org.id}`;
@@ -144,13 +155,21 @@ export default async function handler(req, res) {
           start: { dateTime: fmtDt(startDt), timeZone: 'Australia/Sydney' },
           end:   { dateTime: fmtDt(endDt),   timeZone: 'Australia/Sydney' },
         };
-        const msRes = b.microsoft_event_id
+        let msRes = b.microsoft_event_id
           ? await fetch(`https://graph.microsoft.com/v1.0/me/events/${b.microsoft_event_id}`, {
               method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
             })
           : await fetch('https://graph.microsoft.com/v1.0/me/events', {
               method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
             });
+        // Same reasoning as the Google fallback above — a stored event ID
+        // that's been manually deleted from Outlook fails the PATCH with
+        // 404, and without this fallback the event was never recreated.
+        if (!msRes.ok && msRes.status === 404) {
+          msRes = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+            method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
+          });
+        }
         const msData = await msRes.json();
         if (msData.id) {
           await sql`UPDATE bookings SET microsoft_event_id = ${msData.id} WHERE id = ${b.id} AND organization_id = ${org.id}`;

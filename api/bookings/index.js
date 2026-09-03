@@ -246,13 +246,13 @@ export default async function handler(req, res) {
               id, organization_id, practitioner_id, client_name, client_email, client_phone, client_id,
               service_id, service_name, date, time, duration, price,
               location, status, payment_method, payment_amount, paid_at,
-              practitioner_notes, intake_submitted, google_event_id, homework_reminder
+              practitioner_notes, intake_submitted, google_event_id, microsoft_event_id, homework_reminder
             ) VALUES (
               ${b.id}, ${org.id}, ${auth.practitioner_id}, ${b.client}, ${b.email || null}, ${b.phone || null}, ${b.clientId || null},
               ${b.serviceId || null}, ${b.service}, ${b.date}, ${b.time}, ${b.duration || 60}, ${b.price || 0},
               ${b.location || null}, ${b.status || 'awaiting'}, ${b.paymentMethod || null},
               ${b.paymentAmount || null}, ${b.paidAt || null}, ${b.practitionerNotes || null},
-              ${b.intakeSubmitted || false}, ${b.googleEventId || null},
+              ${b.intakeSubmitted || false}, ${b.googleEventId || null}, ${b.microsoftEventId || null},
               ${b.homeworkReminder ? JSON.stringify(b.homeworkReminder) : null}
             )
             ON CONFLICT (id) DO UPDATE SET
@@ -274,6 +274,7 @@ export default async function handler(req, res) {
               practitioner_notes  = EXCLUDED.practitioner_notes,
               intake_submitted    = EXCLUDED.intake_submitted,
               google_event_id     = EXCLUDED.google_event_id,
+              microsoft_event_id  = EXCLUDED.microsoft_event_id,
               homework_reminder   = EXCLUDED.homework_reminder,
               updated_at          = NOW()
             WHERE bookings.organization_id = ${org.id}
