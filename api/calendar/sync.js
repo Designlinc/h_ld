@@ -8,6 +8,7 @@ import { requireAuth } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 import { getValidGoogleToken } from '../../lib/googleCalendar.js';
 import { getValidMicrosoftToken } from '../../lib/microsoftCalendar.js';
+import { syncBookingToProvider } from '../../lib/calendarSync.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -83,105 +84,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No calendar is connected for this practitioner' });
   }
 
-  const paymentUrl = `https://${org.subdomain}.h-ld.com/pay.html?payment=${b.id}`;
-
-  // Normalise date — Postgres DATE comes back as a Date object or ISO string
-  const dateStr = typeof b.date === 'string'
-    ? b.date.slice(0, 10)
-    : `${b.date.getUTCFullYear()}-${String(b.date.getUTCMonth()+1).padStart(2,'0')}-${String(b.date.getUTCDate()).padStart(2,'0')}`;
-
-  // Normalise time — handle plain "HH:MM", with-seconds "HH:MM:SS",
-  // or JSON-encoded "\"HH:MM\"" from Postgres
-  let rawTime = b.time || '09:00';
-  if (typeof rawTime === 'string' && rawTime.startsWith('"')) rawTime = JSON.parse(rawTime);
-  const timeStr = rawTime.slice(0, 5);
-
-  // Build start/end datetime
-  const startDt = new Date(`${dateStr}T${timeStr}:00`);
-  if (isNaN(startDt.getTime())) return res.status(400).json({ error: `Invalid date/time: ${dateStr} ${timeStr}` });
-  const endDt = new Date(startDt.getTime() + (b.duration || 60) * 60000);
-  const fmtDt = (dt) => {
-    const y = dt.getFullYear(), mo = String(dt.getMonth()+1).padStart(2,'0'), day = String(dt.getDate()).padStart(2,'0');
-    const h = String(dt.getHours()).padStart(2,'0'), m = String(dt.getMinutes()).padStart(2,'0');
-    return `${y}-${mo}-${day}T${h}:${m}:00`;
-  };
-
-  const description = `Client: ${b.client_name}\nService: ${b.service_name}\nDuration: ${b.duration} min\nPrice: $${b.price}\n\n💳 Take payment:\n${paymentUrl}`;
   const results = {};
-
   for (const { provider } of connectedProviders) {
-    try {
-      if (provider === 'google') {
-        const accessToken = await getValidGoogleToken(practitionerId);
-        const event = {
-          summary: `${b.service_name} — ${b.client_name}`,
-          description,
-          start: { dateTime: fmtDt(startDt), timeZone: 'Australia/Sydney' },
-          end:   { dateTime: fmtDt(endDt),   timeZone: 'Australia/Sydney' },
-        };
-        let gcRes = b.google_event_id
-          ? await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${b.google_event_id}`, {
-              method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-            })
-          : await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-              method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-            });
-        // A stored event ID pointing at something that's been manually
-        // deleted from the calendar (exactly what a "re-sync" button needs
-        // to recover from) fails the PUT with 404/410 — without this
-        // fallback, that failure was reported back as-is and the event was
-        // never actually recreated, silently defeating the whole point of
-        // re-syncing.
-        if (!gcRes.ok && (gcRes.status === 404 || gcRes.status === 410)) {
-          gcRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-            method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-          });
-        }
-        const gcData = await gcRes.json();
-        if (gcData.id) {
-          await sql`UPDATE bookings SET google_event_id = ${gcData.id} WHERE id = ${b.id} AND organization_id = ${org.id}`;
-          results.google = { ok: true, eventId: gcData.id };
-        } else {
-          results.google = { ok: false, error: gcData.error?.message || 'Unknown error' };
-        }
-      } else if (provider === 'microsoft') {
-        const accessToken = await getValidMicrosoftToken(practitionerId);
-        // Microsoft Graph's event shape differs from Google's — subject
-        // instead of summary, body.content instead of a bare description
-        // string — but represents the same underlying event.
-        const event = {
-          subject: `${b.service_name} — ${b.client_name}`,
-          body: { contentType: 'Text', content: description },
-          start: { dateTime: fmtDt(startDt), timeZone: 'Australia/Sydney' },
-          end:   { dateTime: fmtDt(endDt),   timeZone: 'Australia/Sydney' },
-        };
-        let msRes = b.microsoft_event_id
-          ? await fetch(`https://graph.microsoft.com/v1.0/me/events/${b.microsoft_event_id}`, {
-              method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-            })
-          : await fetch('https://graph.microsoft.com/v1.0/me/events', {
-              method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-            });
-        // Same reasoning as the Google fallback above — a stored event ID
-        // that's been manually deleted from Outlook fails the PATCH with
-        // 404, and without this fallback the event was never recreated.
-        if (!msRes.ok && msRes.status === 404) {
-          msRes = await fetch('https://graph.microsoft.com/v1.0/me/events', {
-            method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(event),
-          });
-        }
-        const msData = await msRes.json();
-        if (msData.id) {
-          await sql`UPDATE bookings SET microsoft_event_id = ${msData.id} WHERE id = ${b.id} AND organization_id = ${org.id}`;
-          results.microsoft = { ok: true, eventId: msData.id };
-        } else {
-          results.microsoft = { ok: false, error: msData.error?.message || 'Unknown error' };
-        }
-      }
-    } catch (err) {
-      console.error(`Calendar sync error (${provider}):`, err);
-      results[provider] = { ok: false, error: err.message };
-    }
+    results[provider] = await syncBookingToProvider(b, provider, practitionerId, org);
   }
 
   // Overall success if at least one connected provider synced —
