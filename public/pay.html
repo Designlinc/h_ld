@@ -520,9 +520,14 @@ function updateSquareLink(amount) {
     return;
   }
   var cents = Math.round(amount * 100);
+  // Fixed root-domain URL, not window.location.origin — Square's Point of
+  // Sale API requires one exact, pre-registered callback URL per
+  // application with no wildcard support, which can't work per-subdomain
+  // across every practitioner. square-callback.html forwards back to this
+  // subdomain's own pay.html based on the booking ID.
   var data = JSON.stringify({
     amount_money: { amount: cents, currency_code: 'AUD' },
-    callback_url: window.location.origin + '/pay.html',
+    callback_url: 'https://h-ld.com/square-callback.html?payment=' + encodeURIComponent(booking.id),
     client_id: window.SQUARE_APP_ID,
     version: '1.3',
     notes: 'Booking payment' + (booking ? ' - ' + booking.service : ''),

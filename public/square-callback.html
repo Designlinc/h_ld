@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redirecting… — h_ld.</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F5F2F0; color: #231F20;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px;
+    text-align: center;
+  }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid #E9E6E5; border-top-color: #2A2A2E;
+    animation: spin .8s linear infinite; margin-bottom: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .msg { font-size: 15px; color: #55555C; max-width: 320px; line-height: 1.5; }
+  .error { display: none; }
+  .error .title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  a.btn {
+    display: inline-block; margin-top: 20px; background: #231F20; color: #fff;
+    text-decoration: none; padding: 12px 24px; border-radius: 8px;
+    font-weight: 600; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="msg">Returning you to your payment page…</div>
+</div>
+
+<div id="error" class="error">
+  <div class="title">Couldn't find that booking</div>
+  <div class="msg">This payment link may have expired, or the booking may have been removed.</div>
+  <a class="btn" href="https://h-ld.com">Go to h_ld.</a>
+</div>
+
+<script>
+// This is the ONE fixed callback URL registered with Square — Square's
+// Point of Sale API requires an exact, pre-registered URL with no
+// wildcard support, which can't work per-subdomain across every
+// practitioner. Every Tap to Pay transaction across every practitioner
+// on the platform comes back through this single page, which then
+// forwards to the correct subdomain based on the booking ID.
+const ROOT_DOMAIN = 'h-ld.com';
+
+async function bounce() {
+  const params = new URLSearchParams(window.location.search);
+  const bookingId = params.get('payment');
+
+  if (!bookingId) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('https://' + ROOT_DOMAIN + '/api/payments/lookup-subdomain?bookingId=' + encodeURIComponent(bookingId));
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+
+    // Forward every original param (the booking ID plus whatever result
+    // data Square appended — transaction ID, error code, etc.) straight
+    // through to the real payment page on the correct subdomain.
+    const target = 'https://' + data.subdomain + '.' + ROOT_DOMAIN + '/pay.html?' + params.toString();
+    window.location.replace(target);
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+  }
+}
+
+bounce();
+</script>
+</body>
+</html>
