@@ -7565,6 +7565,21 @@ function refreshAdminSlots() {
     cur += duration + buffer;
   }
 
+  // The week-view calendar grid clicks on its own fixed, regular time
+  // grid (independent of any service's duration) to pre-fill a time here
+  // — but the slots above are generated on a completely different
+  // interval based on the selected service's duration+buffer. Those two
+  // grids frequently don't align, so the exact clicked time often simply
+  // doesn't exist in the generated list at all, meaning nothing could
+  // ever match it to highlight. Insert it explicitly if missing, so the
+  // clicked time is always represented and selectable regardless of
+  // whether it falls on a "standard" slot boundary.
+  const preselected = document.getElementById('bm-time').value;
+  if (preselected && !slots.includes(preselected)) {
+    slots.push(preselected);
+    slots.sort();
+  }
+
   // Get existing bookings for this date from cache
   const bookings = getBookings().filter(b =>
     b.date === date && !['cancelled','noshow'].includes(b.status) && b.id !== editingBookingId
@@ -9611,6 +9626,9 @@ function renderFbFields() {
 let _fbDragFieldId = null;   // set when dragging an existing field card to reorder
 let _fbDragNewType = null;   // set when dragging a new field type in from the left palette
 let _fbDragGhost = null;     // the custom ghost element shown under the cursor
+let _fbActiveDropLineIndex = null; // currently-highlighted drop-line index, so repeat calls for the same index are a no-op instead of re-querying and re-toggling classes every time
+let _fbActiveDropLineEl = null;    // direct reference to the currently-active element, avoiding a full querySelectorAll sweep to find and clear it
+let _fbDragOverRaf = null;         // rAF handle used to collapse dragover's high-frequency firing down to at most once per animation frame
 
 const _fbPaletteTypeLabels = {
   section: 'Section Title', paragraph: 'General Text', divider: 'Divider Line',
@@ -9620,6 +9638,7 @@ const _fbPaletteTypeLabels = {
 };
 
 function _fbMakeGhost(labelText) {
+  _fbCleanupGhost(); // guarantee at most one ghost ever exists, regardless of whether the previous drag's dragend reliably fired
   const ghost = document.createElement('div');
   ghost.textContent = labelText;
   ghost.style.cssText = 'position:fixed;top:-1000px;left:-1000px;padding:10px 16px;background:var(--sage);color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none;opacity:.92;z-index:9999;white-space:nowrap;';
@@ -9662,6 +9681,7 @@ function fbPaletteDragEnd(e) {
   const btn = e.currentTarget;
   if (btn) btn.classList.remove('fb-palette-item-dragging');
   _fbCleanupGhost();
+  _fbClearDropLineState();
   // Don't clear _fbDragNewType here — the drop handler needs it; it's cleared after use
 }
 
@@ -9670,10 +9690,26 @@ function _fbCleanupGhost() {
   _fbDragGhost = null;
 }
 
+// Shared by both drag-end paths (existing-field reorder and new-field-from-palette)
+// so they can't drift out of sync with each other again — this exact gap (one
+// handler cleaning up this state, the other not) was the cause of state
+// accumulating across repeated drags whenever a drag ended without a
+// successful drop (released outside a valid target, which is a common,
+// ordinary thing to happen while dragging, not an edge case).
+function _fbClearDropLineState() {
+  if (_fbActiveDropLineEl) _fbActiveDropLineEl.classList.remove('active');
+  _fbActiveDropLineIndex = null;
+  _fbActiveDropLineEl = null;
+  if (_fbDragOverRaf) { cancelAnimationFrame(_fbDragOverRaf); _fbDragOverRaf = null; }
+}
+
 function _fbActivateDropLine(index) {
-  document.querySelectorAll('.fb-drop-line').forEach(el => el.classList.remove('active'));
+  if (index === _fbActiveDropLineIndex) return; // nothing actually changed — skip the DOM work entirely
+  if (_fbActiveDropLineEl) _fbActiveDropLineEl.classList.remove('active');
   const line = document.getElementById('fb-dropline-' + index);
   if (line) line.classList.add('active');
+  _fbActiveDropLineIndex = index;
+  _fbActiveDropLineEl = line || null;
 }
 
 function fbFieldDragOver(e) {
@@ -9681,10 +9717,15 @@ function fbFieldDragOver(e) {
   e.dataTransfer.dropEffect = _fbDragNewType ? 'copy' : 'move';
   const card = e.currentTarget;
   if (_fbDragFieldId && card.dataset.fieldId === _fbDragFieldId) return;
-  const rect = card.getBoundingClientRect();
-  const isAfter = (e.clientY - rect.top) > rect.height / 2;
-  const cardIdx = parseInt(card.dataset.index, 10);
-  _fbActivateDropLine(isAfter ? cardIdx + 1 : cardIdx);
+  const clientY = e.clientY;
+  if (_fbDragOverRaf) cancelAnimationFrame(_fbDragOverRaf);
+  _fbDragOverRaf = requestAnimationFrame(() => {
+    _fbDragOverRaf = null;
+    const rect = card.getBoundingClientRect();
+    const isAfter = (clientY - rect.top) > rect.height / 2;
+    const cardIdx = parseInt(card.dataset.index, 10);
+    _fbActivateDropLine(isAfter ? cardIdx + 1 : cardIdx);
+  });
 }
 
 function fbFieldDrop(e) {
@@ -9760,6 +9801,7 @@ function fbFieldDragEnd(e) {
   document.querySelectorAll('.fb-field').forEach(el => el.classList.remove('fb-field-dragging'));
   document.querySelectorAll('.fb-drop-line').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.fb-palette-item').forEach(el => el.classList.remove('fb-palette-item-dragging'));
+  _fbClearDropLineState();
 }
 
 // Shared default-field factory, used both by clicking a palette item and dragging one in
