@@ -7540,14 +7540,23 @@ function refreshAdminSlots() {
   const dayConfig = schedule[dayKey] || { active: true, start: '09:00', end: '17:00' };
   const dayIsActive = dayConfig.active === true || dayConfig.active === 'true' || dayConfig.active === undefined;
 
+  // Practitioner-only override — a day marked inactive still blocks the
+  // public booking page entirely (that's a separate, independent slot
+  // generator), but here it just means the practitioner needs to
+  // knowingly book outside their own normal hours, not that they can't
+  // book at all. Falls back to a generous default range since an
+  // inactive day's own start/end times aren't necessarily meaningful.
+  let rangeStart = dayConfig.start, rangeEnd = dayConfig.end;
   if (!dayIsActive) {
-    grid.innerHTML = '<div style="color:var(--ink-soft);font-size:12px;grid-column:1/-1">Practice is closed on this day</div>';
-    return;
+    if (!rangeStart || !rangeEnd) { rangeStart = '06:00'; rangeEnd = '21:00'; }
+    grid.dataset.overrideWarning = '1';
+  } else {
+    delete grid.dataset.overrideWarning;
   }
 
   // Generate slots
-  const [sh, sm] = dayConfig.start.split(':').map(Number);
-  const [eh, em] = dayConfig.end.split(':').map(Number);
+  const [sh, sm] = rangeStart.split(':').map(Number);
+  const [eh, em] = rangeEnd.split(':').map(Number);
   const slots = [];
   let cur = sh * 60 + sm;
   const end = eh * 60 + em;
@@ -7594,7 +7603,11 @@ function refreshAdminSlots() {
     return;
   }
 
-  grid.innerHTML = slots.map(t => {
+  const warningBanner = grid.dataset.overrideWarning
+    ? '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;background:var(--cal-orange-pale,#FBE7D2);color:var(--cal-orange,#C2491D);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:500;margin-bottom:4px">⚠ This day is marked unavailable in your working hours — clients can\'t book here, but you can.</div>'
+    : '';
+
+  grid.innerHTML = warningBanner + slots.map(t => {
     const blocked = isBlocked(t);
     const existing = blocked ? bookedBy(t) : null;
     const selected = t === selectedTime;
@@ -10684,10 +10697,10 @@ function renderWeekView() {
 
       var cellCls = 'cal-time-row';
       if (isAvail) cellCls += ' has-slot';
-      if (isAvail && !booking && !slotIsPast) cellCls += ' clickable-slot';
+      if (!booking && !slotIsPast) cellCls += ' clickable-slot';
       if (slotIsPast) cellCls += ' past-slot';
 
-      var clickAttr = (isAvail && !booking && !slotIsPast)
+      var clickAttr = (!booking && !slotIsPast)
         ? ' onclick="openNewBookingFromCal(\'' + dateStr + '\',\'' + slotTime + '\')"'
         : '';
 
