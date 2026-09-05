@@ -10738,9 +10738,10 @@ function startSlideoutResize(e) {
 // Set once the user manually drags the resize handle — from then on,
 // alignCalendarBottom() uses this instead of always recalculating from
 // scratch, since the whole point of dragging is to override the
-// automatic sizing. Reset to null (back to automatic) by reloading the
-// page; there was no request for this to persist across sessions.
-let _calManualHeight = null;
+// automatic sizing. Persisted to localStorage so it survives a page
+// refresh or switching weeks, not just held in memory for the current
+// page load.
+let _calManualHeight = DB.get('cal_manual_height');
 
 function calSetHeight() {
   var navIcon = document.getElementById('nav-settings');
@@ -10819,6 +10820,11 @@ function calEndResize() {
   document.body.style.userSelect = '';
   document.removeEventListener('pointermove', calDoResize);
   document.removeEventListener('pointerup', calEndResize);
+  // Persist only once, here, at the end of the drag — not on every
+  // intermediate pointermove in calDoResize, which fires dozens of times
+  // per second and would otherwise mean that many synchronous
+  // localStorage writes during a single drag gesture.
+  if (_calManualHeight != null) DB.set('cal_manual_height', _calManualHeight);
   // Only the header gutter alignment — genuinely does not touch height,
   // unlike the previous version which called the combined function and
   // immediately clamped the just-dragged height back down.
