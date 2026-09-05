@@ -10754,12 +10754,16 @@ function calSetHeight() {
 
   var finalHeight;
   if (_calManualHeight != null) {
-    // Respect the manual choice, but still clamp to whatever's actually
-    // available now — otherwise a manual resize made at a taller window
-    // size could visually overflow past the sidebar icon after the
-    // window shrinks. This only runs on window resize, not right after a
-    // drag ends, so it doesn't fight the drag itself.
-    finalHeight = Math.min(_calManualHeight, Math.max(200, available));
+    // Always respect the manual choice fully, with no clamp against the
+    // auto-calculated "available" space — the entire point of dragging is
+    // to be taller than that space allows. An earlier version clamped
+    // this down "to prevent overflow after the window shrinks", but that
+    // clamp ran on every render (initial load, week navigation, window
+    // resize) rather than only when the window had actually shrunk,
+    // which meant a restored or persisted height got immediately shrunk
+    // back down on the very next render, regardless of whether the
+    // window had changed size at all.
+    finalHeight = _calManualHeight;
   } else {
     finalHeight = Math.max(200, available);
   }
