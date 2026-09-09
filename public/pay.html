@@ -371,6 +371,7 @@ async function init() {
   try {
     var squareConfig = await apiFetch('/config/square-app-id');
     window.SQUARE_APP_ID = squareConfig.appId;
+    console.log('Square App ID loaded:', window.SQUARE_APP_ID);
   } catch(e) {
     console.warn('Could not load Square configuration:', e.message);
   }
@@ -453,6 +454,10 @@ function selectMethod(method) {
     payBtnLabel.textContent = 'Mark as Paid';
     var amount = getAmount();
     updateSquareLink(amount);
+    // Diagnostic — the actual link lives on a separate hidden <a> element,
+    // not this visible button, so print it directly rather than relying
+    // on finding and inspecting that hidden element in the DOM.
+    console.log('Square deep link generated:', document.getElementById('square-link').href);
     // Launch Square immediately
     document.getElementById('square-link').click();
   } else if (method === 'link') {
