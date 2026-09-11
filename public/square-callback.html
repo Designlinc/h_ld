@@ -48,12 +48,18 @@
 // wildcard support, which can't work per-subdomain across every
 // practitioner. Every Tap to Pay transaction across every practitioner
 // on the platform comes back through this single page, which then
-// forwards to the correct subdomain based on the booking ID.
+// forwards to the correct subdomain based on the booking ID — carried
+// here via a shared-domain cookie set by pay.html, not a query param,
+// since the callback URL itself must be the exact bare registered value.
 const ROOT_DOMAIN = 'h-ld.com';
 
 async function bounce() {
-  const params = new URLSearchParams(window.location.search);
-  const bookingId = params.get('payment');
+  // The booking ID now travels via a cookie set by pay.html (scoped to
+  // .h-ld.com, readable across subdomains), not a query param on this
+  // URL — the callback_url sent to Square must be the exact, bare
+  // registered URL with nothing appended to it.
+  const cookieMatch = document.cookie.match(/(?:^|;\s*)hld_pending_square_payment=([^;]+)/);
+  const bookingId = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
 
   if (!bookingId) {
     document.getElementById('loading').style.display = 'none';
@@ -66,9 +72,15 @@ async function bounce() {
     if (!res.ok) throw new Error('not found');
     const data = await res.json();
 
-    // Forward every original param (the booking ID plus whatever result
-    // data Square appended — transaction ID, error code, etc.) straight
-    // through to the real payment page on the correct subdomain.
+    // Clear the cookie now that it's served its purpose, so a future
+    // payment attempt doesn't accidentally pick up a stale value.
+    document.cookie = 'hld_pending_square_payment=; domain=.h-ld.com; path=/; max-age=0';
+
+    // Forward the booking ID plus whatever result params Square itself
+    // appended to this callback (transaction ID, error code, etc.)
+    // straight through to the real payment page on the correct subdomain.
+    const params = new URLSearchParams(window.location.search);
+    params.set('payment', bookingId);
     const target = 'https://' + data.subdomain + '.' + ROOT_DOMAIN + '/pay.html?' + params.toString();
     window.location.replace(target);
   } catch (e) {
