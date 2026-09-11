@@ -5502,8 +5502,18 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function pollBookings() {
-  // Don't fetch/redraw while a modal is open — avoids interrupting an active edit
+  // Don't fetch/redraw while a modal OR the note editor is open — avoids
+  // interrupting an active edit. The note editor uses a different overlay
+  // class (note-editor-overlay) than the modal-backdrop system, so it
+  // needs its own explicit check here — without this, session notes typed
+  // on a booking (opened from Dashboard/Bookings, where this poll runs)
+  // could be silently overwritten by this poll's fresh-from-server data
+  // if it fired before the note's own save had finished reaching the
+  // server, since loadBookings() below fully replaces the local copy
+  // rather than merging into it.
   if (document.querySelector('.modal-backdrop.open')) return;
+  if (document.getElementById('note-editor-overlay')?.classList.contains('open')) return;
+  if (_bookingSyncTimer) return; // a save is still pending/in-flight to the server — don't fetch a version that predates it
   // Only pages that actually display booking status need refreshing
   if (currentPage !== 'dashboard' && currentPage !== 'bookings') return;
 
