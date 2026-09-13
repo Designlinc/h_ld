@@ -3101,6 +3101,15 @@
               <button class="toggle on" onclick="this.classList.toggle('on')"></button>
             </div>
           </div>
+          <div class="toggle-row">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="toggle-label">New Appointments</div>
+              </div>
+              <div class="toggle-sub">Sent to you (not the client) whenever a new booking comes in through the public booking page</div>
+            </div>
+            <button class="toggle on" id="s-notify-new-appt" onclick="this.classList.toggle('on')"></button>
+          </div>
           <!-- Custom notification templates -->
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">Custom notifications can be sent manually from a booking or the clients page.</div>
@@ -8937,6 +8946,7 @@ function saveSettings() {
     abn: document.getElementById('s-abn').value,
     clickSendSender: document.getElementById('s-sms-sender').value,
     gstRegistered: document.getElementById('s-gst-registered').classList.contains('on'),
+    notifyNewAppointment: document.getElementById('s-notify-new-appt').classList.contains('on'),
     address: document.getElementById('s-address').value,
     logoUrl: document.getElementById('s-logo-url').value || null,
     daySchedule,
@@ -10169,6 +10179,7 @@ function loadSettingsUI() {
   if (s.clickSendSender) document.getElementById('s-sms-sender').value = s.clickSendSender;
   updateSmsSenderCount();
   document.getElementById('s-gst-registered').classList.toggle('on', !!s.gstRegistered);
+  document.getElementById('s-notify-new-appt').classList.toggle('on', s.notifyNewAppointment !== false);
   updateGstNote();
   if (s.pracTitle) document.getElementById('s-prac-title').value = s.pracTitle;
   if (s.address) document.getElementById('s-address').value = s.address;

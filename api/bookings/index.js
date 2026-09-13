@@ -134,6 +134,30 @@ async function sendConfirmations(booking, org) {
   }
 }
 
+// Notify the practitioner themselves (not the client) that a new booking
+// came in via the public booking page — separate from sendConfirmations
+// above, which is client-facing. Defaults to on (settings.notifyNewAppointment
+// !== false) so existing practitioners who haven't touched this new
+// setting yet still get notified, matching how the other notification
+// toggles in this section default to on in the UI.
+async function sendPractitionerNewBookingNotification(booking, org) {
+  const data = await loadSettingsAndTemplates(org.id);
+  const settings = data.app_settings || {};
+  if (settings.notifyNewAppointment === false) return;
+
+  const message = fillTemplate(
+    'You have a new appointment - {client_name}, {service}, {date}, {time}',
+    booking, settings, org
+  );
+
+  if (settings.phone) {
+    sendSms(settings.phone, message, org, settings).catch(e => console.warn('Practitioner SMS notification failed:', e.message));
+  }
+  if (settings.email) {
+    sendEmail(settings.email, 'New appointment booked', message, org, settings).catch(e => console.warn('Practitioner email notification failed:', e.message));
+  }
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'OPTIONS') return res.status(200).end();
@@ -202,6 +226,7 @@ export default async function handler(req, res) {
       `;
 
       sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message));
+      sendPractitionerNewBookingNotification(row, org).catch(e => console.warn('Practitioner notification failed:', e.message));
 
       return res.status(201).json(row);
     }
