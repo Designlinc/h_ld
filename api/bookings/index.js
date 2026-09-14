@@ -17,7 +17,18 @@ function fmtTime(t) {
 
 // Helper - format date to readable string
 function fmtDate(d) {
-  const raw = typeof d === 'string' ? d.slice(0,10) : d;
+  // Postgres DATE columns can come back as either a plain string or a JS
+  // Date object depending on the driver — concatenating a Date object
+  // with a string via + coerces it through .toString() first, producing
+  // something like "Tue Sep 15 2026 00:00:00 GMT+...T00:00:00" that
+  // new Date() can't parse at all, silently yielding "Invalid Date".
+  // Normalise both shapes to a plain YYYY-MM-DD string first. UTC getters
+  // specifically — a DATE column represents midnight UTC, so local
+  // getters could shift the date by a day depending on the server's
+  // timezone offset.
+  const raw = typeof d === 'string'
+    ? d.slice(0, 10)
+    : `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
   const dt = new Date(raw + 'T00:00:00');
   return dt.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long' });
 }
