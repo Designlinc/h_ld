@@ -144,21 +144,34 @@ async function sendConfirmations(booking, org) {
 async function sendPractitionerNewBookingNotification(booking, org) {
   const data = await loadSettingsAndTemplates(org.id);
   const settings = data.app_settings || {};
-  if (settings.notifyNewAppointment === false) return;
+  if (settings.notifyNewAppointment === false) {
+    console.log('[new-appt-notify] Skipped — notifyNewAppointment is explicitly false for org', org.id);
+    return;
+  }
 
   const templates = data.msg_templates || {};
   const tmpl = templates.new_appointment || {};
   const defaultMsg = 'You have a new appointment - {client_name}, {service}, {date}, {time}';
   const channels = tmpl.channels || { email: true, sms: true };
 
+  console.log('[new-appt-notify] org', org.id, '— phone set:', !!settings.phone, '— email set:', !!settings.email, '— sms channel:', channels.sms, '— email channel:', channels.email);
+
   if (channels.sms !== false && settings.phone) {
     const smsMsg = fillTemplate(tmpl.sms || defaultMsg, booking, settings, org);
-    sendSms(settings.phone, smsMsg, org, settings).catch(e => console.warn('Practitioner SMS notification failed:', e.message));
+    sendSms(settings.phone, smsMsg, org, settings)
+      .then(() => console.log('[new-appt-notify] SMS sent to practitioner for org', org.id))
+      .catch(e => console.warn('[new-appt-notify] SMS failed:', e.message));
+  } else if (!settings.phone) {
+    console.log('[new-appt-notify] Skipped SMS — no phone number set in practitioner settings for org', org.id);
   }
   if (channels.email !== false && settings.email) {
     const emailSubject = fillTemplate(tmpl.email?.subject || 'New appointment booked', booking, settings, org);
     const emailBody = fillTemplate(tmpl.email?.body || defaultMsg, booking, settings, org);
-    sendEmail(settings.email, emailSubject, emailBody, org, settings).catch(e => console.warn('Practitioner email notification failed:', e.message));
+    sendEmail(settings.email, emailSubject, emailBody, org, settings)
+      .then(() => console.log('[new-appt-notify] Email sent to practitioner for org', org.id))
+      .catch(e => console.warn('[new-appt-notify] Email failed:', e.message));
+  } else if (!settings.email) {
+    console.log('[new-appt-notify] Skipped email — no email address set in practitioner settings for org', org.id);
   }
 }
 
