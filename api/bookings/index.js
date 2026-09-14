@@ -136,25 +136,29 @@ async function sendConfirmations(booking, org) {
 
 // Notify the practitioner themselves (not the client) that a new booking
 // came in via the public booking page — separate from sendConfirmations
-// above, which is client-facing. Defaults to on (settings.notifyNewAppointment
-// !== false) so existing practitioners who haven't touched this new
-// setting yet still get notified, matching how the other notification
-// toggles in this section default to on in the UI.
+// above, which is client-facing. The master on/off (settings.notifyNewAppointment)
+// and the editable template (templates.new_appointment, including its own
+// per-channel email/sms toggles) both default to on, so existing
+// practitioners who haven't touched either yet still get notified via
+// both channels with the original message wording.
 async function sendPractitionerNewBookingNotification(booking, org) {
   const data = await loadSettingsAndTemplates(org.id);
   const settings = data.app_settings || {};
   if (settings.notifyNewAppointment === false) return;
 
-  const message = fillTemplate(
-    'You have a new appointment - {client_name}, {service}, {date}, {time}',
-    booking, settings, org
-  );
+  const templates = data.msg_templates || {};
+  const tmpl = templates.new_appointment || {};
+  const defaultMsg = 'You have a new appointment - {client_name}, {service}, {date}, {time}';
+  const channels = tmpl.channels || { email: true, sms: true };
 
-  if (settings.phone) {
-    sendSms(settings.phone, message, org, settings).catch(e => console.warn('Practitioner SMS notification failed:', e.message));
+  if (channels.sms !== false && settings.phone) {
+    const smsMsg = fillTemplate(tmpl.sms || defaultMsg, booking, settings, org);
+    sendSms(settings.phone, smsMsg, org, settings).catch(e => console.warn('Practitioner SMS notification failed:', e.message));
   }
-  if (settings.email) {
-    sendEmail(settings.email, 'New appointment booked', message, org, settings).catch(e => console.warn('Practitioner email notification failed:', e.message));
+  if (channels.email !== false && settings.email) {
+    const emailSubject = fillTemplate(tmpl.email?.subject || 'New appointment booked', booking, settings, org);
+    const emailBody = fillTemplate(tmpl.email?.body || defaultMsg, booking, settings, org);
+    sendEmail(settings.email, emailSubject, emailBody, org, settings).catch(e => console.warn('Practitioner email notification failed:', e.message));
   }
 }
 

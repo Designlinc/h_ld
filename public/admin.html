@@ -3105,10 +3105,17 @@
             <div>
               <div style="display:flex;align-items:center;gap:8px">
                 <div class="toggle-label">New Appointments</div>
+                <div id="notif-icons-new_appointment" class="notif-channel-icons"></div>
               </div>
               <div class="toggle-sub">Sent to you (not the client) whenever a new booking comes in through the public booking page</div>
             </div>
-            <button class="toggle on" id="s-notify-new-appt" onclick="this.classList.toggle('on')"></button>
+            <div style="display:flex;align-items:center;gap:10px">
+              <button class="tmpl-edit-btn" onclick="openTemplateModal('new_appointment')" title="Edit message template">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </button>
+              <button class="toggle on" id="s-notify-new-appt" onclick="this.classList.toggle('on')"></button>
+            </div>
           </div>
           <!-- Custom notification templates -->
           <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
@@ -11599,6 +11606,10 @@ const TMPL_TYPES = {
     label: 'Cancellation Notice',
     sub: 'Sent automatically when a booking is cancelled by the practitioner',
   },
+  new_appointment: {
+    label: 'New Appointment (to you)',
+    sub: 'Sent to you — not the client — whenever a new booking comes in through the public booking page',
+  },
 };
 
 function defaultTemplates() {
@@ -11630,6 +11641,14 @@ function defaultTemplates() {
         body: 'Hi {client_name},\n\nWe\'re sorry to let you know that your {service} appointment on {date} at {time} has been cancelled.\n\nPlease contact us to reschedule at your earliest convenience.\n\nWe apologise for any inconvenience.\n\nKind regards,\n{practitioner}\n{business_name}',
       },
       sms: 'Hi {client_name}, your {service} appointment on {date} at {time} has been cancelled by {business_name}. Please contact us to reschedule.',
+      channels: { email: true, sms: true },
+    },
+    new_appointment: {
+      email: {
+        subject: 'New appointment booked',
+        body: 'You have a new appointment - {client_name}, {service}, {date}, {time}',
+      },
+      sms: 'You have a new appointment - {client_name}, {service}, {date}, {time}',
       channels: { email: true, sms: true },
     },
   };
@@ -11847,7 +11866,7 @@ function renderNotifIcons(type, emailOn, smsOn) {
 function loadNotifIcons() {
   const templates = getTemplates();
   const defaults = defaultTemplates();
-  ['confirmation','reminder','followup','cancellation'].forEach(function(type) {
+  ['confirmation','reminder','followup','cancellation','new_appointment'].forEach(function(type) {
     const t = { ...(defaults[type] || {}), ...(templates[type] || {}) };
     const emailOn = t.channels ? t.channels.email : true;
     const smsOn   = t.channels ? t.channels.sms   : (type === 'cancellation');
