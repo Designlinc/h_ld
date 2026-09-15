@@ -3,6 +3,7 @@ import sql from '../../lib/db.js';
 import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
 import { renderEmail } from '../../lib/emailTemplate.js';
+import { buildPractitionerEmailHtml } from '../../lib/practitionerEmailTemplate.js';
 import { generateInvoiceForBooking } from '../../lib/invoices.js';
 import { sanitizeSenderId, normalizePhoneAU } from '../../lib/sms.js';
 
@@ -89,7 +90,33 @@ async function sendSms(phone, message, org, settings) {
 // practitioner's real inbox so hitting "reply" still reaches them directly.
 // `settings.emailFrom` remains a manual override for anyone who's set up
 // their own verified sending domain.
-async function sendEmail(to, subject, text, org, settings) {
+// Client-facing email — uses the PRACTITIONER'S OWN branding (their logo,
+// business name, colors), not h_ld's. This is a direct port of admin.html's
+// buildEmailHtml(), which previously only ran client-side when a
+// practitioner created a booking from the admin panel — bookings created
+// via the public booking page had no way to reach that logic at all,
+// silently falling back to h_ld's own system-email template instead.
+async function sendClientEmail(to, subject, text, org, settings) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !to) return;
+
+  const senderName = settings?.bizName || settings?.pracName || org.name;
+  const from = settings?.emailFrom || `${senderName} <bookings@h-ld.com>`;
+  const replyTo = settings?.email || undefined;
+
+  const html = buildPractitionerEmailHtml(text, settings, org);
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ from, to, subject, text, html, reply_to: replyTo }),
+  });
+}
+
+// Practitioner-facing email — uses h_ld's OWN branding (renderEmail from
+// lib/emailTemplate.js), which is what that template was actually built
+// for: h_ld notifying a practitioner about their own system, not a
+// client-facing message that should carry the practitioner's brand.
+async function sendPractitionerEmail(to, subject, text, org, settings) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey || !to) return;
 
@@ -102,16 +129,6 @@ async function sendEmail(to, subject, text, org, settings) {
     ${text.split('\n').map(line => {
       const t = line.trim();
       if (!t) return '';
-      if (t.startsWith('https://') && t.includes('/intake.html')) {
-        return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#D84148;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px">Complete Intake Form</a></div>`;
-      }
-      if (t.startsWith('https://') && t.includes('/api/calendar/ics')) {
-        return `<div style="margin:16px 0;text-align:center"><a href="${t}" style="display:inline-block;background:#fff;color:#D84148;text-decoration:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:14px;border:1.5px solid #D84148">Add to Calendar</a></div>`;
-      }
-      const locationMatch = t.match(/^Location:\s*(https?:\/\/\S+)\s*$/i);
-      if (locationMatch) {
-        return `<p style="margin:6px 0;font-size:15px;line-height:1.6;color:#231F20">Location: <a href="${locationMatch[1]}" style="color:#D84148;text-decoration:underline">${locationMatch[1]}</a></p>`;
-      }
       return `<p style="margin:6px 0;font-size:15px;line-height:1.6;color:#231F20">${t}</p>`;
     }).join('')}
   `;
@@ -141,7 +158,7 @@ async function sendConfirmations(booking, org) {
   if (booking.client_email && confirmation.email?.body) {
     const emailBody = fillTemplate(confirmation.email.body, booking, settings, org);
     const emailSubject = fillTemplate(confirmation.email.subject || 'Booking Confirmed', booking, settings, org);
-    sendEmail(booking.client_email, emailSubject, emailBody, org, settings).catch(e => console.warn('Email failed:', e.message));
+    sendClientEmail(booking.client_email, emailSubject, emailBody, org, settings).catch(e => console.warn('Email failed:', e.message));
   }
 }
 
@@ -178,7 +195,7 @@ async function sendPractitionerNewBookingNotification(booking, org) {
   if (channels.email !== false && settings.email) {
     const emailSubject = fillTemplate(tmpl.email?.subject || 'New appointment booked', booking, settings, org);
     const emailBody = fillTemplate(tmpl.email?.body || defaultMsg, booking, settings, org);
-    sendEmail(settings.email, emailSubject, emailBody, org, settings)
+    sendPractitionerEmail(settings.email, emailSubject, emailBody, org, settings)
       .then(() => console.log('[new-appt-notify] Email sent to practitioner for org', org.id))
       .catch(e => console.warn('[new-appt-notify] Email failed:', e.message));
   } else if (!settings.email) {
