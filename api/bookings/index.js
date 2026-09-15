@@ -1,4 +1,5 @@
 // api/bookings/index.js - GET all, POST create, PUT bulk sync
+import { waitUntil } from '@vercel/functions';
 import sql from '../../lib/db.js';
 import { requireAuth, verifyToken } from '../../lib/auth.js';
 import { requireOrg } from '../../lib/tenant.js';
@@ -270,15 +271,18 @@ export default async function handler(req, res) {
         RETURNING *
       `;
 
-      // Awaited, not fire-and-forget — once the response is sent, Vercel
-      // can freeze the function almost immediately, which can silently
-      // kill any async work that hasn't actually finished yet. Errors are
-      // still caught individually so one failing doesn't block the other
-      // or delay the booking response by much longer than either takes.
-      await Promise.allSettled([
+      // waitUntil (not a blocking await, not plain fire-and-forget) is
+      // Vercel's own mechanism for exactly this situation: the response
+      // goes back to the client immediately — important here, since the
+      // public booking page fires a separate /calendar/sync request right
+      // after this one completes, and an artificially slower response was
+      // found to be delaying that — while Vercel still guarantees this
+      // background work actually finishes before the function is torn
+      // down, unlike genuine fire-and-forget which had no such guarantee.
+      waitUntil(Promise.allSettled([
         sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message)),
         sendPractitionerNewBookingNotification(row, org).catch(e => console.warn('Practitioner notification failed:', e.message)),
-      ]);
+      ]));
 
       return res.status(201).json(row);
     }
