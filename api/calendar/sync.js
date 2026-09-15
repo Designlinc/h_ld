@@ -10,6 +10,37 @@ import { getValidGoogleToken } from '../../lib/googleCalendar.js';
 import { getValidMicrosoftToken } from '../../lib/microsoftCalendar.js';
 import { syncBookingToProvider } from '../../lib/calendarSync.js';
 
+// Deletes one event from one provider — shared by both DELETE paths below.
+async function deleteFromProvider(provider, eventId, practitionerId) {
+  try {
+    if (provider === 'microsoft') {
+      const accessToken = await getValidMicrosoftToken(practitionerId);
+      const msRes = await fetch(`https://graph.microsoft.com/v1.0/me/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!msRes.ok && msRes.status !== 404) {
+        const errText = await msRes.text().catch(() => '');
+        throw new Error(`Microsoft Calendar delete failed (${msRes.status}): ${errText}`);
+      }
+    } else {
+      const accessToken = await getValidGoogleToken(practitionerId);
+      const gcRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!gcRes.ok && gcRes.status !== 404 && gcRes.status !== 410) {
+        const errText = await gcRes.text().catch(() => '');
+        throw new Error(`Google Calendar delete failed (${gcRes.status}): ${errText}`);
+      }
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error(`Calendar delete error (${provider}):`, err);
+    return { ok: false, error: err.message };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -19,47 +50,35 @@ export default async function handler(req, res) {
   if (!auth) return;
 
   if (req.method === 'DELETE') {
-    // Removes a calendar event directly by ID — used when a booking is
-    // cancelled. Takes eventId/practitionerId/provider directly rather
-    // than a bookingId lookup because by the time this runs the booking
-    // row may already be gone. provider defaults to google for backward
-    // compatibility with any existing call sites that predate Microsoft
-    // support and only ever pass eventId/practitionerId.
-    const { eventId, practitionerId, provider = 'google' } = req.body || {};
-    if (!eventId) return res.status(400).json({ error: 'Missing eventId' });
-    try {
-      const pid = practitionerId || auth.practitioner_id;
-      if (provider === 'microsoft') {
-        const accessToken = await getValidMicrosoftToken(pid);
-        const msRes = await fetch(`https://graph.microsoft.com/v1.0/me/events/${eventId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        // 404 means it was already deleted (e.g. removed manually in
-        // Outlook) — treat that the same as a successful delete.
-        if (!msRes.ok && msRes.status !== 404) {
-          const errText = await msRes.text().catch(() => '');
-          throw new Error(`Microsoft Calendar delete failed (${msRes.status}): ${errText}`);
-        }
-      } else {
-        const accessToken = await getValidGoogleToken(pid);
-        const gcRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        // 410 Gone means it was already deleted (e.g. removed manually in
-        // Google Calendar) — treat that the same as a successful delete
-        // rather than surfacing it as an error.
-        if (!gcRes.ok && gcRes.status !== 404 && gcRes.status !== 410) {
-          const errText = await gcRes.text().catch(() => '');
-          throw new Error(`Google Calendar delete failed (${gcRes.status}): ${errText}`);
-        }
-      }
-      return res.json({ ok: true });
-    } catch (err) {
-      console.error('Calendar delete error:', err);
-      return res.status(500).json({ error: err.message });
+    const { bookingId, eventId, practitionerId, provider = 'google' } = req.body || {};
+
+    // Preferred path — looks up the booking's CURRENT event IDs directly
+    // from the database at this exact moment, rather than trusting
+    // whatever the caller's local cache happened to have. That cache is
+    // populated once when bookings load and isn't guaranteed current —
+    // if it was read before an earlier sync finished, or if a prior sync
+    // attempt's stale-event recovery had created a replacement event and
+    // updated the stored ID, a value handed over directly here could
+    // point at the wrong event (or a since-replaced one), leaving the
+    // real, currently-visible event on the calendar untouched.
+    if (bookingId) {
+      const [b] = await sql`SELECT * FROM bookings WHERE id = ${bookingId} AND organization_id = ${org.id}`;
+      if (!b) return res.json({ ok: true }); // already gone — nothing to delete
+      const pid = b.practitioner_id || auth.practitioner_id;
+      const results = {};
+      if (b.google_event_id) results.google = await deleteFromProvider('google', b.google_event_id, pid);
+      if (b.microsoft_event_id) results.microsoft = await deleteFromProvider('microsoft', b.microsoft_event_id, pid);
+      return res.json({ ok: true, results });
     }
+
+    // Fallback — direct eventId/practitionerId/provider, for any call
+    // site without a bookingId available (e.g. the booking row is
+    // already confirmed gone by the time this runs).
+    if (!eventId) return res.status(400).json({ error: 'Missing eventId or bookingId' });
+    const pid = practitionerId || auth.practitioner_id;
+    const result = await deleteFromProvider(provider, eventId, pid);
+    if (!result.ok) return res.status(500).json({ error: result.error });
+    return res.json({ ok: true });
   }
 
   if (req.method !== 'POST') return res.status(405).end();

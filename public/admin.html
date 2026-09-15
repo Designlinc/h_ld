@@ -6744,42 +6744,34 @@ function closeAllNoteTabsAndSave() {
   if (frame) frame.src = '';
 }
 
-function updateStatus(id, status) {
+async function updateStatus(id, status) {
   const bookings = getBookings();
   const b = bookings.find(x => x.id === id);
   if (b) {
     if (status === 'cancelled') {
       // Send cancellation notification before removing
       sendCancellationNotification(b);
-      // Diagnostic — confirms whether this booking's locally-cached copy
-      // actually has the event IDs the server set after the original
-      // sync completed, since this data is captured once when bookings
-      // are loaded/polled and could be stale by the time cancellation
-      // happens.
-      console.log('[cancel-calendar-delete] googleEventId:', b.googleEventId, '— microsoftEventId:', b.microsoftEventId, '— google connected:', getConnected().google, '— microsoft connected:', getConnected().microsoft);
-      // Remove the Google Calendar event too, if this booking was ever
-      // synced — capture the event/practitioner IDs now, since the booking
-      // row itself (and its google_event_id) is about to be deleted below,
-      // not just marked cancelled.
-      if (b.googleEventId && getConnected().google) {
-        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.googleEventId, practitionerId: b.practitionerId, provider: 'google' }) })
-          .then(() => { console.log('[cancel-calendar-delete] Google delete succeeded'); toast('Removed from Google Calendar', 'success'); })
-          .catch(err => {
-            console.warn('[cancel-calendar-delete] Google delete failed:', err.message);
-            toast('Booking cancelled, but could not remove it from Google Calendar: ' + err.message, 'error');
-          });
-      } else if (!b.googleEventId) {
-        console.log('[cancel-calendar-delete] Skipped Google delete — this booking has no googleEventId in the local cache');
-      }
-      if (b.microsoftEventId && getConnected().microsoft) {
-        apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ eventId: b.microsoftEventId, practitionerId: b.practitionerId, provider: 'microsoft' }) })
-          .then(() => { console.log('[cancel-calendar-delete] Microsoft delete succeeded'); toast('Removed from Microsoft Calendar', 'success'); })
-          .catch(err => {
-            console.warn('[cancel-calendar-delete] Microsoft delete failed:', err.message);
-            toast('Booking cancelled, but could not remove it from Microsoft Calendar: ' + err.message, 'error');
-          });
-      } else if (!b.microsoftEventId) {
-        console.log('[cancel-calendar-delete] Skipped Microsoft delete — this booking has no microsoftEventId in the local cache');
+      // Awaited, and passes the booking ID rather than this cached
+      // copy's googleEventId/microsoftEventId directly — the backend
+      // looks up the CURRENT event IDs from the database itself, rather
+      // than trusting whatever this local cache happened to have (which
+      // is only ever as fresh as the last load/poll, and isn't
+      // guaranteed to reflect a sync that completed after that). Awaiting
+      // this also closes a race against the bookings sync a few lines
+      // below, which is what actually causes this row to disappear from
+      // the database — without waiting here first, that sync could
+      // complete before the calendar delete even got a chance to look
+      // the booking up.
+      try {
+        const result = await apiFetch('/calendar/sync', { method: 'DELETE', body: JSON.stringify({ bookingId: id }) });
+        const results = result?.results || {};
+        if (results.google?.ok) toast('Removed from Google Calendar', 'success');
+        if (results.google && !results.google.ok) toast('Booking cancelled, but could not remove it from Google Calendar: ' + results.google.error, 'error');
+        if (results.microsoft?.ok) toast('Removed from Microsoft Calendar', 'success');
+        if (results.microsoft && !results.microsoft.ok) toast('Booking cancelled, but could not remove it from Microsoft Calendar: ' + results.microsoft.error, 'error');
+      } catch (err) {
+        console.warn('Calendar delete failed:', err.message);
+        toast('Booking cancelled, but could not remove it from your calendar: ' + err.message, 'error');
       }
       // Remove from bookings entirely rather than just marking cancelled
       const idx = bookings.indexOf(b);
