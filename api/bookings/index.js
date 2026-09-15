@@ -253,8 +253,15 @@ export default async function handler(req, res) {
         RETURNING *
       `;
 
-      sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message));
-      sendPractitionerNewBookingNotification(row, org).catch(e => console.warn('Practitioner notification failed:', e.message));
+      // Awaited, not fire-and-forget — once the response is sent, Vercel
+      // can freeze the function almost immediately, which can silently
+      // kill any async work that hasn't actually finished yet. Errors are
+      // still caught individually so one failing doesn't block the other
+      // or delay the booking response by much longer than either takes.
+      await Promise.allSettled([
+        sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message)),
+        sendPractitionerNewBookingNotification(row, org).catch(e => console.warn('Practitioner notification failed:', e.message)),
+      ]);
 
       return res.status(201).json(row);
     }
