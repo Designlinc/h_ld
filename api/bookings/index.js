@@ -7,6 +7,7 @@ import { renderEmail } from '../../lib/emailTemplate.js';
 import { buildPractitionerEmailHtml } from '../../lib/practitionerEmailTemplate.js';
 import { generateInvoiceForBooking } from '../../lib/invoices.js';
 import { sanitizeSenderId, normalizePhoneAU } from '../../lib/sms.js';
+import { syncBookingToProvider } from '../../lib/calendarSync.js';
 
 // Helper - format time to 12hr
 function fmtTime(t) {
@@ -70,13 +71,27 @@ async function loadSettingsAndTemplates(orgId) {
 
 // Send SMS via ClickSend — sender name comes from this org's settings, not
 // a hardcoded brand, falling back to the org's own name if unset.
+// Retries once on a network-level failure ("fetch failed" is Node's
+// generic error for this — DNS hiccup, connection reset, brief outage)
+// before giving up. Doesn't retry on the request actually completing
+// with an error status — only on the request failing to complete at all.
+async function fetchWithRetry(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    console.warn(`Fetch to ${url} failed, retrying once:`, err.message);
+    await new Promise(r => setTimeout(r, 500));
+    return fetch(url, options);
+  }
+}
+
 async function sendSms(phone, message, org, settings) {
   const username = process.env.CLICKSEND_USERNAME;
   const apiKey   = process.env.CLICKSEND_API_KEY;
   const sender   = sanitizeSenderId(settings?.clickSendSender || org.name);
   if (!username || !apiKey || !phone) return;
   const credentials = Buffer.from(`${username}:${apiKey}`).toString('base64');
-  await fetch('https://rest.clicksend.com/v3/sms/send', {
+  await fetchWithRetry('https://rest.clicksend.com/v3/sms/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${credentials}` },
     body: JSON.stringify({ messages: [{ to: normalizePhoneAU(phone), body: message, from: sender, source: 'h_ld' }] }),
@@ -106,7 +121,7 @@ async function sendClientEmail(to, subject, text, org, settings) {
   const replyTo = settings?.email || undefined;
 
   const html = buildPractitionerEmailHtml(text, settings, org);
-  await fetch('https://api.resend.com/emails', {
+  await fetchWithRetry('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ from, to, subject, text, html, reply_to: replyTo }),
@@ -135,7 +150,7 @@ async function sendPractitionerEmail(to, subject, text, org, settings) {
   `;
 
   const html = renderEmail({ bodyHtml, footerText: org.name });
-  await fetch('https://api.resend.com/emails', {
+  await fetchWithRetry('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ from, to, subject, text, html, reply_to: replyTo }),
@@ -170,6 +185,36 @@ async function sendConfirmations(booking, org) {
 // per-channel email/sms toggles) both default to on, so existing
 // practitioners who haven't touched either yet still get notified via
 // both channels with the original message wording.
+// Syncs a new booking to whichever calendar provider(s) the practitioner
+// has connected — called directly, server-side, rather than relying on
+// the public booking page making a separate HTTP request to
+// /api/calendar/sync afterward. That endpoint requires requireAuth (a
+// logged-in practitioner's token), which a client on the public booking
+// page never has — meaning that separate request was failing with 401
+// every single time, regardless of whether a calendar was actually
+// connected or working correctly. Calling the same shared sync function
+// directly here, from code that already runs fully server-side with no
+// client auth involved at all, sidesteps that entirely.
+async function syncNewBookingToCalendar(booking, org) {
+  const practitionerId = booking.practitioner_id || null;
+  if (!practitionerId) {
+    console.log('[calendar-sync] Skipped — booking has no practitioner_id for org', org.id);
+    return;
+  }
+  const connectedProviders = await sql`
+    SELECT provider FROM oauth_tokens WHERE practitioner_id = ${practitionerId} AND provider IN ('google', 'microsoft')
+  `;
+  if (!connectedProviders.length) {
+    console.log('[calendar-sync] Skipped — no calendar connected for practitioner', practitionerId);
+    return;
+  }
+  for (const { provider } of connectedProviders) {
+    const result = await syncBookingToProvider(booking, provider, practitionerId, org);
+    if (result.ok) console.log(`[calendar-sync] Synced to ${provider} for booking`, booking.id);
+    else console.warn(`[calendar-sync] Failed to sync to ${provider} for booking`, booking.id, '—', result.error);
+  }
+}
+
 async function sendPractitionerNewBookingNotification(booking, org) {
   const data = await loadSettingsAndTemplates(org.id);
   const settings = data.app_settings || {};
@@ -273,15 +318,14 @@ export default async function handler(req, res) {
 
       // waitUntil (not a blocking await, not plain fire-and-forget) is
       // Vercel's own mechanism for exactly this situation: the response
-      // goes back to the client immediately — important here, since the
-      // public booking page fires a separate /calendar/sync request right
-      // after this one completes, and an artificially slower response was
-      // found to be delaying that — while Vercel still guarantees this
-      // background work actually finishes before the function is torn
-      // down, unlike genuine fire-and-forget which had no such guarantee.
+      // goes back to the client immediately, while Vercel still
+      // guarantees this background work actually finishes before the
+      // function is torn down, unlike genuine fire-and-forget which had
+      // no such guarantee.
       waitUntil(Promise.allSettled([
         sendConfirmations(row, org).catch(e => console.warn('Confirmations failed:', e.message)),
         sendPractitionerNewBookingNotification(row, org).catch(e => console.warn('Practitioner notification failed:', e.message)),
+        syncNewBookingToCalendar(row, org).catch(e => console.warn('Calendar sync failed:', e.message)),
       ]));
 
       return res.status(201).json(row);

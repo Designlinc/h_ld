@@ -1446,8 +1446,12 @@ async function confirmBooking() {
   try {
     await apiFetch('/bookings', { method: 'POST', body: JSON.stringify(booking) });
     state.bookingId = id;
-    // Sync to Google Calendar (fire and forget)
-    apiFetch('/calendar/sync', { method: 'POST', body: JSON.stringify({ bookingId: id }) }).catch(() => {});
+    // Calendar sync now happens automatically, server-side, as part of
+    // booking creation above — this used to make a separate client-side
+    // request here, but that request required practitioner
+    // authentication a public-page client never has, so it silently
+    // failed with 401 every single time regardless of whether a calendar
+    // was actually connected.
 
     // Check if deposit required
     const depositPct = parseFloat(s.deposit) || 0;
