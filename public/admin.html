@@ -10375,30 +10375,52 @@ function renderCalConnectedList() {
   el.innerHTML = html;
 }
 
-// Re-pushes every upcoming appointment to a specific connected provider —
-// for recovering from a calendar that's drifted out of sync more broadly
-// than one appointment (e.g. after reconnecting an account).
+// Fully reconciles one connected calendar in both directions: re-pushes
+// every upcoming appointment TO the provider (recovering from a calendar
+// that's drifted out of sync more broadly than one appointment, e.g. after
+// reconnecting an account), and pulls the practitioner's own native-
+// calendar events back INTO h_ld's cache (rather than waiting for the
+// once-daily cron job — see lib/calendarSync.js's
+// syncExternalCalendarForPractitioner, shared by both this button and
+// that cron job). The two directions are independent — if the pull half
+// fails (e.g. a token needing reconnect), that must never hide whether
+// the push half — the direction this button has always covered — actually
+// succeeded, so its own failure is caught and reported separately rather
+// than rejecting the whole click.
 async function syncAllBookings(provider) {
   const btn = document.getElementById('cal-syncall-btn-' + provider);
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Syncing…';
   try {
-    const data = await apiFetch('/calendar/sync-all', { method: 'POST', body: JSON.stringify({ provider }) });
+    const [data, pullResult] = await Promise.all([
+      apiFetch('/calendar/sync-all', { method: 'POST', body: JSON.stringify({ provider }) }),
+      apiFetch('/calendar/sync-external', { method: 'POST', body: JSON.stringify({ provider }) })
+        .catch(err => { console.warn('External calendar pull failed:', err.message); return { ok: false, error: err.message }; }),
+    ]);
     const providerName = provider === 'google' ? 'Google Calendar' : 'Microsoft Calendar';
+    const pulledSuffix = pullResult.ok
+      ? ` · pulled in ${pullResult.count} external event${pullResult.count === 1 ? '' : 's'}`
+      : '';
     if (data.total === 0) {
-      toast('No upcoming appointments to sync', '');
+      toast('No upcoming appointments to push' + pulledSuffix, '');
     } else if (data.failed === 0) {
-      toast(`Synced ${data.succeeded} appointment${data.succeeded === 1 ? '' : 's'} to ${providerName} — links in console`, 'success');
+      toast(`Synced ${data.succeeded} appointment${data.succeeded === 1 ? '' : 's'} to ${providerName}${pulledSuffix} — links in console`, 'success');
     } else {
       toast(`Synced ${data.succeeded} of ${data.total} — ${data.failed} failed (see console for details)`, 'error');
       console.warn('Sync failures:', data.failures);
     }
+    if (!pullResult.ok) console.warn('External calendar pull failed:', pullResult.error);
     // Direct links to each event as recorded by the provider — click to
     // verify definitively whether/where each one actually exists.
     (data.successes || []).forEach(s => {
       if (s.webLink) console.log(`${s.client}:`, s.webLink);
     });
+    // Refresh the cached external events so the calendar page reflects
+    // this pull next time it's viewed, without forcing a render here —
+    // this button lives on the Settings page, where the calendar's own
+    // DOM isn't present to render into.
+    if (pullResult.ok) await loadExternalEvents();
   } catch (err) {
     toast('Sync failed: ' + err.message, 'error');
   } finally {
