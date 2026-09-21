@@ -257,14 +257,7 @@
   }
   .btn-today:hover { background: #F5D2A8; border-color: rgba(194,73,29,.45); box-shadow: 0 3px 10px rgba(194,73,29,.2); }
   .btn-today:active { background: #EFC28A; transform: scale(.96); box-shadow: none; }
-  .btn-sync {
-    background: var(--cal-orange-pale);
-    color: var(--ink);
-    border: 1px solid rgba(194,73,29,.22);
-  }
-  .btn-sync:hover { background: #F5D2A8; border-color: rgba(194,73,29,.45); box-shadow: 0 3px 10px rgba(194,73,29,.2); }
-  .btn-sync:active { background: #EFC28A; transform: scale(.97); box-shadow: none; }
-  .btn-sync:disabled { opacity: .6; cursor: default; }
+  .btn-today:disabled { opacity: .6; cursor: default; }
   .btn svg { width: 18px; height: 18px; }
 
   /* ── STAT CARDS ── */
@@ -2540,8 +2533,8 @@
               <button class="view-toggle-btn wide active" id="cal-view-week" onclick="setCalView('week')" title="Week view" style="font-size:13px">Week</button>
               <button class="view-toggle-btn wide" id="cal-view-month" onclick="setCalView('month')" title="Month view" style="font-size:13px">Month</button>
             </div>
-            <button class="btn btn-sync" id="cal-external-sync-btn" onclick="syncCalendarPageExternalEvents()" title="Pull in the latest appointments from your connected calendar(s)" style="margin-left:auto">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.6v-2a4 4 0 0 1 4-4h14"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.4v2a4 4 0 0 1-4 4H3"/></svg>
+            <button class="btn btn-today" id="cal-external-sync-btn" onclick="syncCalendarPageExternalEvents()" title="Pull in the latest appointments from your connected calendar(s)" style="margin-left:auto;gap:6px">
+              <svg viewBox="0 0 21.31 22.12" fill="currentColor" width="13" height="13"><path d="M5.94,6.73c1.01-1.02,2.36-1.57,3.8-1.57,1,0,1.95.29,2.78.79-.37-.02-.73.23-.79.61-.07.41.21.79.61.86l2.51.43s.08.01.12.01c.2,0,.39-.08.53-.22.17-.17.25-.42.21-.65l-.43-2.51c-.07-.41-.46-.68-.86-.61-.41.07-.68.46-.61.86l.06.33c-1.18-.9-2.62-1.39-4.13-1.39-1.83,0-3.56.71-4.86,2.01-1.92,1.92-2.53,4.8-1.55,7.34.11.3.4.48.7.48.09,0,.18-.02.27-.05.39-.15.58-.58.43-.97-.77-1.98-.29-4.24,1.21-5.74Z"/><path d="M17.29,9.45c-.15-.39-.58-.58-.97-.43-.39.15-.58.58-.43.97.77,1.98.29,4.24-1.21,5.74-1.01,1.01-2.36,1.57-3.8,1.57-1,0-1.95-.29-2.78-.79.38.03.73-.23.79-.61.07-.41-.21-.79-.61-.86l-2.51-.43c-.24-.05-.48.04-.65.21s-.25.42-.21.65l.43,2.51c.06.37.38.62.74.62.04,0,.08,0,.13-.01.41-.07.68-.46.61-.86l-.06-.33c1.22.92,2.67,1.39,4.13,1.39,1.76,0,3.52-.67,4.86-2.01,1.92-1.92,2.53-4.8,1.55-7.34Z"/></svg>
               Sync Calendar
             </button>
           </div>
