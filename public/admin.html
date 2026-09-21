@@ -2532,6 +2532,10 @@
               <button class="view-toggle-btn wide active" id="cal-view-week" onclick="setCalView('week')" title="Week view" style="font-size:13px">Week</button>
               <button class="view-toggle-btn wide" id="cal-view-month" onclick="setCalView('month')" title="Month view" style="font-size:13px">Month</button>
             </div>
+            <button class="btn btn-ghost" id="cal-external-sync-btn" onclick="syncCalendarPageExternalEvents()" title="Pull in the latest appointments from your connected calendar(s)" style="margin-left:auto;font-size:12px;gap:6px;padding:6px 12px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Sync
+            </button>
           </div>
           <div class="cal-admin-grid" id="cal-admin-grid"></div>
         </div>
@@ -10426,6 +10430,59 @@ async function syncAllBookings(provider) {
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
+  }
+}
+
+// "Sync" button on the calendar page itself (top-right of the week/month
+// toggle row) — a quicker way to pull in the latest native-calendar events
+// while actually looking at the calendar, without navigating to Settings.
+// Pull-only (unlike syncAllBookings above, which also re-pushes bookings
+// out) — that's the direction that matters for what's on screen here, and
+// re-pushing every upcoming booking on every calendar-page visit would be
+// unnecessary work for a button people are likely to click often. Runs
+// against every connected provider at once (there's no single-provider
+// picker on this page, unlike the per-connection buttons in Settings), and
+// — unlike syncAllBookings, which deliberately does NOT re-render because
+// it lives on the Settings page — this one does re-render immediately,
+// since the calendar grid is right there on screen.
+async function syncCalendarPageExternalEvents() {
+  const btn = document.getElementById('cal-external-sync-btn');
+  const accounts = getCalAccounts();
+  if (!accounts.length) {
+    toast('No calendar is connected — connect one in Settings > Connected Accounts', '');
+    return;
+  }
+
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Syncing…';
+  try {
+    const results = await Promise.all(accounts.map(a =>
+      apiFetch('/calendar/sync-external', { method: 'POST', body: JSON.stringify({ provider: a.provider }) })
+        .then(r => ({ ...r, provider: a.provider, ok: true }))
+        .catch(err => ({ ok: false, provider: a.provider, error: err.message }))
+    ));
+
+    const succeeded = results.filter(r => r.ok);
+    const failed = results.filter(r => !r.ok);
+    const totalCount = succeeded.reduce((sum, r) => sum + (r.count || 0), 0);
+
+    if (failed.length) {
+      console.warn('External calendar sync failures:', failed);
+      toast(succeeded.length
+        ? `Synced ${totalCount} event${totalCount === 1 ? '' : 's'} — ${failed.length} connection${failed.length === 1 ? '' : 's'} failed (see console)`
+        : `Sync failed: ${failed[0].error}`, 'error');
+    } else {
+      toast(`Calendar synced — ${totalCount} external event${totalCount === 1 ? '' : 's'} found`, 'success');
+    }
+
+    await loadExternalEvents();
+    renderAdminCalendar();
+  } catch (err) {
+    toast('Sync failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
   }
 }
 
