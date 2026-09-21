@@ -7,7 +7,7 @@ import { renderEmail } from '../../lib/emailTemplate.js';
 import { buildPractitionerEmailHtml } from '../../lib/practitionerEmailTemplate.js';
 import { generateInvoiceForBooking } from '../../lib/invoices.js';
 import { sanitizeSenderId, normalizePhoneAU } from '../../lib/sms.js';
-import { syncBookingToProvider } from '../../lib/calendarSync.js';
+import { syncBookingToProvider, hasCalendarConflict } from '../../lib/calendarSync.js';
 
 // Helper - format time to 12hr
 function fmtTime(t) {
@@ -281,7 +281,45 @@ export default async function handler(req, res) {
           WHERE organization_id = ${org.id} AND date = ${date}
           AND status NOT IN ('cancelled', 'noshow')
         `;
-        return res.json(rows);
+
+        // Merge in cached external-calendar busy blocks (2-way calendar
+        // sync) — same {date, time, duration, status} shape as a real
+        // booking row, so the slot-availability logic already in
+        // book.html/booking.html blocks these times with no frontend
+        // change needed. Deliberately carries no title, client name, or
+        // any other detail — this is the public, unauthenticated view,
+        // and a client must only ever see that a time is unavailable,
+        // never what it's for. Titles are returned only to the
+        // authenticated admin panel, via a separate endpoint
+        // (api/calendar/external-events.js).
+        let externalRows = [];
+        try {
+          externalRows = await sql`
+            SELECT
+              ${date}::text AS date,
+              TO_CHAR(
+                GREATEST(e.start_time, ${date}::timestamp AT TIME ZONE 'Australia/Sydney') AT TIME ZONE 'Australia/Sydney',
+                'HH24:MI:SS'
+              ) AS time,
+              GREATEST(1, ROUND(EXTRACT(EPOCH FROM (
+                LEAST(e.end_time, (${date}::date + 1)::timestamp AT TIME ZONE 'Australia/Sydney')
+                - GREATEST(e.start_time, ${date}::timestamp AT TIME ZONE 'Australia/Sydney')
+              )) / 60)) AS duration,
+              'external'::text AS status
+            FROM external_calendar_events e
+            JOIN practitioners p ON p.id = e.practitioner_id
+            WHERE p.organization_id = ${org.id}
+            AND e.start_time < (${date}::date + 1)::timestamp AT TIME ZONE 'Australia/Sydney'
+            AND e.end_time > ${date}::timestamp AT TIME ZONE 'Australia/Sydney'
+          `;
+        } catch (err) {
+          // Fails open — e.g. on a database the migration hasn't reached
+          // yet, public availability still works from real bookings alone
+          // rather than the whole endpoint breaking.
+          console.warn('[bookings GET] External calendar merge failed:', err.message);
+        }
+
+        return res.json([...rows, ...externalRows]);
       }
     }
 
@@ -301,6 +339,27 @@ export default async function handler(req, res) {
       if (!practitionerId) {
         const [p] = await sql`SELECT id FROM practitioners WHERE organization_id = ${org.id} ORDER BY created_at ASC LIMIT 1`;
         practitionerId = p ? p.id : null;
+      }
+
+      // Live conflict check (2-way calendar sync) — the cached external
+      // events merged into GET above are only as fresh as the last cron
+      // run (daily, on this plan), so a same-day change in the
+      // practitioner's native calendar could otherwise slip through and
+      // get double-booked. This is the one authoritative, real-time check
+      // against the calendar provider itself, right before the booking is
+      // actually written. It fails OPEN — any error talking to
+      // Google/Microsoft returns checked:false and this simply proceeds,
+      // exactly as if no calendar were connected at all, so a slow or
+      // down calendar API can never take the public booking page down
+      // with it. This route is only ever reached from the public booking
+      // pages (book.html/booking.html) — admin bookings go through the
+      // PUT bulk-sync route below, which intentionally has no such check
+      // so the practitioner's manual working-hours override keeps working.
+      if (practitionerId) {
+        const liveCheck = await hasCalendarConflict(practitionerId, b.date, b.time, b.duration || 60);
+        if (liveCheck.conflict) {
+          return res.status(409).json({ error: 'That time was just taken in the practitioner’s calendar. Please choose another time.' });
+        }
       }
 
       const [row] = await sql`

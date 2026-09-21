@@ -869,7 +869,9 @@ async function apiFetch(path, options = {}) {
   if (!res.ok) {
     let msg = 'Request failed';
     try { const d = await res.json(); msg = d.error || msg; } catch {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();
@@ -1465,6 +1467,17 @@ async function confirmBooking() {
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Confirm Booking';
+    if (err.status === 409) {
+      // Someone else took this slot (or it was blocked by a synced
+      // external calendar event) between selecting it and confirming.
+      // Send the client back to time selection with fresh availability
+      // rather than letting them retry into the same failure.
+      state.selectedTime = null;
+      goStep(2);
+      renderSlots();
+      alert(err.message || 'That time is no longer available. Please choose another time.');
+      return;
+    }
     const errEl = document.getElementById('step-4-error');
     if (errEl) { errEl.textContent = 'Could not confirm booking. Please try again.'; errEl.style.display = 'block'; }
     else { alert('Could not confirm booking: ' + err.message); }

@@ -766,6 +766,18 @@
   .cal-week-event.completed { background: var(--cal-green-pale);  color: var(--cal-green);   border-left: 3px solid var(--cal-green); }
   .cal-week-event.cancelled { background: var(--red-pale);    color: var(--red);    border-left: 3px solid var(--red); }
   .cal-week-event.noshow    { background: #F0EEF8;            color: #7B6FBC;       border-left: 3px solid #7B6FBC; }
+  /* External calendar events (2-way sync) — appointments the practitioner
+     made directly in their own Google/Microsoft calendar, shown here for
+     visibility only. pointer-events:none lets a click pass straight
+     through to the cell underneath, so the practitioner can still
+     manually book over the top of one (the working-hours override already
+     supports this) rather than this block intercepting the click. */
+  .cal-week-event.external {
+    background: var(--surface-2, #EDEBE9); color: var(--ink-soft, #55555C);
+    border-left: 3px solid var(--ink-soft, #55555C);
+    cursor: default; pointer-events: none; opacity: 0.75;
+  }
+  .cal-week-event.external:hover { filter: none; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 
   /* ── MONTH VIEW ── */
   .cal-admin-grid { /* plain container — week view builds structure inside; month adds its own grid */ }
@@ -5479,6 +5491,34 @@ async function loadBookings() {
   const rows = await apiFetch('/bookings');
   _cache.bookings = rows.map(normalizeBooking);
   return _cache.bookings;
+}
+
+// ── External calendar events (2-way sync) — appointments made directly in
+// the practitioner's own connected Google/Microsoft calendar, shown on the
+// admin week view for visibility only (see renderWeekView). Refreshed on
+// the server by a daily cron job, so this is just reading whatever that
+// job last cached — never a live call to Google/Microsoft. Fails silently
+// to an empty list rather than throwing, since this is a secondary,
+// visibility-only feature that must never be able to block the admin
+// panel's main bookings data (loaded in the same Promise.all in bootApp)
+// from loading.
+function getExternalEvents() { return _cache.externalEvents || []; }
+
+async function loadExternalEvents() {
+  try {
+    const rows = await apiFetch('/calendar/external-events');
+    _cache.externalEvents = rows.map(r => ({
+      id: r.event_id,
+      provider: r.provider,
+      title: r.title || '(No title)',
+      start: new Date(r.start_time),
+      end: new Date(r.end_time),
+    }));
+  } catch (err) {
+    console.warn('Failed to load external calendar events:', err.message);
+    _cache.externalEvents = _cache.externalEvents || [];
+  }
+  return _cache.externalEvents;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -10954,6 +10994,11 @@ function renderWeekView() {
     var dayCfg = schedule[dk];
     var isWorkday = dayCfg && dayCfg.active;
     var dayBookings = bookings.filter(function(b) { return b.date === dateStr; });
+    // External calendar events (2-way sync) — matched by the event's own
+    // start date only (not clamped across midnight) since this is a
+    // visibility-only display; the actual public-booking blocking logic
+    // (which does clamp correctly) lives server-side in api/bookings/index.js.
+    var dayExternal = getExternalEvents().filter(function(ev) { return localDateStr(ev.start) === dateStr; });
 
     body += '<div class="cal-week-day-col' + (isToday ? ' today' : '') + '">';
     for (var si = 0; si < sortedTimes.length; si++) {
@@ -10976,11 +11021,30 @@ function renderWeekView() {
         }
       }
 
+      // Only look for an external-calendar match when no h_ld booking
+      // already occupies this slot — a real booking always takes visual
+      // priority, and if this slot IS a real booking, that already means
+      // whatever external event may correspond to it (once this booking
+      // synced out to the native calendar) is the practitioner's own,
+      // not a genuine outside conflict.
+      var externalEvent = null;
+      if (!booking) {
+        for (var xi = 0; xi < dayExternal.length; xi++) {
+          var evMins = dayExternal[xi].start.getHours() * 60 + dayExternal[xi].start.getMinutes();
+          if (evMins >= slotMins && evMins < slotMins + 30) { externalEvent = dayExternal[xi]; break; }
+        }
+      }
+
       var cellCls = 'cal-time-row';
       if (isAvail) cellCls += ' has-slot';
       if (!booking && !slotIsPast) cellCls += ' clickable-slot';
       if (slotIsPast) cellCls += ' past-slot';
 
+      // Clicking still opens the manual-booking flow even over an external
+      // event — the external block below has pointer-events:none
+      // specifically so this keeps working, since the practitioner must
+      // still be able to override and book manually regardless of what's
+      // showing in their native calendar.
       var clickAttr = (!booking && !slotIsPast)
         ? ' onclick="openNewBookingFromCal(\'' + dateStr + '\',\'' + slotTime + '\')"'
         : '';
@@ -10993,6 +11057,15 @@ function renderWeekView() {
           + ' onclick="openSlideout(\'' + booking.id + '\')">'
           + '<span class="cal-event-time">' + formatTime12((booking.time||'').substring(0,5)) + '</span>'
           + '<span class="cal-event-name">' + booking.client + '</span>'
+          + '</div>';
+      } else if (externalEvent) {
+        var durMins2 = Math.max(30, Math.round((externalEvent.end - externalEvent.start) / 60000));
+        var rowH2 = Math.max(46, Math.round(durMins2 / 30) * 48 - 2);
+        var evTimeStr = String(externalEvent.start.getHours()).padStart(2,'0') + ':' + String(externalEvent.start.getMinutes()).padStart(2,'0');
+        body += '<div class="cal-week-event external"'
+          + ' style="top:2px;height:' + rowH2 + 'px" title="' + escapeHtml(externalEvent.title) + '">'
+          + '<span class="cal-event-time">' + formatTime12(evTimeStr) + '</span>'
+          + '<span class="cal-event-name">' + escapeHtml(externalEvent.title) + '</span>'
           + '</div>';
       }
       body += '</div>';
@@ -15265,7 +15338,7 @@ function updateAiLearnedCount() {
 // ═══════════════════════════════════════════════════════════
 async function bootApp() {
   try {
-    await Promise.all([loadBookings(), loadServices(), loadClients(), loadSettings(), loadNoteTemplates(), loadForms()]);
+    await Promise.all([loadBookings(), loadServices(), loadClients(), loadSettings(), loadNoteTemplates(), loadForms(), loadExternalEvents()]);
   } catch (err) {
     console.error('Failed to load data:', err);
     if (err.message === 'Session expired') return; // showLogin already called
