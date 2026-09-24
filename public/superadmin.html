@@ -1158,11 +1158,11 @@ async function confirmSendMessage() {
 // platform_settings key 'login_background', read by admin.html's
 // login screen before anyone has signed in (hence GET being public).
 // ═══════════════════════════════════════════════════════════
+const BG_MIN_COLORS = 2;
+const BG_MAX_COLORS = 6;
 const BG_DEFAULTS = {
   mode: 'gradient',
-  color1: '#dfcecb',
-  color2: '#b3e0e2',
-  color3: '#dfcba2',
+  colors: ['#dfcecb', '#b3e0e2', '#dfcba2'],
   noiseScale: 2,
   grainAmount: 0.1,
   grainScale: 2,
@@ -1170,7 +1170,7 @@ const BG_DEFAULTS = {
   imageUrl: null,
 };
 
-let _bgSettings = { ...BG_DEFAULTS };
+let _bgSettings = { ...BG_DEFAULTS, colors: [...BG_DEFAULTS.colors] };
 
 async function openBackgroundEditor() {
   document.getElementById('list-view').style.display = 'none';
@@ -1182,8 +1182,17 @@ async function openBackgroundEditor() {
   try {
     const saved = await apiFetch('/admin/platform-settings?key=login_background');
     _bgSettings = { ...BG_DEFAULTS, ...(saved || {}) };
+    // 'colors' is the current (2-6 stop) format; color1/2/3 is the older
+    // fixed-3-colour format some saved settings may still be in.
+    if (saved && Array.isArray(saved.colors) && saved.colors.length >= 2) {
+      _bgSettings.colors = saved.colors.slice(0, BG_MAX_COLORS);
+    } else if (saved && saved.color1 && saved.color2 && saved.color3) {
+      _bgSettings.colors = [saved.color1, saved.color2, saved.color3];
+    } else {
+      _bgSettings.colors = [...BG_DEFAULTS.colors];
+    }
   } catch (err) {
-    _bgSettings = { ...BG_DEFAULTS };
+    _bgSettings = { ...BG_DEFAULTS, colors: [...BG_DEFAULTS.colors] };
   }
   renderBackgroundEditor();
 }
@@ -1210,12 +1219,16 @@ function renderBackgroundEditor() {
         </div>
 
         <div id="bg-gradient-controls" style="display:${s.mode === 'gradient' ? 'block' : 'none'}">
-          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft);margin-bottom:12px">Colour</div>
-          <div style="display:flex;gap:16px;margin-bottom:24px">
-            ${['color1', 'color2', 'color3'].map((key, i) => `
-              <div style="flex:1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft)">Colour</div>
+            <button type="button" class="btn btn-ghost" id="bg-add-color-btn" style="font-size:12px;padding:4px 10px;display:${s.colors.length >= BG_MAX_COLORS ? 'none' : 'inline-flex'}" onclick="addBgColor()">+ Add colour</button>
+          </div>
+          <div id="bg-color-list" style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:24px">
+            ${s.colors.map((c, i) => `
+              <div style="width:64px">
                 <label style="font-size:12px;font-weight:600;color:var(--ink-mid);display:block;margin-bottom:6px">Colour ${i + 1}</label>
-                <input type="color" id="bg-${key}" value="${s[key]}" oninput="updateBgPreview()" style="width:100%;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer">
+                <input type="color" class="bg-color-input" value="${c}" oninput="updateBgPreview()" style="width:100%;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer">
+                <button type="button" class="btn btn-ghost" style="font-size:11px;padding:3px 0;margin-top:4px;width:100%;color:var(--red);display:${s.colors.length <= BG_MIN_COLORS ? 'none' : 'inline-flex'}" onclick="removeBgColor(${i})">Remove</button>
               </div>
             `).join('')}
           </div>
@@ -1271,7 +1284,30 @@ function bgPreviewCss(s) {
   if (s.mode === 'image' && s.imageUrl) {
     return `center / cover no-repeat url('${s.imageUrl}')`;
   }
-  return `linear-gradient(135deg, ${s.color1} 0%, ${s.color3} 50%, ${s.color2} 100%)`;
+  const colors = (s.colors && s.colors.length >= 2) ? s.colors : BG_DEFAULTS.colors;
+  const n = colors.length;
+  const stops = colors.map((c, i) => `${c} ${Math.round((i / (n - 1)) * 100)}%`).join(', ');
+  return `linear-gradient(135deg, ${stops})`;
+}
+
+function addBgColor() {
+  const current = readBgFormState();
+  if (current.colors.length >= BG_MAX_COLORS) return;
+  const palette = ['#dfcecb', '#b3e0e2', '#dfcba2', '#c9b8dc', '#f0c9a0', '#a8d4c0'];
+  const nextColor = palette[current.colors.length % palette.length];
+  _bgSettings = { ..._bgSettings, ...current, colors: [...current.colors, nextColor] };
+  renderBackgroundEditor();
+  updateBgPreview();
+}
+
+function removeBgColor(index) {
+  const current = readBgFormState();
+  if (current.colors.length <= BG_MIN_COLORS) return;
+  const colors = current.colors.slice();
+  colors.splice(index, 1);
+  _bgSettings = { ..._bgSettings, ...current, colors };
+  renderBackgroundEditor();
+  updateBgPreview();
 }
 
 function setBgMode(mode) {
@@ -1291,12 +1327,12 @@ function updateBgPreview() {
 function readBgFormState() {
   const mode = _bgSettings.mode || 'gradient';
   if (mode === 'gradient') {
+    const colorInputs = Array.from(document.querySelectorAll('.bg-color-input'));
+    const colors = colorInputs.length ? colorInputs.map(el => el.value) : (_bgSettings.colors || BG_DEFAULTS.colors);
     return {
       ...(_bgSettings),
       mode,
-      color1: document.getElementById('bg-color1')?.value || _bgSettings.color1,
-      color2: document.getElementById('bg-color2')?.value || _bgSettings.color2,
-      color3: document.getElementById('bg-color3')?.value || _bgSettings.color3,
+      colors,
       noiseScale: parseFloat(document.getElementById('bg-noise-scale')?.value ?? _bgSettings.noiseScale),
       grainAmount: parseFloat(document.getElementById('bg-grain-amount')?.value ?? _bgSettings.grainAmount),
       grainScale: parseFloat(document.getElementById('bg-grain-scale')?.value ?? _bgSettings.grainScale),

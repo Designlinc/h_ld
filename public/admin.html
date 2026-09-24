@@ -15582,6 +15582,21 @@ function hexToRgb(hex) {
   return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255];
 }
 
+// Flattens a variable-length (2-6) hex colour array into the fixed-size
+// vec3[MAX_BG_COLORS] uniform the shader expects, padding any unused
+// trailing slots with the last real colour (never read by the shader,
+// since the fragment loop breaks once it reaches uNumColors).
+const MAX_BG_COLORS = 6;
+function colorsToUniformArray(colors) {
+  const list = (colors && colors.length >= 2) ? colors : ['#dfcecb', '#b3e0e2', '#dfcba2'];
+  const arr = new Float32Array(MAX_BG_COLORS * 3);
+  for (let i = 0; i < MAX_BG_COLORS; i++) {
+    const [r, g, b] = hexToRgb(list[Math.min(i, list.length - 1)]);
+    arr[i * 3] = r; arr[i * 3 + 1] = g; arr[i * 3 + 2] = b;
+  }
+  return arr;
+}
+
 const vertex = `#version 300 es
 in vec2 position;
 void main() {
@@ -15611,9 +15626,9 @@ uniform float uGamma;
 uniform float uSaturation;
 uniform vec2 uCenterOffset;
 uniform float uZoom;
-uniform vec3 uColor1;
-uniform vec3 uColor2;
-uniform vec3 uColor3;
+const int MAX_BG_COLORS = 6;
+uniform vec3 uColors[MAX_BG_COLORS];
+uniform int uNumColors;
 out vec4 fragColor;
 #define S(a,b,t) smoothstep(a,b,t)
 mat2 Rot(float a){float s=sin(a),c=cos(a);return mat2(c,-s,s,c);}
@@ -15638,9 +15653,6 @@ void mainImage(out vec4 o, vec2 C){
   tuv.x+=sin(tuv.y*frequency+warpTime)/amplitude;
   tuv.y+=sin(tuv.x*(frequency*1.5)+warpTime)/(amplitude*0.5);
 
-  vec3 colLav=uColor1;
-  vec3 colOrg=uColor2;
-  vec3 colDark=uColor3;
   float b=uColorBalance;
   float s=max(uBlendSoftness,0.0);
   mat2 blendRot=Rot(radians(uBlendAngle));
@@ -15649,9 +15661,18 @@ void mainImage(out vec4 o, vec2 C){
   float edge1=0.2-b+s;
   float v0=0.5-b+s;
   float v1=-0.3-b-s;
-  vec3 layer1=mix(colDark,colOrg,S(edge0,edge1,blendX));
-  vec3 layer2=mix(colOrg,colLav,S(edge0,edge1,blendX));
-  vec3 col=mix(layer1,layer2,S(v0,v1,tuv.y));
+  float hFactor=S(edge0,edge1,blendX);
+  float vFactor=S(v0,v1,tuv.y);
+  float u=clamp((hFactor+vFactor)*0.5,0.0,1.0);
+  int nCol=clamp(uNumColors,2,MAX_BG_COLORS);
+  vec3 col=uColors[0];
+  for(int i=1;i<MAX_BG_COLORS;i++){
+    if(i>=nCol) break;
+    float segStart=float(i-1)/float(nCol-1);
+    float segEnd=float(i)/float(nCol-1);
+    float w=S(segStart,segEnd,u);
+    col=mix(col,uColors[i],w);
+  }
 
   vec2 grainUv=uv*max(uGrainScale,0.001);
   if(uGrainAnimated>0.5){grainUv+=vec2(iTime*0.05);}
@@ -15695,9 +15716,7 @@ let settings = {
   centerX: 0,
   centerY: 0,
   zoom: 0.9,
-  color1: '#dfcecb',
-  color2: '#b3e0e2',
-  color3: '#dfcba2'
+  colors: ['#dfcecb', '#b3e0e2', '#dfcba2']
 };
 
 function initGrainient(container) {
@@ -15740,9 +15759,8 @@ function initGrainient(container) {
         uSaturation:     { value: settings.saturation },
         uCenterOffset:   { value: new Float32Array([settings.centerX, settings.centerY]) },
         uZoom:           { value: settings.zoom },
-        uColor1:         { value: new Float32Array(hexToRgb(settings.color1)) },
-        uColor2:         { value: new Float32Array(hexToRgb(settings.color2)) },
-        uColor3:         { value: new Float32Array(hexToRgb(settings.color3)) }
+        uColors:         { value: colorsToUniformArray(settings.colors) },
+        uNumColors:      { value: settings.colors.length }
       }
     });
     mesh = new Mesh(gl, { geometry, program });
@@ -15817,9 +15835,13 @@ async function applyPlatformBackground() {
   }
 
   if (bg && bg.mode === 'gradient') {
-    if (bg.color1) settings.color1 = bg.color1;
-    if (bg.color2) settings.color2 = bg.color2;
-    if (bg.color3) settings.color3 = bg.color3;
+    // 'colors' is the current (2-6 stop) format; color1/2/3 is the older
+    // fixed-3-colour format some saved settings may still be in.
+    if (Array.isArray(bg.colors) && bg.colors.length >= 2) {
+      settings.colors = bg.colors.slice(0, MAX_BG_COLORS);
+    } else if (bg.color1 && bg.color2 && bg.color3) {
+      settings.colors = [bg.color1, bg.color2, bg.color3];
+    }
     if (typeof bg.noiseScale === 'number') settings.noiseScale = bg.noiseScale;
     if (typeof bg.grainAmount === 'number') settings.grainAmount = bg.grainAmount;
     if (typeof bg.grainScale === 'number') settings.grainScale = bg.grainScale;
