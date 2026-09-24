@@ -649,7 +649,8 @@
   }
   .cal-week-header-corner {
     width: 68px; flex-shrink: 0;
-    background: var(--bg);
+    /* 30% more transparent than solid --bg (#F5F2F0) */
+    background: rgba(245, 242, 240, .7);
     border-right: var(--cal-line);
   }
   .cal-week-header-days {
@@ -661,7 +662,8 @@
   .cal-admin-dow {
     padding: 10px 6px; text-align: center;
     border-right: var(--cal-line);
-    background: var(--bg);
+    /* 30% more transparent than solid --bg (#F5F2F0) */
+    background: rgba(245, 242, 240, .7);
   }
   .cal-admin-dow:last-child { border-right: none; }
   .cal-admin-dow.cal-dow-today { background: var(--today-highlight); }
