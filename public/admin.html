@@ -15582,17 +15582,21 @@ function hexToRgb(hex) {
   return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255];
 }
 
-// Flattens a variable-length (2-6) hex colour array into the fixed-size
-// vec3[MAX_BG_COLORS] uniform the shader expects, padding any unused
-// trailing slots with the last real colour (never read by the shader,
-// since the fragment loop breaks once it reaches uNumColors).
+// Builds the value for the vec3[MAX_BG_COLORS] uniform the shader expects,
+// padding any unused trailing slots with the last real colour (never read
+// by the shader, since the fragment loop breaks once it reaches uNumColors).
+//
+// This MUST be a plain JS Array of length-3 arrays (not a flat typed
+// array) — ogl's Program.use() only recognises a GLSL array uniform when
+// Array.isArray(uniform.value) is true; a flat Float32Array fails that
+// check silently, the uniform never gets uploaded, and uColors is left at
+// WebGL's default all-zero value, which renders as solid black.
 const MAX_BG_COLORS = 6;
 function colorsToUniformArray(colors) {
   const list = (colors && colors.length >= 2) ? colors : ['#dfcecb', '#b3e0e2', '#dfcba2'];
-  const arr = new Float32Array(MAX_BG_COLORS * 3);
+  const arr = [];
   for (let i = 0; i < MAX_BG_COLORS; i++) {
-    const [r, g, b] = hexToRgb(list[Math.min(i, list.length - 1)]);
-    arr[i * 3] = r; arr[i * 3 + 1] = g; arr[i * 3 + 2] = b;
+    arr.push(hexToRgb(list[Math.min(i, list.length - 1)]));
   }
   return arr;
 }
