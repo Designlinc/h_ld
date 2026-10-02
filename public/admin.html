@@ -975,6 +975,24 @@
     right: 12px;
   }
   .note-editor-overlay.open .note-editor-modal { transform: translateX(0); opacity: 1; pointer-events: all; }
+  /* Shown over the whole note editor while a close/save is still waiting on
+     the server — only appears if that takes more than a brief moment (see
+     closeNoteEditor), so a normal fast save never flashes it. Reassures
+     rather than letting the panel just go blank/disappear mid-save. */
+  .ne-saving-overlay {
+    position: absolute; inset: 0; z-index: 5;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px;
+    background: var(--bg); text-align: center; padding: 20px;
+  }
+  .ne-saving-overlay.show { display: flex; }
+  .ne-saving-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--sage);
+    animation: ne-saving-spin .8s linear infinite;
+  }
+  @keyframes ne-saving-spin { to { transform: rotate(360deg); } }
+  .ne-saving-text { font-size: 14px; color: var(--ink-mid); max-width: 280px; }
   /* Tab bar */
   .ne-tab-bar {
     display: flex; align-items: center; gap: 0;
@@ -4412,6 +4430,11 @@
 <div class="note-editor-overlay" id="note-editor-overlay">
   <div class="note-editor-modal">
 
+    <div class="ne-saving-overlay" id="ne-saving-overlay">
+      <div class="ne-saving-spinner"></div>
+      <div class="ne-saving-text">We're just saving your notes&hellip; this will only take a moment.</div>
+    </div>
+
     <!-- Tab bar -->
     <div class="ne-tab-bar" id="ne-tab-bar"></div>
 
@@ -5456,6 +5479,16 @@ function getBookings() { return _cache.bookings || []; }
 // those rows must exist before the booking insert/update runs.
 let _bookingSyncTimer = null;
 let _bookingSyncPromise = Promise.resolve();
+// True for the entire span from the moment a flush actually starts until
+// the server has responded (success or failure) — NOT the same thing as
+// _bookingSyncTimer, which only covers the 400ms debounce *before* the
+// flush begins and is cleared the instant the flush kicks off. Without
+// this separate flag, pollBookings() (see below) had a real gap: it only
+// checked _bookingSyncTimer, so the moment a save left the debounce queue
+// and started its (possibly multi-second, since it waits on the
+// services/clients flushes too) round trip to the server, polling was no
+// longer blocked from fetching and overwriting the pre-save data.
+let _bookingSyncInFlight = false;
 function setBookings(b) {
   _cache.bookings = b;
   clearTimeout(_bookingSyncTimer);
@@ -5468,6 +5501,7 @@ function flushBookingsSync() {
   if (_bookingSyncTimer) {
     clearTimeout(_bookingSyncTimer);
     _bookingSyncTimer = null;
+    _bookingSyncInFlight = true;
     const b = _cache.bookings || [];
     // Bookings reference service_id/client_id via foreign keys. Both services
     // and clients sync on their own longer debounce (400ms / 1200ms) — if a
@@ -5489,7 +5523,8 @@ function flushBookingsSync() {
         console.warn('Bookings sync failed:', err.message);
         toast('Could not save booking changes: ' + err.message, 'error');
         throw err; // let direct callers (e.g. saveBooking) know it failed and react
-      });
+      })
+      .finally(() => { _bookingSyncInFlight = false; });
   }
   return _bookingSyncPromise;
 }
@@ -5568,7 +5603,12 @@ async function pollBookings() {
   // rather than merging into it.
   if (document.querySelector('.modal-backdrop.open')) return;
   if (document.getElementById('note-editor-overlay')?.classList.contains('open')) return;
-  if (_bookingSyncTimer) return; // a save is still pending/in-flight to the server — don't fetch a version that predates it
+  // _bookingSyncTimer only covers the 400ms debounce before a save starts;
+  // _bookingSyncInFlight covers the save's actual (multi-step, potentially
+  // multi-second) round trip to the server. Need both — a save that has
+  // already left the debounce queue but hasn't finished yet is exactly the
+  // scenario that let this poll fetch and overwrite pre-save data before.
+  if (_bookingSyncTimer || _bookingSyncInFlight) return;
   // Only pages that actually display booking status need refreshing
   if (currentPage !== 'dashboard' && currentPage !== 'bookings') return;
 
@@ -6775,6 +6815,8 @@ function closeSlideout() {
 
 function closeAllNoteTabsAndSave() {
   if (!_notesOpenTabs.length) return;
+  clearTimeout(neAutoSaveTimer);
+  clearTimeout(neOngoingAutoSaveTimer);
   // Auto-save whichever tabs have unsaved editable content
   const sessionTab = _notesOpenTabs.find(t => t.type === 'session');
   if (sessionTab && neEditingNoteIndex !== null) {
@@ -7229,9 +7271,20 @@ function switchNoteTab(id) {
 }
 
 function closeNoteTab(id, skipSave) {
+  // Save this specific tab's content before dropping it — previously a tab
+  // closed via its own small "x" (while other tabs stayed open) was just
+  // removed from the list with no save at all, silently discarding whatever
+  // was typed there.
+  const tab = _notesOpenTabs.find(t => t.id === id);
+  if (tab && !skipSave) {
+    if (tab.type === 'session' && neEditingNoteIndex !== null) { try { saveNoteFromEditor(true); } catch(e) {} }
+    else if (tab.type === 'ongoing') { try { saveOngoingNote(true); } catch(e) {} }
+  }
   _notesOpenTabs = _notesOpenTabs.filter(t => t.id !== id);
   if (!_notesOpenTabs.length) {
-    closeNoteEditor(!skipSave);
+    // Already saved (or explicitly skipped) above — closeNoteEditor just
+    // needs to wait for that save's flush and close, not save again.
+    closeNoteEditor(tab && !skipSave ? 'saved' : false);
     return;
   }
   if (_notesActiveTab === id) {
@@ -7330,6 +7383,7 @@ function saveOngoingNote(silent) {
   if (!c.notes) c.notes = [];
   const existingIdx = c.notes.findIndex(n => n.templateId === 'ongoing-issues' || (n.title||'').toLowerCase().includes('ongoing'));
   const noteData = {
+    id: existingIdx >= 0 ? (c.notes[existingIdx].id || ('n' + Date.now() + Math.random().toString(36).slice(2, 6))) : ('n' + Date.now() + Math.random().toString(36).slice(2, 6)),
     html: editor.innerHTML,
     text: editor.innerText,
     title: 'Ongoing Issues',
@@ -7352,7 +7406,14 @@ function saveOngoingNote(silent) {
 }
 
 function onOngoingNEInput() {
-  // Could add autosave here later
+  // Real autosave, same pattern as the Session Notes editor's onNEInput —
+  // previously this was a stub, so Ongoing Issues content had no autosave
+  // at all and was only ever written anywhere (even to the local cache) by
+  // explicitly clicking this tab's own "Save note" button. Any other way
+  // of leaving the tab (Escape, the panel's close button, the tab's own
+  // little "x") discarded it with no save attempt whatsoever.
+  clearTimeout(neOngoingAutoSaveTimer);
+  neOngoingAutoSaveTimer = setTimeout(() => { saveOngoingNote(true); }, 1500);
 }
 
 function openBookingNoteEditor() {
@@ -12016,8 +12077,31 @@ function closeTmplModalIfBg(e) { if (e.target === e.currentTarget) closeTmplModa
 // FULL-SCREEN NOTE EDITOR
 // ═══════════════════════════════════════════════════════════
 let neAutoSaveTimer = null;
+let neOngoingAutoSaveTimer = null;
 
-let neEditingNoteIndex = null; // null = new note, number = editing existing
+let neEditingNoteIndex = null; // null = new note, number = editing existing, 'booking'/'template' = other editor modes
+// A client note's stable identity for the duration of this editing session.
+// neEditingNoteIndex is only used to locate the note at OPEN time — saving
+// used to re-use that same raw array index, which silently broke if
+// anything else (e.g. the Ongoing Issues note's own unshift-to-front save)
+// mutated c.notes while this editor was still open: the index would still
+// be in range, so it would save, just into the WRONG note, with the one
+// actually being edited reverting to its last-saved content — looking
+// exactly like the new typing had vanished. Set alongside
+// neEditingNoteIndex whenever a client note is opened; saveNoteFromEditor
+// looks the note up by this id instead, which stays correct regardless of
+// how the array gets reordered in the meantime.
+let neEditingNoteId = null;
+
+// Waits for whichever of the bookings/clients syncs are actually pending or
+// in flight right now. Checked by sync state rather than by which note tab
+// was open, so it's correct no matter which editor(s) triggered the save.
+function waitForPendingNoteSyncs() {
+  const pending = [];
+  if (_bookingSyncTimer || _bookingSyncInFlight) pending.push(flushBookingsSync());
+  if (_clientsSyncTimer || _clientsSyncInFlight) pending.push(flushClientsSync());
+  return pending.length ? Promise.all(pending) : Promise.resolve();
+}
 
 function openNoteEditor(noteIndex) {
   if (!currentClientId) return;
@@ -12042,10 +12126,16 @@ function openNoteEditor(noteIndex) {
   if (neEditingNoteIndex !== null) {
     // Edit existing note
     const note = c.notes[neEditingNoteIndex];
+    // Backfill an id for notes saved before neEditingNoteId existed, so
+    // every note is identifiable by something more stable than its
+    // position in the array from here on.
+    if (!note.id) note.id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6);
+    neEditingNoteId = note.id;
     document.getElementById('ne-session-info').textContent = 'Editing note from '
       + new Date(note.createdAt).toLocaleDateString('en-AU', { day:'numeric', month:'short', year:'numeric' });
     editor.innerHTML = stripLivePreviewArtifacts(note.html || (note.text ? note.text.replace(/\n/g,'<br>') : ''));
   } else {
+    neEditingNoteId = null;
     // New note — pre-fill from default template if one exists
     document.getElementById('ne-session-info').textContent = sessionBook
       ? sessionBook.service + ' \u00b7 ' + new Date(sessionBook.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
@@ -12889,7 +12979,7 @@ function saveNoteFromEditor(silent) {
       const bookings = getBookings();
       const b = bookings.find(x => x.id === selectedBookingId);
       if (b) { b.practitionerNotes = noteHtml; setBookings(bookings); }
-      if (!silent) closeNoteEditor(false); // already just saved, no need to save again
+      if (!silent) closeNoteEditor('saved'); // already just saved — close() just needs to wait for the flush, not save again
       if (b) renderBookingNotesPreview(b);
       if (!silent) toast('Session notes saved', 'success');
       return;
@@ -12901,16 +12991,28 @@ function saveNoteFromEditor(silent) {
     const c = clients.find(x => x.id === currentClientId);
     if (!c) { if (!silent) toast('Client not found', 'error'); return; }
     if (!c.notes) c.notes = [];
-    if (neEditingNoteIndex !== null && neEditingNoteIndex !== undefined) {
-      c.notes[neEditingNoteIndex].html = noteHtml;
-      c.notes[neEditingNoteIndex].updatedAt = new Date().toISOString();
+    // Looked up by id, not by the array index it was opened at — the
+    // Ongoing Issues note saves by unshift()-ing itself to the front of
+    // this same c.notes array, which would silently shift a held index out
+    // from under an open editor onto a DIFFERENT note. An id stays correct
+    // no matter how the array gets reordered in the meantime.
+    if (neEditingNoteId !== null) {
+      const existing = c.notes.find(n => n.id === neEditingNoteId);
+      if (existing) {
+        existing.html = noteHtml;
+        existing.updatedAt = new Date().toISOString();
+      } else {
+        // The note we opened is gone (e.g. deleted elsewhere while open) —
+        // append as a new note rather than silently discarding the edit.
+        c.notes.push({ id: neEditingNoteId, html: noteHtml, createdAt: new Date().toISOString() });
+      }
     } else {
-      c.notes.push({ html: noteHtml, createdAt: new Date().toISOString() });
+      c.notes.push({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), html: noteHtml, createdAt: new Date().toISOString() });
     }
     setClients(clients);
-    if (!silent) closeNoteEditor(false); // already just saved, no need to save again
+    if (!silent) closeNoteEditor('saved'); // already just saved — close() just needs to wait for the flush, not save again
     renderClientNotes(c);
-    if (!silent) toast(neEditingNoteIndex !== null && neEditingNoteIndex !== undefined ? 'Note updated' : 'Note saved', 'success');
+    if (!silent) toast(neEditingNoteId !== null ? 'Note updated' : 'Note saved', 'success');
   } catch(e) {
     if (e.name !== 'QuotaExceededError') {
       if (!silent) toast('Error saving note: ' + e.message, 'error');
@@ -12923,15 +13025,62 @@ function discardNote() {
   const editor = document.getElementById('ne-editor');
   const hasContent = editor.innerHTML.trim() && editor.innerHTML.trim() !== '<br>';
   if (hasContent && !confirm('Discard this note? Changes will be lost.')) return;
-  closeNoteEditor(false); // explicit discard — do NOT save
+  // Discard just this tab (and save it as skipped) — not closeNoteEditor(false)
+  // directly, which would also silently discard an unsaved Ongoing Issues
+  // tab if one happened to be open alongside this one.
+  closeNoteTab('session', true);
 }
 
-function closeNoteEditor(save) {
+// mode: undefined/true -> save whatever's open, wait for it to actually
+//       reach the server, then close.
+//       'saved'  -> the tab that triggered this close already saved itself
+//       moments ago (its own Save button) — don't save it again, but still
+//       wait for that save's flush, and still check for an Ongoing Issues
+//       tab that might separately have unsaved content.
+//       false    -> explicit discard — close immediately, no save, no wait.
+//
+// Previously this only ever saved the Session Notes editor (via
+// saveNoteFromEditor), regardless of which tab was actually open. The
+// Ongoing Issues tab has its own separate editor/content (#ne-ongoing-editor)
+// and its own save path (saveOngoingNote) — pressing Escape or this panel's
+// own close button while that tab was open discarded whatever was typed
+// there with no save attempt at all. This now saves whichever of the two
+// tabs are actually open, and — since both syncs are debounced to the
+// server — waits for that save to actually land before the panel closes,
+// rather than closing (and making the content disappear) while the save is
+// still only sitting in local cache.
+function closeNoteEditor(mode) {
   if (_neRecordingActive) stopNoteRecording();
   stopWaveformVisualizer();
   stopLivePreview();
   clearTimeout(neAutoSaveTimer);
-  if (save !== false) saveNoteFromEditor(true); // flush unsaved changes unless explicitly discarding
+  clearTimeout(neOngoingAutoSaveTimer);
+
+  if (mode === false) {
+    finishCloseNoteEditor();
+    return;
+  }
+
+  if (mode !== 'saved') {
+    const sessionTab = _notesOpenTabs.find(t => t.type === 'session');
+    if (sessionTab && neEditingNoteIndex !== null) { try { saveNoteFromEditor(true); } catch(e) {} }
+  }
+  const ongoingTab = _notesOpenTabs.find(t => t.type === 'ongoing');
+  if (ongoingTab) { try { saveOngoingNote(true); } catch(e) {} }
+
+  // Only show the "saving" message if it actually takes a moment — most
+  // saves land well within this window, so a normal close still feels instant.
+  const overlay = document.getElementById('ne-saving-overlay');
+  const loaderTimer = setTimeout(() => { overlay?.classList.add('show'); }, 400);
+
+  waitForPendingNoteSyncs().catch(() => {}).finally(() => {
+    clearTimeout(loaderTimer);
+    overlay?.classList.remove('show');
+    finishCloseNoteEditor();
+  });
+}
+
+function finishCloseNoteEditor() {
   document.getElementById('note-editor-overlay').classList.remove('open', 'fullscreen');
   // Clear all tabs
   _notesOpenTabs = [];
@@ -12959,9 +13108,17 @@ document.addEventListener('keydown', function(e) {
 window.addEventListener('beforeunload', function() {
   if (!document.getElementById('note-editor-overlay')?.classList.contains('open')) return;
   clearTimeout(neAutoSaveTimer);
-  saveNoteFromEditor(true);
+  clearTimeout(neOngoingAutoSaveTimer);
+  const sessionTab = _notesOpenTabs.find(t => t.type === 'session');
+  if (sessionTab && neEditingNoteIndex !== null) saveNoteFromEditor(true);
   if (neEditingNoteIndex === 'booking') flushBookingsSync();
   else if (neEditingNoteIndex !== 'template') flushClientsSync();
+  // Ongoing Issues lives on the client record too, but isn't gated by
+  // neEditingNoteIndex at all — flush it independently if that tab is open.
+  if (_notesOpenTabs.find(t => t.type === 'ongoing')) {
+    saveOngoingNote(true);
+    flushClientsSync();
+  }
 });
 
 // Tab to indent inside the note editor (instead of the browser's default
@@ -12996,6 +13153,11 @@ function getClients() { return _cache.clients || []; }
 
 let _clientsSyncTimer = null;
 let _clientsSyncPromise = Promise.resolve();
+// See _bookingSyncInFlight for why this is separate from _clientsSyncTimer
+// — it covers the actual network round trip, not just the debounce before
+// it starts (client notes — both Session and Ongoing Issues notes live on
+// the client record — rely on this to know a save has truly landed).
+let _clientsSyncInFlight = false;
 function setClients(c) {
   _cache.clients = c;
   clearTimeout(_clientsSyncTimer);
@@ -13010,12 +13172,14 @@ function flushClientsSync() {
   if (_clientsSyncTimer) {
     clearTimeout(_clientsSyncTimer);
     _clientsSyncTimer = null;
+    _clientsSyncInFlight = true;
     const payload = JSON.stringify(_cache.clients || []);
     if (payload.length > 4_500_000) {
       toast('Client data is very large (embedded images) \u2014 sync may be slow or fail.', 'error');
     }
     _clientsSyncPromise = apiFetch('/clients', { method: 'PUT', body: payload })
-      .catch(err => toast('Could not save client changes: ' + err.message, 'error'));
+      .catch(err => toast('Could not save client changes: ' + err.message, 'error'))
+      .finally(() => { _clientsSyncInFlight = false; });
   }
   return _clientsSyncPromise;
 }
@@ -15148,7 +15312,7 @@ async function executeAiAction() {
         const c3 = clients5.find(x => (x.first + ' ' + x.last).toLowerCase().includes(name3));
         if (!c3) { resultMsg = 'Could not find client "' + params.client_name + '".'; break; }
         if (!c3.notes) c3.notes = [];
-        c3.notes.push({ html: '<p>' + (params.note || '') + '</p>', createdAt: new Date().toISOString() });
+        c3.notes.push({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), html: '<p>' + (params.note || '') + '</p>', createdAt: new Date().toISOString() });
         setClients(clients5);
         resultMsg = 'Note added to ' + c3.first + ' ' + c3.last + '\'s record.';
         success = true;
